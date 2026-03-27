@@ -1,0 +1,1464 @@
+"""
+main.py — Unified SEO Crawler: FastAPI server + standalone CLI pipeline.
+No Streamlit. No external UI dependency.
+
+════════════════════════════════════════════════════════════════════
+MODES
+════════════════════════════════════════════════════════════════════
+
+1. WEB SERVER (default — serves the HTML dashboard at localhost:8000)
+   python main.py
+   python main.py --serve --port 8000
+
+2. CLI PIPELINE (crawl → parse → score → AI → export, fully in terminal)
+   python main.py --crawl https://example.com
+   python main.py --crawl https://example.com --max-pages 30
+   python main.py --crawl https://example.com --ai          # run AI after crawl
+   python main.py --crawl https://example.com --optimize    # run optimizer
+   python main.py --crawl https://example.com --ai --export # export Excel
+   python main.py --crawl https://example.com --ai --export --output report.xlsx
+
+3. ENVIRONMENT VARIABLES
+   GROQ_API_KEY=gsk_...      (default provider — free at console.groq.com)
+   AI_PROVIDER=groq|gemini|openai|claude|ollama|rules
+   GROQ_MODEL=llama3-70b-8192
+
+════════════════════════════════════════════════════════════════════
+ARCHITECTURE (CLI pipeline)
+════════════════════════════════════════════════════════════════════
+
+  crawl()          → async BFS, SSL cascade, extract HTML fields
+  parse()          → keywords, scoring, competitor analysis
+  generate_prompt()→ build structured Groq prompt per page
+  send_to_groq()   → call Groq API (or any provider), return fixes
+  display_results()→ print structured table to terminal
+  export_excel()   → write full Excel report to disk
+
+════════════════════════════════════════════════════════════════════
+FASTAPI ENDPOINTS (web server mode)
+════════════════════════════════════════════════════════════════════
+
+  POST /crawl                → start async crawl
+  GET  /crawl-status         → live progress
+  GET  /results              → full results
+  GET  /results/live         → partial results during crawl
+  POST /analyze-gemini       → AI on all pages with issues
+  POST /analyze-selected     → AI on specific URLs
+  GET  /gemini-status        → AI progress
+  GET  /gemini-health        → AI provider config
+  GET  /ranking/{url}        → instant score
+  GET  /popup-data           → pages+fields for popup modal
+  POST /optimize             → run live optimization table
+  GET  /optimize-status      → optimizer progress
+  GET  /optimize-table       → optimization table rows
+  GET  /export-optimizer     → download optimization Excel
+  GET  /export               → download full report Excel
+  GET  /export-popup         → download per-field report Excel
+  POST /generate-content     → generate SEO content
+  GET  /content-gen-status   → content gen progress
+  GET  /generated-content    → all generated content
+  GET  /generated-content/{url} → one page's content
+  GET  /export-generated-content → download generated content Excel
+"""
+
+# ── Standard library ──────────────────────────────────────────────────────────
+import argparse
+import asyncio
+import io
+import json
+import logging
+import os
+import sys
+import tempfile
+import time
+from collections import Counter
+from urllib.parse import unquote
+
+# ── Third-party ───────────────────────────────────────────────────────────────
+import pandas as pd
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, Response
+from pydantic import BaseModel
+import uvicorn
+
+# ── Project modules ───────────────────────────────────────────────────────────
+from crawler import SEOCrawler, crawl_results, crawl_status
+from gemini_analysis import (
+    attach_gemini_results, run_gemini_for_pages,
+    check_gemini, gemini_status,
+    compute_ranking_score,
+    _FIELD_RULES, _rule_based_fallback,
+    run_content_generation, generate_seo_content,
+    content_gen_status, build_seo_content_prompt,
+    _rule_based_content, _is_valid_for_content_gen,
+)
+from seo_optimizer import (
+    run_optimization, get_optimization_table,
+    clear_optimization_store, optimizer_status,
+)
+from issues import detect_issues
+from keyword_extractor import extract_keywords_corpus
+from keyword_scorer import score_keywords, build_structured_page
+
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("seo_crawler")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 1: AI PROVIDER HELPERS ──────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def _ai_configured() -> bool:
+    """
+    Returns True if the currently selected AI provider has its key set.
+    Also returns True for 'rules' and 'ollama' which need no key.
+    Used by both the FastAPI guards and the CLI pipeline.
+    """
+    provider = os.getenv("AI_PROVIDER", "groq").lower()
+    if provider in ("rules", "ollama"):
+        return True
+    key_map = {
+        "groq":   "GROQ_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "claude": "ANTHROPIC_API_KEY",
+    }
+    env_var = key_map.get(provider, "GROQ_API_KEY")
+    return bool(os.getenv(env_var, ""))
+
+
+def _ai_key_error_detail() -> str:
+    """Return a human-readable error for the current provider's missing key."""
+    provider = os.getenv("AI_PROVIDER", "groq").lower()
+    msgs = {
+        "groq":   "GROQ_API_KEY not set.  Free key: https://console.groq.com  →  set GROQ_API_KEY=gsk_...",
+        "gemini": "GEMINI_API_KEY not set. Run: set GEMINI_API_KEY=your-key",
+        "openai": "OPENAI_API_KEY not set. Run: set OPENAI_API_KEY=sk-...",
+        "claude": "ANTHROPIC_API_KEY not set. Run: set ANTHROPIC_API_KEY=sk-ant-...",
+    }
+    return msgs.get(provider, f"API key for provider '{provider}' not set.")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 2: DISPLAY + FORMATTING HELPERS (formerly in streamlit_app.py) ──
+# ════════════════════════════════════════════════════════════════════════════
+
+def priority_icon(p: str) -> str:
+    """Return a coloured circle for priority level (terminal-safe)."""
+    return {"High": "[HIGH]", "Medium": "[MED]", "Low": "[LOW]"}.get(p, "[---]")
+
+
+def score_label(s) -> str:
+    """Return a letter grade label for a numeric SEO score."""
+    if not isinstance(s, (int, float)):
+        return "[?]"
+    if s >= 70:   return f"[A:{s}]"
+    if s >= 45:   return f"[B:{s}]"
+    return f"[C:{s}]"
+
+
+def render_issue_list(issues: list) -> str:
+    """Format issues as a comma-separated string for terminal display."""
+    return ", ".join(issues) if issues else "None"
+
+
+def render_kw_importance(kws_scored: list, kws_raw: list) -> str:
+    """
+    Format keyword list with importance labels for terminal output.
+    HIGH keywords appear first and are marked clearly.
+    """
+    if kws_scored and isinstance(kws_scored[0], dict):
+        parts = []
+        for s in kws_scored[:8]:
+            kw  = s.get("keyword", "")
+            imp = s.get("importance", "LOW")
+            lbl = {"HIGH": "★", "MEDIUM": "◆", "LOW": "·"}.get(imp, "·")
+            parts.append(f"{lbl}{kw}")
+        return "  ".join(parts) if parts else "—"
+    if kws_raw:
+        return "  ".join(f"·{k}" for k in kws_raw[:6])
+    return "—"
+
+
+def display_results(pages: list[dict], show_all: bool = False) -> None:
+    """
+    Print a structured SEO results table to stdout.
+    Replaces the Streamlit expander/table UI.
+
+    Args:
+        pages:    list of crawled page dicts
+        show_all: if False, only show pages with issues
+    """
+    pages_to_show = pages if show_all else [p for p in pages if p.get("issues")]
+
+    if not pages_to_show:
+        logger.info("No pages to display (no issues found).")
+        return
+
+    # Summary counts
+    total   = len(pages)
+    with_issues = sum(1 for p in pages if p.get("issues"))
+    high    = sum(1 for p in pages if p.get("priority") == "High")
+    med     = sum(1 for p in pages if p.get("priority") == "Medium")
+    clean   = sum(1 for p in pages if not p.get("issues"))
+
+    print()
+    print("═" * 80)
+    print(f"  SEO CRAWL RESULTS  —  {total} pages crawled")
+    print("═" * 80)
+    print(f"  With issues:   {with_issues}    High priority: {high}")
+    print(f"  Medium:        {med}             Clean:         {clean}")
+    print("═" * 80)
+
+    # Issue breakdown
+    issue_counts = Counter(i for p in pages for i in p.get("issues", []))
+    if issue_counts:
+        print()
+        print("  ISSUE BREAKDOWN:")
+        for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1]):
+            bar = "█" * min(count, 30)
+            print(f"    {count:3d}×  {issue:<35s}  {bar}")
+
+    print()
+    print("─" * 80)
+    print(f"  {'PRI':<6} {'SCORE':<8} {'STATUS':<6} {'ISSUES':<35} URL")
+    print("─" * 80)
+
+    for page in pages_to_show:
+        url      = page.get("url", "")[:65]
+        priority = page.get("priority", "")
+        issues   = page.get("issues", [])
+        ranking  = page.get("ranking") or compute_ranking_score(page)
+        score    = ranking.get("score", "?")
+        status   = page.get("status_code", "")
+        issues_s = render_issue_list(issues)[:33]
+
+        print(f"  {priority_icon(priority):<6} {score_label(score):<8} {str(status):<6} {issues_s:<35} {url}")
+
+        # Show keywords if available
+        kws_scored = page.get("keywords_scored") or []
+        kws_raw    = page.get("keywords") or []
+        if kws_scored or kws_raw:
+            kw_str = render_kw_importance(kws_scored, kws_raw)
+            print(f"  {'':6} {'':8} {'':6}   KWS: {kw_str[:65]}")
+
+        # Show AI fix preview if available
+        gfields = page.get("gemini_fields") or []
+        if gfields:
+            for f in gfields[:2]:
+                if f.get("issue", "OK") != "OK" and f.get("example"):
+                    print(f"  {'':6} {'':8} {'':6}   AI→  {f['name']}: {f['example'][:60]}")
+
+        # Show generated content preview
+        gc = page.get("generated_content") or {}
+        if gc.get("title"):
+            print(f"  {'':6} {'':8} {'':6}   GEN: title={gc['title'][:60]}")
+
+    print("─" * 80)
+    print()
+
+
+def display_optimization_table(rows: list[dict]) -> None:
+    """
+    Print the Live Optimization Table to stdout.
+    Replaces the Streamlit dataframe for optimizer results.
+    """
+    if not rows:
+        print("  No optimization rows.")
+        return
+
+    print()
+    print("═" * 90)
+    print("  LIVE OPTIMIZATION TABLE")
+    print("═" * 90)
+    print(f"  {'FIELD':<20} {'STATUS':<12} {'OPTIMIZED VALUE':<40} URL")
+    print("─" * 90)
+
+    for row in rows:
+        url   = row.get("url", "")[:40]
+        field = row.get("field", "")[:18]
+        stat  = row.get("status", "")[:10]
+        opt   = row.get("optimized_value", "")[:38]
+        print(f"  {field:<20} {stat:<12} {opt:<40} {url}")
+        logic = row.get("seo_logic", "")
+        if logic:
+            print(f"  {'':20} {'':12}   ↳ {logic[:70]}")
+
+    print("─" * 90)
+    print()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 3: EXCEL EXPORT HELPERS ─────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def _style_header(ws) -> None:
+    """Apply dark header styling to an openpyxl worksheet."""
+    from openpyxl.styles import PatternFill, Font, Alignment
+    fill = PatternFill("solid", fgColor="1A1A2E")
+    for cell in ws[1]:
+        cell.fill      = fill
+        cell.font      = Font(bold=True, color="00E5A0")
+        cell.alignment = Alignment(horizontal="center")
+
+
+def _style_priority_col(ws) -> None:
+    """Colour-code the Priority column in an openpyxl worksheet."""
+    from openpyxl.styles import PatternFill, Font
+    col = next((i for i, c in enumerate(ws[1], 1) if c.value == "Priority"), None)
+    if not col:
+        return
+    cmap = {"High": "FF4D6A", "Medium": "FFD166", "Low": "06D6A0"}
+    for row in ws.iter_rows(min_row=2, min_col=col, max_col=col):
+        for cell in row:
+            if str(cell.value or "") in cmap:
+                cell.fill = PatternFill("solid", fgColor=cmap[str(cell.value)])
+                cell.font = Font(bold=True, color="000000")
+
+
+def _style_score_col(ws) -> None:
+    """Colour-code the Ranking Score column (green/amber/red)."""
+    from openpyxl.styles import PatternFill, Font
+    col = next((i for i, c in enumerate(ws[1], 1) if c.value == "Ranking Score"), None)
+    if not col:
+        return
+    for row in ws.iter_rows(min_row=2, min_col=col, max_col=col):
+        for cell in row:
+            try:
+                s     = int(cell.value or 0)
+                color = "06D6A0" if s >= 70 else "FFD166" if s >= 45 else "FF4D6A"
+                cell.fill = PatternFill("solid", fgColor=color)
+                cell.font = Font(bold=True, color="000000")
+            except (ValueError, TypeError):
+                pass
+
+
+def _autofit(ws) -> None:
+    """Auto-fit column widths in an openpyxl worksheet (max 70 chars)."""
+    from openpyxl.utils import get_column_letter
+    for col in ws.columns:
+        w = max(len(str(c.value or "")) for c in col) + 4
+        ws.column_dimensions[get_column_letter(col[0].column)].width = min(w, 70)
+
+
+def export_page_ai_to_excel(page: dict) -> bytes | None:
+    """
+    Build an in-memory Excel file for one page's AI results.
+    Includes AI fix fields AND generated content in separate sections.
+    Used by the CLI --export flag and the popup export button.
+    Returns bytes or None if no AI data exists.
+    """
+    gc     = page.get("generated_content") or {}
+    fields = page.get("gemini_fields") or []
+    rows   = []
+
+    # Section 1: AI fix recommendations
+    for f in fields:
+        rows.append({
+            "Section":   "AI Fix",
+            "Field":     f.get("name", ""),
+            "Issue":     f.get("issue", ""),
+            "Current":   f.get("current", ""),
+            "Generated": f.get("example") or f.get("fix", ""),
+            "Impact":    f.get("impact", ""),
+            "Why":       f.get("why", ""),
+        })
+
+    # Section 2: Generated content fields
+    if gc:
+        for fname, fval in [
+            ("Title",     gc.get("title", "")),
+            ("Meta",      gc.get("meta", "")),
+            ("H1",        gc.get("h1", "")),
+            ("H2",        " | ".join(gc.get("h2") or [])),
+            ("H3",        " | ".join(gc.get("h3") or [])),
+            ("Canonical", gc.get("canonical", "")),
+            ("Paragraph", gc.get("content", "")),
+        ]:
+            if fval:
+                rows.append({
+                    "Section":   "Generated Content",
+                    "Field":     fname,
+                    "Issue":     "",
+                    "Current":   "",
+                    "Generated": fval,
+                    "Impact":    "",
+                    "Why":       gc.get("reason", ""),
+                })
+        # Section 3: Keyword tracking
+        rows.append({
+            "Section": "Keywords", "Field": "Used",
+            "Generated": ", ".join(gc.get("keywords_used") or []),
+            "Issue": "", "Current": "", "Impact": "", "Why": "",
+        })
+        rows.append({
+            "Section": "Keywords", "Field": "Missing",
+            "Generated": ", ".join(gc.get("keywords_missing") or []),
+            "Issue": "", "Current": "", "Impact": "", "Why": "",
+        })
+
+    if not rows:
+        return None
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        pd.DataFrame(rows).to_excel(writer, index=False, sheet_name="AI Results")
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def export_excel(pages: list[dict], output_path: str) -> None:
+    """
+    Export a full SEO report to an Excel file at output_path.
+    Called from the CLI --export flag.
+    Includes all pages, issues, keywords, scores, and AI fixes.
+    """
+    rows = []
+    for r in pages:
+        ranking = r.get("ranking") or compute_ranking_score(r)
+        # Collect any AI-generated fixes for this page
+        ai_fix = "; ".join(
+            f"{f['name']}: {f.get('fix', '')}"
+            for f in (r.get("gemini_fields") or [])
+            if f.get("fix") and f.get("issue", "OK") != "OK"
+        )
+        rows.append({
+            "url":              r.get("url", ""),
+            "status_code":      r.get("status_code", ""),
+            "title":            r.get("title", ""),
+            "meta_description": r.get("meta_description", ""),
+            "h1":               " | ".join(r.get("h1") or []),
+            "h2":               " | ".join((r.get("h2") or [])[:3]),
+            "canonical":        r.get("canonical", ""),
+            "keywords":         ", ".join(r.get("keywords") or []),
+            "competition":      r.get("competition", ""),
+            "internal_links":   r.get("internal_links_count", 0),
+            "issues":           ", ".join(r.get("issues") or []),
+            "priority":         r.get("priority", ""),
+            "ranking_score":    ranking.get("score", ""),
+            "ranking_grade":    ranking.get("grade", ""),
+            "ai_fix":           ai_fix,
+            "generated_title":   (r.get("generated_content") or {}).get("title", ""),
+            "generated_content": (r.get("generated_content") or {}).get("content", "")[:500],
+            "faq_count":         len((r.get("generated_content") or {}).get("faq") or []),
+        })
+
+    if not rows:
+        logger.warning("No crawl data to export.")
+        return
+
+    df = pd.DataFrame(rows)
+    df.columns = [c.replace("_", " ").title() for c in df.columns]
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="SEO Report")
+        ws = writer.sheets["SEO Report"]
+        _style_header(ws)
+        _style_priority_col(ws)
+        _style_score_col(ws)
+        _autofit(ws)
+
+    logger.info("Report exported: %s  (%d rows)", output_path, len(rows))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 4: GROQ PROMPT GENERATION ───────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def generate_prompt(page: dict) -> str:
+    """
+    Build a structured Groq-ready SEO prompt for one page.
+
+    Uses ONLY data extracted from the crawled page — never hallucinated.
+    Includes: URL, title, meta, h1/h2/h3, keywords with importance scores,
+    competitor gaps, detected issues, and first 1000 chars of body text.
+
+    Returns a formatted string ready to send to send_to_groq().
+    """
+    return build_seo_content_prompt(page)
+
+
+def send_to_groq(page: dict) -> dict:
+    """
+    Send a structured SEO prompt to the configured AI provider and return results.
+
+    Provider is selected via AI_PROVIDER env var (default: groq).
+    Falls back to rule-based generation if API is unavailable.
+
+    Returns a dict with keys:
+        url, title, meta, h1, h2, h3, canonical, content,
+        keywords_used, keywords_missing, reason, _source
+    """
+    if not _is_valid_for_content_gen(page):
+        logger.debug("Page skipped (no content/keywords): %s", page.get("url"))
+        return _rule_based_content(page)
+
+    if not _ai_configured():
+        logger.warning("AI not configured — using rule-based fallback.")
+        return _rule_based_content(page)
+
+    try:
+        result = generate_seo_content(page)
+        provider = os.getenv("AI_PROVIDER", "groq").upper()
+        source   = result.get("_source", "unknown")
+        logger.info("AI result (%s→%s): %s", provider, source, page.get("url", "")[:60])
+        return result
+    except Exception as exc:
+        logger.error("send_to_groq failed for %s: %s", page.get("url"), exc)
+        return _rule_based_content(page)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 5: CLI PIPELINE ──────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+async def _crawl_async(url: str, max_pages: int) -> list[dict]:
+    """
+    Internal async BFS crawl. Handles SSL cascade, redirects, errors.
+    Updates crawl_results and crawl_status in-place via the crawler module.
+    Returns snapshot of crawl_results after completion.
+    """
+    crawl_results.clear()
+    clear_optimization_store()
+
+    # Normalise URL scheme
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    crawl_status.update({
+        "running": True, "done": False,
+        "pages_crawled": 0, "pages_queued": 0,
+        "errors": 0, "timeouts": 0, "ssl_fallbacks": 0,
+        "current_url": "", "error": None,
+        "started_at": time.time(), "elapsed_s": 0,
+    })
+
+    try:
+        await SEOCrawler(url, max_pages=max_pages).crawl_async()
+    except Exception as exc:
+        logger.error("Crawl error: %s", exc)
+        crawl_status.update({"running": False, "done": False, "error": str(exc)})
+
+    return list(crawl_results)
+
+
+def crawl(url: str, max_pages: int = 50) -> list[dict]:
+    """
+    Public synchronous crawl function for CLI use.
+
+    Runs the async BFS crawler in a new event loop.
+    Handles HTTP errors, SSL failures, redirects, and timeouts gracefully.
+    Returns a list of page dicts (both successful and error pages).
+
+    Each page dict contains:
+        url, status_code, title, meta_description, h1, h2, h3,
+        canonical, body_text, internal_links_count,
+        keywords, keywords_scored, competitor_gaps, issues, priority,
+        competition, _is_error, gemini_fields, generated_content
+    """
+    logger.info("Starting crawl: %s  (max %d pages)", url, max_pages)
+    t0 = time.time()
+
+    # Run async crawler in a fresh event loop
+    pages = asyncio.run(_crawl_async(url, max_pages))
+
+    elapsed = round(time.time() - t0, 1)
+    real    = [p for p in pages if p.get("status_code") == 200]
+    errors  = [p for p in pages if p.get("_is_error")]
+
+    logger.info(
+        "Crawl complete: %d pages in %ss  (%d real, %d errors, %d SSL fallbacks)",
+        len(pages), elapsed, len(real), len(errors),
+        crawl_status.get("ssl_fallbacks", 0),
+    )
+    return pages
+
+
+def parse(pages: list[dict]) -> list[dict]:
+    """
+    Post-crawl parsing pipeline — runs on results from crawl().
+
+    Steps:
+      1. detect_issues()          — find SEO problems on every page
+      2. extract_keywords_corpus() — TF-IDF across all real pages
+      3. score_keywords()         — HIGH/MEDIUM/LOW importance per keyword
+      4. build_structured_page()  — canonical output shape
+
+    Modifies pages in-place (adds issues, keywords, keywords_scored, structured).
+    Returns the same list with all fields populated.
+    """
+    real = [p for p in pages if not p.get("_is_error") and p.get("status_code") == 200]
+    logger.info("Parsing %d real pages (of %d total)…", len(real), len(pages))
+
+    # Step 1: detect SEO issues
+    detect_issues(pages)
+
+    # Step 2: TF-IDF keyword extraction across full corpus
+    if real:
+        extract_keywords_corpus(real, top_n=10)
+
+    # Step 3: score keywords and build structured output per page
+    for page in real:
+        try:
+            scored = score_keywords(page, top_n=10)
+            page["keywords_scored"] = scored
+            page["structured"]      = build_structured_page(page, scored_keywords=scored)
+        except Exception as exc:
+            logger.warning("parse() failed for %s: %s", page.get("url"), exc)
+            page.setdefault("keywords_scored", [])
+            page.setdefault("structured", None)
+
+    # Assign priority to all pages (including errors)
+    from gemini_analysis import assign_priority
+    for page in pages:
+        page["priority"] = assign_priority(page.get("issues", []))
+
+    logger.info(
+        "Parse complete: %d keywords extracted, %d pages with issues",
+        sum(len(p.get("keywords", [])) for p in real),
+        sum(1 for p in pages if p.get("issues")),
+    )
+    return pages
+
+
+def run_ai_pipeline(pages: list[dict], max_pages: int = 10) -> list[dict]:
+    """
+    Run AI analysis on pages with issues.
+
+    Uses the configured AI provider (default: Groq).
+    Falls back to rule-based if no API key is set.
+    Processes up to max_pages to stay within free-tier rate limits.
+
+    Args:
+        pages:     crawl results from crawl() + parse()
+        max_pages: maximum pages to send to AI (default 10)
+
+    Returns the same list with gemini_fields populated on each page.
+    """
+    provider = os.getenv("AI_PROVIDER", "groq").upper()
+    logger.info("Running AI pipeline (%s) on up to %d pages…", provider, max_pages)
+
+    valid = [
+        p for p in pages
+        if not p.get("_is_error")
+        and p.get("status_code") == 200
+        and p.get("issues")
+        and (p.get("body_text") or "")
+    ][:max_pages]
+
+    if not valid:
+        logger.info("No valid pages for AI analysis.")
+        return pages
+
+    if not _ai_configured():
+        logger.warning("AI not configured (%s). Skipping AI pipeline.", _ai_key_error_detail())
+        return pages
+
+    # Run attach_gemini_results synchronously (it uses ThreadPoolExecutor internally)
+    try:
+        attach_gemini_results(valid)
+        # Merge results back into the main pages list
+        url_map = {p["url"]: p for p in pages}
+        for page in valid:
+            if page.get("gemini_fields") and page["url"] in url_map:
+                url_map[page["url"]]["gemini_fields"] = page["gemini_fields"]
+                url_map[page["url"]]["ranking"]       = compute_ranking_score(page)
+        logger.info("AI pipeline complete: %d pages analysed", len(valid))
+    except Exception as exc:
+        logger.error("AI pipeline failed: %s", exc)
+
+    return pages
+
+
+def run_optimizer_pipeline(pages: list[dict]) -> list[dict]:
+    """
+    Run the Live Optimization Table generator on pages with issues.
+
+    Generates paste-ready optimized values (title, meta, H1, etc.) for
+    every broken field. Falls back to rule-based if AI unavailable.
+
+    Returns optimizer rows (not attached to pages — use get_optimization_table()).
+    """
+    logger.info("Running optimizer pipeline…")
+    try:
+        run_optimization(pages)
+        rows = get_optimization_table()
+        logger.info("Optimizer complete: %d rows generated", len(rows))
+        return rows
+    except Exception as exc:
+        logger.error("Optimizer pipeline failed: %s", exc)
+        return []
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 6: CLI ENTRY POINT ───────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def _run_cli(args: argparse.Namespace) -> None:
+    """
+    Standalone CLI pipeline: crawl → parse → AI → display → export.
+    No server, no browser needed. Runs entirely in the terminal.
+    """
+    # ── Step 1: crawl() ───────────────────────────────────────────────────
+    pages = crawl(args.crawl, max_pages=args.max_pages)
+    if not pages:
+        logger.error("Crawl returned no results. Check the URL and network.")
+        sys.exit(1)
+
+    # ── Step 2: parse() ───────────────────────────────────────────────────
+    pages = parse(pages)
+
+    # ── Step 3: AI analysis (optional, --ai flag) ─────────────────────────
+    if args.ai:
+        pages = run_ai_pipeline(pages, max_pages=args.max_ai_pages)
+
+    # ── Step 4: optimizer (optional, --optimize flag) ─────────────────────
+    opt_rows = []
+    if args.optimize:
+        opt_rows = run_optimizer_pipeline(pages)
+
+    # ── Step 5: display_results() ─────────────────────────────────────────
+    display_results(pages, show_all=args.show_all)
+    if opt_rows:
+        display_optimization_table(opt_rows)
+
+    # ── Step 6: export Excel (optional, --export flag) ────────────────────
+    if args.export:
+        export_excel(pages, args.output)
+
+        # Also export generated content if AI ran
+        if args.ai:
+            gen_rows = []
+            for p in pages:
+                gc = p.get("generated_content")
+                if gc:
+                    gen_rows.append({
+                        "URL":     gc.get("url", ""),
+                        "Title":   gc.get("title", ""),
+                        "Meta":    gc.get("meta", ""),
+                        "H1":      gc.get("h1", ""),
+                        "Content": gc.get("content", ""),
+                        "Source":  gc.get("_source", ""),
+                        "Reason":  gc.get("reason", ""),
+                    })
+            if gen_rows:
+                gen_path = args.output.replace(".xlsx", "_generated.xlsx")
+                buf = io.BytesIO()
+                with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+                    pd.DataFrame(gen_rows).to_excel(writer, index=False,
+                                                    sheet_name="Generated Content")
+                buf.seek(0)
+                with open(gen_path, "wb") as f:
+                    f.write(buf.read())
+                logger.info("Generated content exported: %s", gen_path)
+
+    # ── Final summary ──────────────────────────────────────────────────────
+    total      = len(pages)
+    issues_ct  = sum(1 for p in pages if p.get("issues"))
+    high_ct    = sum(1 for p in pages if p.get("priority") == "High")
+    ai_ct      = sum(1 for p in pages if p.get("gemini_fields"))
+
+    print()
+    print("═" * 60)
+    print("  DONE")
+    print(f"  Pages crawled:     {total}")
+    print(f"  Pages with issues: {issues_ct}  ({high_ct} high priority)")
+    if args.ai:
+        print(f"  AI analysed:       {ai_ct}")
+    if args.export:
+        print(f"  Report saved:      {args.output}")
+    print("═" * 60)
+    print()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 7: FASTAPI SERVER (web mode) ─────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+app = FastAPI(title="SEO Crawler API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+)
+
+
+# ── Frontend (HTML dashboard) ─────────────────────────────────────────────────
+
+@app.get("/", response_class=HTMLResponse)
+def serve_ui():
+    """Serve the index.html dark-theme dashboard."""
+    index_path = os.path.join(BASE_DIR, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+# ── Request models ────────────────────────────────────────────────────────────
+
+class CrawlRequest(BaseModel):
+    url:       str
+    max_pages: int = 50
+
+class SelectedPagesRequest(BaseModel):
+    urls: list[str]
+
+
+# ── Crawl endpoints ───────────────────────────────────────────────────────────
+
+@app.post("/crawl")
+async def start_crawl(request: CrawlRequest):
+    """
+    Fire-and-forget async crawl.
+    Returns immediately — poll /crawl-status every 2s for progress.
+    """
+    if crawl_status.get("running"):
+        raise HTTPException(status_code=409, detail="Crawl already running.")
+
+    url = request.url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    # Reset all state for fresh crawl
+    crawl_results.clear()
+    clear_optimization_store()
+    crawl_status.update({
+        "running": True, "done": False,
+        "pages_crawled": 0, "pages_queued": 0,
+        "errors": 0, "timeouts": 0, "ssl_fallbacks": 0,
+        "current_url": "", "error": None,
+        "started_at": None, "elapsed_s": 0,
+    })
+    content_gen_status.update({
+        "running": False, "done": False, "error": None,
+        "processed": 0, "total": 0,
+    })
+    gemini_status.update({
+        "running": False, "done": False, "error": None,
+        "processed": 0, "total": 0, "skipped": 0,
+    })
+
+    asyncio.create_task(_run_crawl(url, request.max_pages))
+    return {"message": "Crawl started", "status": "running"}
+
+
+async def _run_crawl(url: str, max_pages: int) -> None:
+    """Background task: runs the async crawler, logs errors."""
+    try:
+        await SEOCrawler(url, max_pages=max_pages).crawl_async()
+    except Exception as exc:
+        logger.error("Crawl failed: %s", exc)
+        crawl_status.update({"running": False, "done": False, "error": str(exc)})
+
+
+@app.get("/crawl-status")
+def get_crawl_status():
+    """Live crawl progress — poll every 2s from frontend."""
+    return crawl_status
+
+
+@app.get("/results")
+def get_results():
+    """Full results after crawl completes."""
+    return {
+        "status":        crawl_status,
+        "gemini_status": gemini_status,
+        "results":       crawl_results,
+    }
+
+
+@app.get("/results/live")
+def get_results_live():
+    """Pages crawled so far — safe to call mid-crawl for live table updates."""
+    return {
+        "status":  crawl_status,
+        "count":   len(crawl_results),
+        "results": list(crawl_results),
+    }
+
+
+# ── AI endpoints ──────────────────────────────────────────────────────────────
+
+@app.post("/analyze-gemini")
+async def analyze_gemini():
+    """Run AI (Groq/Gemini/etc) on top-20 pages with issues. Non-blocking."""
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+    if gemini_status.get("running"):
+        raise HTTPException(status_code=409, detail="AI already running.")
+    if not _ai_configured():
+        raise HTTPException(status_code=400, detail=_ai_key_error_detail())
+
+    loop = asyncio.get_running_loop()
+    asyncio.create_task(_run_gemini_executor(loop, list(crawl_results)))
+    return {"message": "AI analysis started."}
+
+
+@app.post("/analyze-selected")
+async def analyze_selected(request: SelectedPagesRequest):
+    """Run AI on user-selected URLs only."""
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+    if gemini_status.get("running"):
+        raise HTTPException(status_code=409, detail="AI already running.")
+    if not request.urls:
+        raise HTTPException(status_code=400, detail="No URLs provided.")
+    if not _ai_configured():
+        raise HTTPException(status_code=400, detail=_ai_key_error_detail())
+
+    loop = asyncio.get_running_loop()
+    asyncio.create_task(
+        _run_selected_executor(loop, request.urls, list(crawl_results))
+    )
+    return {"message": f"AI analysis started for {len(request.urls)} pages."}
+
+
+async def _run_gemini_executor(loop, snapshot: list[dict]) -> None:
+    """Thread pool wrapper so AI SDK calls don't block the event loop."""
+    try:
+        await loop.run_in_executor(None, attach_gemini_results, snapshot)
+        _merge_gemini_results(snapshot)
+    except Exception as exc:
+        gemini_status.update({"error": str(exc), "running": False, "done": False})
+
+
+async def _run_selected_executor(loop, urls: list[str], snapshot: list[dict]) -> None:
+    """Thread pool wrapper for per-URL AI analysis."""
+    try:
+        await loop.run_in_executor(None, run_gemini_for_pages, urls, snapshot)
+        _merge_gemini_results(snapshot)
+    except Exception as exc:
+        gemini_status.update({"error": str(exc), "running": False, "done": False})
+
+
+def _merge_gemini_results(snapshot: list[dict]) -> None:
+    """
+    Write AI results from the snapshot back into live crawl_results.
+    Called after AI analysis completes in the thread pool.
+    """
+    url_map = {p["url"]: p for p in crawl_results}
+    for page in snapshot:
+        url = page["url"]
+        if url in url_map:
+            if page.get("gemini_fields"):
+                url_map[url]["gemini_fields"] = page["gemini_fields"]
+            if page.get("priority"):
+                url_map[url]["priority"] = page["priority"]
+            url_map[url]["ranking"] = compute_ranking_score(url_map[url])
+
+
+@app.get("/gemini-status")
+def get_gemini_status():
+    """Poll AI analysis progress."""
+    return gemini_status
+
+
+@app.get("/gemini-health")
+def gemini_health():
+    """AI provider health check — provider-aware, works for all backends."""
+    info     = check_gemini()
+    provider = os.getenv("AI_PROVIDER", "groq").lower()
+    info["provider"]   = provider
+    info["configured"] = _ai_configured()
+    if provider == "groq":
+        info["model"]    = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+        key              = os.getenv("GROQ_API_KEY", "")
+        info["key_hint"] = ("..." + key[-4:]) if len(key) > 8 else "(not set)"
+    return info
+
+
+# ── Ranking + popup ───────────────────────────────────────────────────────────
+
+@app.get("/ranking/{page_url:path}")
+def get_ranking(page_url: str):
+    """Instant SEO score for a single page (no API call)."""
+    decoded = unquote(page_url)
+    page    = next((p for p in crawl_results if p["url"] == decoded), None)
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found.")
+    return compute_ranking_score(page)
+
+
+@app.get("/popup-data")
+def get_popup_data():
+    """Return pages-with-issues formatted for the fix-page popup modal."""
+    popup_pages = []
+    for p in crawl_results:
+        if not p.get("issues"):
+            continue
+        ranking = p.get("ranking") or compute_ranking_score(p)
+        if p.get("gemini_ranking_score") is not None:
+            ranking = dict(ranking)
+            ranking["gemini_score"]  = p["gemini_ranking_score"]
+            ranking["gemini_reason"] = p.get("gemini_ranking_reason", "")
+        popup_pages.append({
+            "url":         p["url"],
+            "priority":    p.get("priority", ""),
+            "issues":      p.get("issues", []),
+            "keywords":    p.get("keywords", []),
+            "competition": p.get("competition", "Medium"),
+            "ranking":     ranking,
+            "fields":      _build_popup_fields(p),
+        })
+    return {"total": len(popup_pages), "pages": popup_pages}
+
+
+def _build_popup_fields(page: dict) -> list[dict]:
+    """
+    Build per-field rows for the popup modal.
+    Prefers AI-generated fixes; falls back to rule-based suggestions.
+    """
+    issues_set = set(page.get("issues", []))
+    gemini_map = {f["name"]: f for f in (page.get("gemini_fields") or [])}
+    opt_title  = page.get("optimized_title", "")
+    opt_meta   = page.get("optimized_meta", "")
+    opt_h1     = page.get("optimized_h1", "")
+
+    fields_def = [
+        ("Title",            page.get("title", ""),            _title_status(issues_set)),
+        ("Meta Description", page.get("meta_description", ""), _meta_status(issues_set)),
+        ("H1",               (page.get("h1") or [""])[0],      _h1_status(issues_set)),
+        ("H2",               " | ".join((page.get("h2") or [])[:2]),
+                             "Missing" if "Missing H2" in issues_set else "OK"),
+        ("Canonical",        page.get("canonical", ""),        _canonical_status(issues_set)),
+        ("URL",              page.get("url", ""),               "OK"),
+    ]
+
+    rows = []
+    for name, current, status in fields_def:
+        gf        = gemini_map.get(name)
+        opt_value = {"Title": opt_title, "Meta Description": opt_meta, "H1": opt_h1}.get(name, "")
+
+        if gf and gf.get("fix"):
+            row = {
+                "field": name, "current": current or "", "status": status,
+                "why":   gf.get("why", ""), "fix": gf.get("fix", ""),
+                "example": gf.get("example", ""), "impact": gf.get("impact", ""),
+                "optimized": opt_value or gf.get("example", ""),
+            }
+        elif status != "OK":
+            rule = _FIELD_RULES.get(name, {}).get(status, {})
+            row = {
+                "field": name, "current": current or "", "status": status,
+                "why":   rule.get("why", ""), "fix": rule.get("fix", f"Review {name}."),
+                "example": rule.get("example", ""), "impact": rule.get("impact", ""),
+                "optimized": opt_value,
+            }
+        else:
+            row = {
+                "field": name, "current": current or "", "status": "OK",
+                "why": "", "fix": "", "example": "", "impact": "", "optimized": "",
+            }
+        rows.append(row)
+    return rows
+
+
+# ── Status field helpers ──────────────────────────────────────────────────────
+
+def _title_status(s: set) -> str:
+    if "Missing Title"  in s: return "Missing"
+    if "Title Too Long" in s: return "Too Long"
+    return "OK"
+
+def _meta_status(s: set) -> str:
+    if "Missing Meta Description"   in s: return "Missing"
+    if "Duplicate Meta Description" in s: return "Duplicate"
+    return "OK"
+
+def _h1_status(s: set) -> str:
+    if "Missing H1"       in s: return "Missing"
+    if "Multiple H1 Tags" in s: return "Multiple"
+    return "OK"
+
+def _canonical_status(s: set) -> str:
+    if "Missing Canonical"  in s: return "Missing"
+    if "Canonical Mismatch" in s: return "Mismatch"
+    return "OK"
+
+
+# ── Optimizer endpoints ───────────────────────────────────────────────────────
+
+class OptimizeRequest(BaseModel):
+    urls: list[str] | None = None
+
+
+@app.post("/optimize")
+async def start_optimize(request: OptimizeRequest):
+    """Run seo_optimizer on crawled pages. Non-blocking."""
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+    if optimizer_status.get("running"):
+        raise HTTPException(status_code=409, detail="Optimizer already running.")
+    if not _ai_configured():
+        raise HTTPException(status_code=400, detail=_ai_key_error_detail())
+
+    snapshot = list(crawl_results)
+    urls     = request.urls if request.urls else None
+    loop     = asyncio.get_running_loop()
+    asyncio.create_task(_run_optimizer_executor(loop, snapshot, urls))
+    return {"message": "Optimizer started.", "pages": len(snapshot)}
+
+
+async def _run_optimizer_executor(loop, snapshot, urls) -> None:
+    """Thread pool wrapper for the optimizer."""
+    try:
+        await loop.run_in_executor(None, run_optimization, snapshot, urls)
+    except Exception as exc:
+        optimizer_status.update({"error": str(exc), "running": False, "done": False})
+
+
+@app.get("/optimize-status")
+def get_optimize_status():
+    """Poll optimizer progress."""
+    return optimizer_status
+
+
+@app.get("/optimize-table")
+def get_optimize_table():
+    """Return the full Live Optimization Table."""
+    from seo_optimizer import _optimization_store
+    return {
+        "status": optimizer_status,
+        "total":  sum(len(rows) for rows in _optimization_store.values()),
+        "rows":   get_optimization_table(),
+    }
+
+
+# ── Excel export endpoints ────────────────────────────────────────────────────
+
+@app.get("/export-optimizer")
+def export_optimizer_excel():
+    """Download the Live Optimization Table as Excel."""
+    rows = get_optimization_table()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No optimization data. Run /optimize first.")
+
+    df        = pd.DataFrame(rows)
+    col_order = ["url", "field", "status", "current_value", "optimized_value", "seo_logic"]
+    df        = df[[c for c in col_order if c in df.columns]]
+    df.columns = [c.replace("_", " ").title() for c in df.columns]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.close()
+    with pd.ExcelWriter(tmp.name, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Live Optimization")
+        ws = writer.sheets["Live Optimization"]
+        _style_header(ws)
+        status_col = next((i for i, c in enumerate(ws[1], 1) if c.value == "Status"), None)
+        if status_col:
+            from openpyxl.styles import PatternFill, Font
+            for row in ws.iter_rows(min_row=2, min_col=status_col, max_col=status_col):
+                for cell in row:
+                    v = str(cell.value or "").lower()
+                    if v in ("missing", "too long", "duplicate", "multiple", "mismatch"):
+                        cell.fill = PatternFill("solid", fgColor="FF4D6A")
+                        cell.font = Font(color="FFFFFF", bold=True)
+                    elif v == "ok":
+                        cell.fill = PatternFill("solid", fgColor="06D6A0")
+                        cell.font = Font(color="000000", bold=True)
+        _autofit(ws)
+
+    return FileResponse(tmp.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="seo_optimization_table.xlsx",
+        headers={"Content-Disposition": "attachment; filename=seo_optimization_table.xlsx"})
+
+
+@app.get("/export")
+def export_excel_endpoint():
+    """Download full SEO report as Excel."""
+    if not crawl_results:
+        raise HTTPException(status_code=404, detail="No crawl data to export.")
+
+    rows = []
+    for r in crawl_results:
+        ranking = r.get("ranking") or compute_ranking_score(r)
+        ai_fix  = "; ".join(
+            f"{f['name']}: {f.get('fix', '')}"
+            for f in (r.get("gemini_fields") or [])
+            if f.get("fix") and f.get("issue", "OK") != "OK"
+        )
+        rows.append({
+            "url":              r.get("url", ""),
+            "status_code":      r.get("status_code", ""),
+            "title":            r.get("title", ""),
+            "meta_description": r.get("meta_description", ""),
+            "h1":               " | ".join(r.get("h1") or []),
+            "h2":               " | ".join((r.get("h2") or [])[:3]),
+            "canonical":        r.get("canonical", ""),
+            "keywords":         ", ".join(r.get("keywords") or []),
+            "competition":      r.get("competition", ""),
+            "internal_links":   r.get("internal_links_count", 0),
+            "issues":           ", ".join(r.get("issues") or []),
+            "priority":         r.get("priority", ""),
+            "ranking_score":    ranking["score"],
+            "ranking_grade":    ranking["grade"],
+            "ai_fix":           ai_fix,
+        })
+
+    df  = pd.DataFrame(rows)
+    df.columns = [c.replace("_", " ").title() for c in df.columns]
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.close()
+    with pd.ExcelWriter(tmp.name, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="SEO Report")
+        ws = writer.sheets["SEO Report"]
+        _style_header(ws)
+        _style_priority_col(ws)
+        _style_score_col(ws)
+        _autofit(ws)
+
+    return FileResponse(tmp.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="seo_report.xlsx",
+        headers={"Content-Disposition": "attachment; filename=seo_report.xlsx"})
+
+
+@app.get("/export-popup")
+def export_popup_excel():
+    """Download per-field issues report as Excel."""
+    popup = get_popup_data()
+    if not popup["pages"]:
+        raise HTTPException(status_code=404, detail="No pages with issues to export.")
+
+    rows = []
+    for page in popup["pages"]:
+        score = page.get("ranking", {}).get("score", "")
+        for f in page["fields"]:
+            rows.append({
+                "URL":             page["url"],
+                "Priority":        page.get("priority", ""),
+                "Score":           score,
+                "Field":           f["field"],
+                "Current Value":   f["current"],
+                "Issue":           f["status"],
+                "Why It Matters":  f.get("why", ""),
+                "Exact Fix":       f.get("fix", ""),
+                "Optimized Value": f.get("optimized", ""),
+                "Real Example":    f.get("example", ""),
+                "Impact":          f.get("impact", ""),
+            })
+
+    df  = pd.DataFrame(rows)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.close()
+    with pd.ExcelWriter(tmp.name, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="SEO Issues")
+        ws = writer.sheets["SEO Issues"]
+        _style_header(ws)
+        issue_col = next((i for i, c in enumerate(ws[1], 1) if c.value == "Issue"), None)
+        if issue_col:
+            from openpyxl.styles import PatternFill, Font
+            for row in ws.iter_rows(min_row=2, min_col=issue_col, max_col=issue_col):
+                for cell in row:
+                    val = str(cell.value or "").upper()
+                    if val == "OK":
+                        cell.fill = PatternFill("solid", fgColor="06D6A0")
+                        cell.font = Font(color="000000", bold=True)
+                    elif val:
+                        cell.fill = PatternFill("solid", fgColor="FF4D6A")
+                        cell.font = Font(color="FFFFFF", bold=True)
+        _autofit(ws)
+
+    return FileResponse(tmp.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="seo_field_report.xlsx",
+        headers={"Content-Disposition": "attachment; filename=seo_field_report.xlsx"})
+
+
+# ── Content generation endpoints ──────────────────────────────────────────────
+
+@app.post("/generate-content")
+async def start_content_generation(background_tasks: BackgroundTasks):
+    """Generate complete SEO content for all crawled pages. Non-blocking."""
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl results. Run a crawl first.")
+
+    def _run():
+        run_content_generation(crawl_results)
+
+    background_tasks.add_task(_run)
+    valid_count = sum(
+        1 for p in crawl_results
+        if not p.get("_is_error") and p.get("status_code") == 200
+        and (p.get("keywords_scored") or p.get("keywords"))
+    )
+    return {"message": "Content generation started", "pages_queued": valid_count}
+
+
+@app.get("/content-gen-status")
+def get_content_gen_status():
+    """Poll content generation progress."""
+    return content_gen_status
+
+
+@app.get("/generated-content")
+def get_generated_content():
+    """Return all generated SEO content."""
+    pages_with_content = [
+        {"url": p.get("url", ""), "issues": p.get("issues", []),
+         "generated": p.get("generated_content")}
+        for p in crawl_results if p.get("generated_content") is not None
+    ]
+    return {"total": len(pages_with_content), "status": content_gen_status,
+            "pages": pages_with_content}
+
+
+@app.get("/generated-content/{page_url:path}")
+def get_page_generated_content(page_url: str):
+    """Get generated content for a single page by URL."""
+    page = next((p for p in crawl_results if p.get("url") == page_url), None)
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    gc = page.get("generated_content")
+    if not gc:
+        raise HTTPException(status_code=404, detail="No generated content for this page yet")
+    return gc
+
+
+@app.get("/export-generated-content")
+def export_generated_content():
+    """Export all generated content as Excel."""
+    rows = []
+    for p in crawl_results:
+        gc = p.get("generated_content")
+        if not gc:
+            continue
+        rows.append({
+            "URL":               gc.get("url", ""),
+            "Generated Title":   gc.get("title", ""),
+            "Generated Meta":    gc.get("meta", ""),
+            "Generated H1":      gc.get("h1", ""),
+            "Generated H2s":     " | ".join(gc.get("h2") or []),
+            "Generated H3s":     " | ".join(gc.get("h3") or []),
+            "Canonical":         gc.get("canonical", ""),
+            "Generated Content": gc.get("content", ""),
+            "Keywords Used":     ", ".join(gc.get("keywords_used") or []),
+            "Keywords Missing":  ", ".join(gc.get("keywords_missing") or []),
+            "Reason":            gc.get("reason", ""),
+            "Source":            gc.get("_source", ""),
+        })
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="No generated content to export")
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        pd.DataFrame(rows).to_excel(writer, index=False, sheet_name="Generated Content")
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=generated_seo_content.xlsx"},
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 8: ENTRYPOINT ────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser for both server and pipeline modes."""
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description=(
+            "SEO Crawler Dashboard — FastAPI server + standalone CLI pipeline.\n"
+            "No Streamlit required.\n\n"
+            "Examples:\n"
+            "  python main.py                              # start web server\n"
+            "  python main.py --crawl https://example.com # CLI crawl\n"
+            "  python main.py --crawl https://example.com --ai --export\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # Server mode
+    server_group = parser.add_argument_group("Server mode (default)")
+    server_group.add_argument(
+        "--serve", action="store_true",
+        help="Explicitly start the FastAPI server (default when no --crawl given)",
+    )
+    server_group.add_argument(
+        "--port", type=int, default=8000,
+        help="Port for the web server (default: 8000)",
+    )
+    server_group.add_argument(
+        "--host", default="0.0.0.0",
+        help="Host for the web server (default: 0.0.0.0)",
+    )
+    server_group.add_argument(
+        "--reload", action="store_true",
+        help="Enable hot-reload during development",
+    )
+
+    # CLI pipeline mode
+    cli_group = parser.add_argument_group("CLI pipeline mode")
+    cli_group.add_argument(
+        "--crawl", metavar="URL",
+        help="URL to crawl (activates CLI pipeline mode)",
+    )
+    cli_group.add_argument(
+        "--max-pages", type=int, default=50, metavar="N",
+        help="Maximum pages to crawl (default: 50)",
+    )
+    cli_group.add_argument(
+        "--ai", action="store_true",
+        help="Run AI analysis after crawl (requires API key)",
+    )
+    cli_group.add_argument(
+        "--max-ai-pages", type=int, default=10, metavar="N",
+        help="Maximum pages to send to AI per run (default: 10, free tier safe)",
+    )
+    cli_group.add_argument(
+        "--optimize", action="store_true",
+        help="Run optimizer after crawl to generate paste-ready fixes",
+    )
+    cli_group.add_argument(
+        "--export", action="store_true",
+        help="Export results to Excel after pipeline completes",
+    )
+    cli_group.add_argument(
+        "--output", default="seo_report.xlsx", metavar="FILE",
+        help="Output Excel filename (default: seo_report.xlsx)",
+    )
+    cli_group.add_argument(
+        "--show-all", action="store_true",
+        help="Show all pages in terminal, not just pages with issues",
+    )
+
+    return parser
+
+
+if __name__ == "__main__":
+    parser = _build_arg_parser()
+    args   = parser.parse_args()
+
+    if args.crawl:
+        # ── CLI PIPELINE MODE ────────────────────────────────────────────
+        _run_cli(args)
+    else:
+        # ── WEB SERVER MODE (default) ────────────────────────────────────
+        provider = os.getenv("AI_PROVIDER", "groq").upper()
+        key_set  = _ai_configured()
+        print()
+        print("╔══════════════════════════════════════════════════════════╗")
+        print("║       SEO Crawler Dashboard — FastAPI Server             ║")
+        print("╠══════════════════════════════════════════════════════════╣")
+        print(f"║  URL:      http://{args.host}:{args.port}{'':24s}   ║")
+        print(f"║  AI:       {provider} ({'key set ✓' if key_set else 'NO KEY — set env var'}){'':20s}   ║")
+        print("║  HTML UI:  http://localhost:" + str(args.port) + "          (index.html)   ║")
+        print("╚══════════════════════════════════════════════════════════╝")
+        print()
+        uvicorn.run(
+            "main:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+        )

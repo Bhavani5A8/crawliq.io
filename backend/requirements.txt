@@ -1,0 +1,27 @@
+# ── Core API ──────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# ── Async Crawler ─────────────────────────────────────────────
+aiohttp==3.9.5
+beautifulsoup4==4.12.3
+lxml==5.2.1
+
+# ── Keyword extraction (NLP, zero LLM) ───────────────────────
+scikit-learn>=1.4.0
+numpy>=1.26.0
+nltk>=3.8.0
+
+# ── Export ────────────────────────────────────────────────────
+pandas==2.2.2
+openpyxl==3.1.2
+
+# ── AI: Gemini (default provider) ────────────────────────────
+# FIX: use google-generativeai (official SDK), NOT google-genai
+google-generativeai>=0.5.0
+
+# ── AI: Optional providers (install only what you use) ───────
+# groq>=0.9.0          # Groq:   pip install groq          (set AI_PROVIDER=groq)
+# openai>=1.30.0       # OpenAI: pip install openai        (set AI_PROVIDER=openai)
+# anthropic>=0.25.0    # Claude: pip install anthropic     (set AI_PROVIDER=claude)
+# playwright>=1.44.0   # JS-heavy sites: pip install playwright && playwright install chromium
