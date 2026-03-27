@@ -1,0 +1,8 @@
+venv/
+.venv/
+node_modules/
+__pycache__/
+.env
+.next
+dist/
+build/
