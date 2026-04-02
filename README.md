@@ -1,3 +1,13 @@
+---
+title: SEO Crawler
+emoji: 🔍
+colorFrom: green
+colorTo: cyan
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # SEO Crawler Dashboard
 
 A minimal, functional SEO crawler with a FastAPI backend and plain HTML/JS frontend.
