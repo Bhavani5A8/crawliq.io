@@ -3,10 +3,170 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>CrawlIQ — AI-Powered SEO Intelligence</title>
+
+<!-- ── TITLE & CORE META ─────────────────────────────────────────────────── -->
+<title>CrawlIQ — Free AI SEO Crawler &amp; Technical Audit Tool</title>
+<meta name="description" content="CrawlIQ is a free AI-powered SEO crawler. Audit technical SEO issues, detect missing meta tags, analyze keywords, generate AI-optimized fixes, and export full Excel reports. No signup required."/>
+<link rel="canonical" href="https://bhavani5a8.github.io/seo-project/"/>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="keywords" content="SEO crawler, technical SEO audit, AI SEO tool, free SEO checker, keyword analysis, meta tag optimizer, on-page SEO, website audit, indexability checker"/>
+<meta name="author" content="Bhavani"/>
+<meta name="google-site-verification" content="CWOGPe7yCVzbPTd9yDBTf7tKeg382FAt_xi-4fFSP-I"/>
+
+<!-- ── OPEN GRAPH ────────────────────────────────────────────────────────── -->
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="CrawlIQ — Free AI SEO Crawler &amp; Technical Audit Tool"/>
+<meta property="og:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes, audit technical SEO, and export full reports. Free, no signup needed."/>
+<meta property="og:url" content="https://bhavani5a8.github.io/seo-project/"/>
+<meta property="og:site_name" content="CrawlIQ"/>
+<meta property="og:locale" content="en_US"/>
+
+<!-- ── TWITTER CARD ──────────────────────────────────────────────────────── -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="CrawlIQ — Free AI SEO Crawler &amp; Audit Tool"/>
+<meta name="twitter:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes. Free, no signup needed."/>
+
+<!-- ── STRUCTURED DATA: WebApplication ──────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "CrawlIQ",
+  "url": "https://bhavani5a8.github.io/seo-project/",
+  "description": "CrawlIQ is a free AI-powered SEO crawler that performs technical SEO audits, detects on-page issues, extracts and scores keywords, generates AI-optimized content fixes, and exports full Excel reports.",
+  "applicationCategory": "SEO Tool",
+  "applicationSubCategory": "Website Auditing",
+  "operatingSystem": "Web Browser",
+  "browserRequirements": "Requires JavaScript",
+  "inLanguage": "en",
+  "datePublished": "2024-01-01",
+  "dateModified": "2026-04-05",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free to use, no signup required"
+  },
+  "featureList": [
+    "Technical SEO audit with scoring (0-100)",
+    "HTTP status code analysis",
+    "Indexability assessment per page",
+    "robots.txt and sitemap.xml validation",
+    "Title tag and meta description auditing",
+    "Canonical URL detection and validation",
+    "H1, H2, H3 heading structure analysis",
+    "Open Graph tag coverage check",
+    "Image alt text audit",
+    "Keyword extraction and TF-IDF scoring",
+    "AI-powered content analysis (Groq, Gemini, OpenAI, Claude)",
+    "Live Optimization Table with paste-ready fixes",
+    "Excel report export (.xlsx)",
+    "Per-page SEO ranking score (A-F grade)"
+  ],
+  "creator": {
+    "@type": "Person",
+    "name": "Bhavani",
+    "url": "https://github.com/Bhavani5A8"
+  },
+  "codeRepository": "https://github.com/Bhavani5A8/seo-project",
+  "sameAs": "https://huggingface.co/spaces/bhavani7/seo-project"
+}
+</script>
+
+<!-- ── STRUCTURED DATA: Organization ────────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "CrawlIQ",
+  "url": "https://bhavani5a8.github.io/seo-project/",
+  "description": "CrawlIQ provides free, open-source AI-powered SEO crawling and technical audit tools for developers and SEO professionals.",
+  "founder": {
+    "@type": "Person",
+    "name": "Bhavani",
+    "url": "https://github.com/Bhavani5A8"
+  },
+  "sameAs": [
+    "https://github.com/Bhavani5A8/seo-project",
+    "https://huggingface.co/spaces/bhavani7/seo-project"
+  ]
+}
+</script>
+
+<!-- ── STRUCTURED DATA: FAQPage (AEO + GEO) ─────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How does CrawlIQ's AI SEO analysis work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ crawls your website using an async BFS (breadth-first search) crawler and sends each page to an AI model — Groq (Llama 3), Gemini, OpenAI, or Claude, configurable via environment variable. The AI analyzes content quality, keyword optimization, readability, semantic relevance, and heading structure, then generates specific actionable recommendations ranked by impact. Output includes optimized title tags, meta descriptions, H1 rewrites, and full paragraph content."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What SEO issues does CrawlIQ detect?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ detects over 15 categories of SEO issues: missing title tags, title too short (under 30 chars) or too long (over 60 chars), missing meta descriptions, missing or multiple H1 tags, missing H2 tags, canonical tag absent or pointing to a different URL, duplicate meta descriptions across pages, broken pages (4xx and 5xx HTTP errors), thin content (under 300 words), images with empty alt text, HTTP pages (not HTTPS), URLs with underscores, uppercase characters, or excessive depth, and high link density."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What data formats can I export from CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ exports three types of Excel (.xlsx) reports: a Full SEO Report with all crawled pages, issues, keywords, and AI fixes; a Per-Field Issues Report with field-level issue breakdowns; a Live Optimization Table with paste-ready optimized titles, meta descriptions, and H1 tags; and a Technical SEO Audit with per-page scores (0-100), grades (A-F), and indexability status."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many pages can I crawl with CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ is completely free to use with no signup required. The default crawl limit is 50 pages per session, which covers most small to medium websites. The crawler performs a BFS crawl starting from your root URL, following internal links and handling SSL failures with automatic HTTP fallback."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is my website data secure when using CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. CrawlIQ processes all crawl data in isolated in-memory sessions. No crawl data is stored to a database or disk permanently. All data exists only for the duration of your active session and is cleared when a new crawl starts. The tool is fully open-source on GitHub and hosted on HuggingFace Spaces."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does CrawlIQ support JavaScript-rendered websites?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ uses an aiohttp-based async crawler with BeautifulSoup for HTML parsing. It works best with server-side rendered, static, and WordPress sites. The crawler extracts content from the initial HTML response including title, meta tags, headings, canonical, Open Graph tags, body text, internal links, and image alt texts. For fully JavaScript-rendered SPAs, server-side rendering or static generation is recommended for best crawl coverage."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- ── STRUCTURED DATA: BreadcrumbList ──────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [{
+    "@type": "ListItem",
+    "position": 1,
+    "name": "CrawlIQ — Free AI SEO Crawler",
+    "item": "https://bhavani5a8.github.io/seo-project/"
+  }]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<meta name="google-site-verification" content="CWOGPe7yCVzbPTd9yDBTf7tKeg382FAt_xi-4fFSP-I"/>
 <style>
 :root{
   --bg:#0F1117;--surf:#1A1D2E;--surf2:#151823;--border:#2D3048;
@@ -530,9 +690,9 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
   </a>
   <div class="nav-links">
+    <a href="#how-it-works">How It Works</a>
     <a href="#features">Features</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#faq">Docs</a>
+    <a href="#faq">FAQ</a>
     <a href="#about">About</a>
   </div>
   <div class="nav-right">
@@ -553,8 +713,8 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     AI-Powered SEO Platform
     <span class="hero-badge-new">New</span>
   </div>
-  <h1>Crawl. Analyze.<br><span class="grad">Dominate.</span></h1>
-  <p class="hero-sub">AI-Powered SEO Intelligence that crawls deeper, analyzes smarter, and ranks you higher.</p>
+  <h1>Free AI SEO Crawler.<br><span class="grad">Audit. Fix. Rank.</span></h1>
+  <p class="hero-sub">Crawl any website, detect technical SEO issues, generate AI-powered fixes, and export full audit reports — free, no signup required.</p>
   <div class="hero-input-row">
     <div class="hero-input-wrap">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5">
@@ -569,16 +729,13 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     </button>
   </div>
   <div class="trust-row">
-    <p class="trust-text">Trusted by 10,000+ SEO professionals worldwide</p>
+    <p class="trust-text">Free &amp; open-source · Hosted on HuggingFace · No signup required</p>
     <div class="stars-row">
-      <div class="avatar-stack">
-        <div class="ava" style="background:#6366F1">JD</div>
-        <div class="ava" style="background:#22D3EE">MK</div>
-        <div class="ava" style="background:#10B981">SR</div>
-        <div class="ava" style="background:#F59E0B">LP</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <span style="font-size:12px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:12px">⚡ Powered by Groq AI</span>
+        <span style="font-size:12px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:12px">🔓 Open Source on GitHub</span>
+        <span style="font-size:12px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:12px">📊 50+ SEO Metrics</span>
       </div>
-      <span class="stars">★★★★★</span>
-      <span style="font-size:12px;color:var(--muted)">4.9/5 from 2,400+ reviews</span>
     </div>
   </div>
   <div class="scroll-ind">
@@ -885,6 +1042,39 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   </div>
 </section>
 
+<!-- HOW IT WORKS -->
+<section id="how-it-works" style="background:var(--surf2);padding:80px 60px">
+  <div class="sec-inner">
+    <div class="sec-hd">
+      <div class="sec-lbl lbl-c">HOW IT WORKS</div>
+      <h2>Four Steps from Crawl to Ranked</h2>
+      <p>CrawlIQ runs a full SEO pipeline automatically — no configuration needed</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1100px;margin:0 auto">
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:24px 20px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(34,211,238,.15);color:var(--cyan);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:14px">1</div>
+        <h3 style="font-size:15px;font-weight:700;color:white;margin-bottom:8px">Enter Your URL</h3>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7">Paste any website URL. CrawlIQ starts a breadth-first crawl, discovers all internal links, handles SSL and HTTPS fallback automatically, and processes up to 50 pages per session at no cost.</p>
+      </div>
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:24px 20px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(99,102,241,.15);color:var(--indigo);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:14px">2</div>
+        <h3 style="font-size:15px;font-weight:700;color:white;margin-bottom:8px">Technical SEO Audit</h3>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7">Every crawled page is automatically scored 0–100 across 9 technical dimensions: title tag, meta description, canonical, heading structure, Open Graph, content depth, URL quality, image alt text, and HTTP status.</p>
+      </div>
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:24px 20px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(16,185,129,.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:14px">3</div>
+        <h3 style="font-size:15px;font-weight:700;color:white;margin-bottom:8px">AI Fix Generation</h3>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7">Run AI analysis on any page using Groq Llama 3, Gemini, OpenAI GPT, or Claude. The AI generates optimized titles, meta descriptions, H1 tags, and full content rewrites — ranked by impact, ready to paste.</p>
+      </div>
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:24px 20px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.15);color:var(--yellow);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:14px">4</div>
+        <h3 style="font-size:15px;font-weight:700;color:white;margin-bottom:8px">Export &amp; Implement</h3>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7">Download a full Excel (.xlsx) audit report with per-field issues, AI fixes, keyword scores, ranking grades (A–F), and a Live Optimization Table containing all paste-ready improvements for your dev or content team.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section id="features" style="background:linear-gradient(180deg,var(--bg) 0%,rgba(99,102,241,.03) 100%)">
   <div class="sec-inner">
@@ -910,9 +1100,9 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
         <div class="feat-popular">✦ Popular</div>
         <div class="feat-ico" style="background:rgba(99,102,241,.12)">🧠</div>
         <h3>AI Content Analysis</h3>
-        <p>GPT-4o analyzes your content for readability, keyword density, intent matching, and gives actionable rewrite suggestions instantly.</p>
+        <p>Groq (Llama 3), Gemini, OpenAI, or Claude analyzes your content for readability, keyword density, intent matching, and gives actionable rewrite suggestions with optimized titles, meta descriptions, and H1s.</p>
         <div class="feat-tags">
-          <span class="feat-tag" style="color:var(--indigo)">GPT-4o powered</span>
+          <span class="feat-tag" style="color:var(--indigo)">Multi-AI powered</span>
           <span class="feat-tag" style="color:var(--indigo)">Real-time</span>
         </div>
         <a class="feat-link" href="#dash-sec" style="color:var(--indigo)">Learn more →</a>
@@ -946,12 +1136,12 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       <div class="about">
         <div class="about-lbl">ABOUT US</div>
         <h2>Built for SEO professionals<br>who mean <em>business.</em></h2>
-        <p>CrawlIQ combines enterprise-grade web crawling with state-of-the-art AI to give you insights no other tool can.</p>
-        <p>From solo bloggers to Fortune 500 teams — we scale with you.</p>
+        <p>CrawlIQ is a free, open-source SEO crawler built with Python (FastAPI + aiohttp) and powered by Groq, Gemini, OpenAI, or Claude. It performs deep technical audits, extracts TF-IDF keywords, scores pages 0–100, and generates paste-ready AI content fixes.</p>
+        <p>Built for developers, SEO professionals, and indie hackers who want real data — not paywalled insights. Open source on GitHub, deployed on HuggingFace Spaces.</p>
         <div class="stat-grid">
-          <div class="stat-card"><div class="sv">10K+</div><div class="sl">Sites Crawled</div><div class="sg">↑ Growing daily</div></div>
-          <div class="stat-card"><div class="sv">98%</div><div class="sl">Accuracy Rate</div><div class="sg">↑ Industry leading</div></div>
           <div class="stat-card"><div class="sv">50+</div><div class="sl">SEO Metrics</div><div class="sg">↑ Expanding</div></div>
+          <div class="stat-card"><div class="sv">Free</div><div class="sl">Always Free</div><div class="sg">↑ No credit card</div></div>
+          <div class="stat-card"><div class="sv">6+</div><div class="sl">AI Providers</div><div class="sg">↑ Groq, Gemini &amp; more</div></div>
         </div>
       </div>
       <div class="net-wrap">
@@ -1000,24 +1190,28 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     </div>
     <div class="faq-list">
       <div class="faq-item open" onclick="toggleFaq(this)">
-        <div class="faq-q">How does the AI analysis work?<div class="faq-chev">▲</div></div>
-        <div class="faq-a"><div class="faq-a-in">CrawlIQ sends each crawled page through GPT-4o, which analyzes content quality, keyword optimization, readability, and semantic relevance. The AI then generates specific, actionable recommendations ranked by impact and implementation effort.</div></div>
+        <div class="faq-q">How does CrawlIQ's AI SEO analysis work?<div class="faq-chev">▲</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ crawls your website using an async BFS crawler and sends each page to an AI model — Groq (Llama 3), Gemini, OpenAI, or Claude (configurable). The AI analyzes content quality, keyword optimization, readability, and semantic relevance, then generates specific, actionable recommendations ranked by impact. Output includes optimized title tags, meta descriptions, H1 rewrites, and full paragraph content.</div></div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What SEO issues does CrawlIQ detect?<div class="faq-chev">▼</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ detects 15+ issue categories: missing or oversized title tags, missing meta descriptions, missing or multiple H1 tags, no H2 structure, canonical tag issues, duplicate meta descriptions across pages, broken pages (4xx/5xx errors), thin content (under 300 words), images missing alt text, HTTP instead of HTTPS, and URL problems like underscores or excessive depth.</div></div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-q">What data formats can I export?<div class="faq-chev">▼</div></div>
-        <div class="faq-a"><div class="faq-a-in">You can export full SEO audit reports as Excel (.xlsx) files, including per-field issue breakdowns, AI-generated fixes, ranking scores, and the live optimization table. CSV export is also available.</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ exports four Excel (.xlsx) reports: a Full SEO Report with all pages, issues, and AI fixes; a Per-Field Issues Report; a Live Optimization Table with paste-ready optimized content; and a Technical SEO Audit with per-page scores (0–100), letter grades (A–F), indexability status, and component-level breakdowns.</div></div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">How many pages can I crawl per month?<div class="faq-chev">▼</div></div>
-        <div class="faq-a"><div class="faq-a-in">The free tier supports up to 50 pages per crawl session. Pro plans unlock unlimited page crawling across multiple domains with scheduled crawls and historical comparisons.</div></div>
+        <div class="faq-q">How many pages can I crawl?<div class="faq-chev">▼</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ is completely free with no signup required. The default limit is 50 pages per session, covering most small to medium websites. The crawler uses breadth-first search from your root URL, follows internal links, and handles SSL failures with automatic HTTP fallback.</div></div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-q">Is my website data secure and private?<div class="faq-chev">▼</div></div>
-        <div class="faq-a"><div class="faq-a-in">Yes. All crawl data is processed in isolated sessions and never shared. We are GDPR compliant, SOC 2 certified, and use end-to-end encryption for all data in transit and at rest.</div></div>
+        <div class="faq-a"><div class="faq-a-in">Yes. All crawl data is processed in isolated in-memory sessions and never stored permanently or shared. Data exists only for the duration of your session and is cleared when a new crawl starts. CrawlIQ is fully open-source on GitHub and hosted on HuggingFace Spaces — you can inspect every line of code.</div></div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">Do you support JavaScript-rendered sites?<div class="faq-chev">▼</div></div>
-        <div class="faq-a"><div class="faq-a-in">Yes, CrawlIQ uses headless browser rendering (Playwright) to fully execute JavaScript before crawling, ensuring SPAs, React, Vue, and Next.js sites are audited with full accuracy.</div></div>
+        <div class="faq-q">Does CrawlIQ support JavaScript-rendered sites?<div class="faq-chev">▼</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ uses an aiohttp-based async crawler with BeautifulSoup for HTML parsing. It works best with server-side rendered, static, and WordPress sites, extracting titles, meta tags, headings, canonicals, Open Graph tags, body text, and image alt texts. For heavily client-side SPAs, enabling server-side rendering gives the best crawl coverage.</div></div>
       </div>
     </div>
   </div>
@@ -1073,10 +1267,10 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   <div class="ft-bot">
     <span class="ft-copy">© 2024 CrawlIQ, Inc. All rights reserved. Built with ❤️ for SEO professionals worldwide.</span>
     <div class="ft-badges">
-      <span class="ft-badge">🔒 SSL Secure</span>
-      <span class="ft-badge">✓ GDPR Compliant</span>
-      <span class="ft-badge">⚡ 99.9% Uptime</span>
-      <span class="ft-badge">🛡 SOC 2 Certified</span>
+      <span class="ft-badge">🔒 HTTPS Secure</span>
+      <span class="ft-badge">🔓 Open Source</span>
+      <span class="ft-badge">⚡ Groq AI Powered</span>
+      <span class="ft-badge">🤗 HuggingFace Hosted</span>
     </div>
   </div>
 </footer>
