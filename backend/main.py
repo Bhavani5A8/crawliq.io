@@ -59,6 +59,10 @@ FASTAPI ENDPOINTS (web server mode)
   GET  /generated-content    → all generated content
   GET  /generated-content/{url} → one page's content
   GET  /export-generated-content → download generated content Excel
+  GET  /technical-seo            → tech SEO audit for all crawled pages
+  GET  /technical-seo/{url}      → tech SEO audit for a single page
+  GET  /site-audit               → domain-level health (robots.txt, sitemap, HTTPS)
+  GET  /export-technical-seo     → download technical SEO audit Excel
 """
 
 # ── Standard library ──────────────────────────────────────────────────────────
@@ -72,9 +76,10 @@ import sys
 import tempfile
 import time
 from collections import Counter
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse as _urlparse
 
 # ── Third-party ───────────────────────────────────────────────────────────────
+import aiohttp
 import pandas as pd
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -97,6 +102,7 @@ from seo_optimizer import (
     run_optimization, get_optimization_table,
     clear_optimization_store, optimizer_status,
 )
+from technical_seo import analyze_page as _tseo_page, analyze_all as _tseo_all
 from issues import detect_issues
 from keyword_extractor import extract_keywords_corpus
 from keyword_scorer import score_keywords, build_structured_page
@@ -1357,6 +1363,318 @@ def export_generated_content():
         content=buf.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=generated_seo_content.xlsx"},
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 7b: TECHNICAL SEO ENDPOINTS ─────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/technical-seo")
+def get_technical_seo():
+    """Return technical SEO audit for all crawled pages (post-crawl only)."""
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+    return _tseo_all(list(crawl_results))
+
+
+@app.get("/technical-seo/{page_url:path}")
+def get_technical_seo_page(page_url: str):
+    """Return technical SEO audit for a single crawled page."""
+    page = next((p for p in crawl_results if p.get("url") == page_url), None)
+    if not page:
+        raise HTTPException(status_code=404, detail="URL not found in crawl results.")
+    return _tseo_page(page)
+
+
+@app.get("/site-audit")
+async def get_site_audit():
+    """
+    Fetch domain-level technical health signals for the crawled site.
+
+    Makes at most 2 async HTTP requests (robots.txt + sitemap.xml) using a
+    5-second timeout each. Returns:
+      domain        — origin URL
+      robots_txt    — {status, accessible, blocks_googlebot, content_preview}
+      sitemap       — {status, accessible, url}
+      https_summary — derived from crawl_results (no extra requests)
+    """
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+
+    first_url = crawl_results[0].get("url", "")
+    parsed    = _urlparse(first_url)
+    domain    = f"{parsed.scheme}://{parsed.netloc}"
+
+    robots_url  = f"{domain}/robots.txt"
+    sitemap_url = f"{domain}/sitemap.xml"
+
+    timeout = aiohttp.ClientTimeout(total=5)
+    headers = {"User-Agent": "CrawlIQ-TechSEO/1.0 (+https://crawliq.io)"}
+
+    async def _fetch(url: str) -> tuple[int, str]:
+        """Return (status_code, body_text). Body capped at 4000 chars."""
+        try:
+            async with aiohttp.ClientSession(timeout=timeout, headers=headers) as sess:
+                async with sess.get(url, ssl=False, allow_redirects=True) as resp:
+                    body = await resp.text(errors="replace")
+                    return resp.status, body[:4000]
+        except Exception as exc:
+            return 0, str(exc)
+
+    robots_status, robots_body = await _fetch(robots_url)
+    sitemap_status, sitemap_body = await _fetch(sitemap_url)
+
+    # ── Robots.txt analysis ───────────────────────────────────────────────────
+    robots_accessible = robots_status == 200
+    blocks_googlebot  = False
+    disallow_all      = False
+    if robots_accessible:
+        # Check for "User-agent: Googlebot" or "User-agent: *" followed by "Disallow: /"
+        lines = [ln.strip() for ln in robots_body.splitlines()]
+        current_agents: list[str] = []
+        for ln in lines:
+            low = ln.lower()
+            if low.startswith("user-agent:"):
+                agent = ln.split(":", 1)[1].strip().lower()
+                current_agents = [agent]
+            elif low.startswith("disallow:"):
+                path = ln.split(":", 1)[1].strip()
+                if path == "/" and any(a in ("*", "googlebot") for a in current_agents):
+                    blocks_googlebot = True
+                    disallow_all     = True
+
+    robots_result = {
+        "url":               robots_url,
+        "accessible":        robots_accessible,
+        "status_code":       robots_status,
+        "blocks_googlebot":  blocks_googlebot,
+        "disallow_all":      disallow_all,
+        "content_preview":   robots_body[:800] if robots_accessible else "",
+        "status":            (
+            "blocks_crawlers" if blocks_googlebot
+            else "ok" if robots_accessible
+            else "not_found" if robots_status == 404
+            else "error"
+        ),
+    }
+
+    # ── Sitemap analysis ──────────────────────────────────────────────────────
+    sitemap_accessible = sitemap_status == 200
+    sitemap_is_xml     = sitemap_accessible and (
+        "<?xml" in sitemap_body or "<urlset" in sitemap_body or "<sitemapindex" in sitemap_body
+    )
+    # Rough URL count: count <loc> tags
+    url_count = sitemap_body.count("<loc>") if sitemap_is_xml else 0
+
+    sitemap_result = {
+        "url":         sitemap_url,
+        "accessible":  sitemap_accessible,
+        "status_code": sitemap_status,
+        "is_xml":      sitemap_is_xml,
+        "url_count":   url_count,
+        "status":      (
+            "ok" if sitemap_is_xml
+            else "not_xml" if sitemap_accessible
+            else "not_found" if sitemap_status == 404
+            else "error"
+        ),
+    }
+
+    # ── HTTPS summary from crawl data (no extra requests) ────────────────────
+    real_pages   = [p for p in crawl_results if not p.get("_is_error")]
+    https_pages  = sum(1 for p in real_pages if (p.get("url") or "").startswith("https://"))
+    total_real   = len(real_pages) or 1
+    https_pct    = round((https_pages / total_real) * 100, 1)
+
+    https_summary = {
+        "total_pages":  len(crawl_results),
+        "real_pages":   len(real_pages),
+        "https_pages":  https_pages,
+        "http_pages":   len(real_pages) - https_pages,
+        "https_pct":    https_pct,
+        "status":       (
+            "all_https"  if https_pct == 100
+            else "partial" if https_pct > 0
+            else "no_https"
+        ),
+    }
+
+    # ── HTTP status code distribution from crawl data ────────────────────────
+    status_dist: dict[str, int] = {}
+    for p in crawl_results:
+        code = str(p.get("status_code", "Unknown"))
+        bucket = (
+            "2xx" if code.startswith("2") else
+            "3xx" if code.startswith("3") else
+            "4xx" if code.startswith("4") else
+            "5xx" if code.startswith("5") else
+            code
+        )
+        status_dist[bucket] = status_dist.get(bucket, 0) + 1
+
+    return {
+        "domain":         domain,
+        "robots_txt":     robots_result,
+        "sitemap":        sitemap_result,
+        "https_summary":  https_summary,
+        "status_distribution": status_dist,
+    }
+
+
+@app.get("/export-technical-seo")
+def export_technical_seo():
+    """
+    Export the full technical SEO audit as a styled Excel file.
+    Sheet 1: Per-page technical audit (score, grade, indexability, per-component scores)
+    Sheet 2: Site-wide summary
+    """
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+
+    from openpyxl.styles import PatternFill, Font, Alignment
+    from openpyxl.utils import get_column_letter
+
+    audit = _tseo_all(list(crawl_results))
+    pages = audit["pages"]
+    summary = audit["summary"]
+
+    # ── Sheet 1: Per-page rows ────────────────────────────────────────────────
+    page_rows = []
+    for a in pages:
+        idx = a.get("indexability", {})
+        page_rows.append({
+            "URL":              a["url"],
+            "HTTP Status":      a["status_code"],
+            "Indexability":     idx.get("label", "Unknown"),
+            "Index Reason":     idx.get("reason", ""),
+            "Tech Score":       a["tech_score"],
+            "Tech Grade":       a["tech_grade"],
+            "Issue Count":      a["issue_count"],
+            "All Issues":       " | ".join(a["all_issues"]),
+            # Component scores
+            "Title Score":      a["title"]["score"],
+            "Title Status":     a["title"]["status"],
+            "Title Value":      a["title"]["value"],
+            "Meta Score":       a["meta"]["score"],
+            "Meta Status":      a["meta"]["status"],
+            "Meta Value":       a["meta"]["value"],
+            "Canonical Score":  a["canonical"]["score"],
+            "Canonical Status": a["canonical"]["status"],
+            "H1 Count":         a["headings"]["h1_count"],
+            "H2 Count":         a["headings"]["h2_count"],
+            "Heading Score":    a["headings"]["score"],
+            "OG Score":         a["open_graph"]["score"],
+            "OG Status":        a["open_graph"]["completeness"],
+            "Content Words":    a["content"]["word_count"],
+            "Content Depth":    a["content"]["depth"],
+            "Content Score":    a["content"]["score"],
+            "URL HTTPS":        a["url_analysis"]["is_https"],
+            "URL Depth":        a["url_analysis"]["depth"],
+            "URL Score":        a["url_analysis"]["score"],
+            "Image Score":      a["images"]["score"],
+            "Image Status":     a["images"]["status"],
+        })
+
+    df_pages = pd.DataFrame(page_rows)
+
+    # ── Sheet 2: Summary rows ─────────────────────────────────────────────────
+    cov   = summary.get("coverage", {})
+    idx_s = summary.get("indexability", {})
+    cont  = summary.get("content", {})
+
+    summary_rows = [
+        {"Metric": "Total Pages",           "Value": summary.get("total_pages", 0)},
+        {"Metric": "Real Pages",             "Value": summary.get("real_pages", 0)},
+        {"Metric": "Avg Tech Score",         "Value": summary.get("avg_tech_score", 0)},
+        {"Metric": "Site Grade",             "Value": summary.get("site_grade", "")},
+        {"Metric": "Indexable Pages",        "Value": idx_s.get("indexable_total", 0)},
+        {"Metric": "Indexable %",            "Value": idx_s.get("indexable_pct", 0)},
+        {"Metric": "Blocked / Error Pages",  "Value": idx_s.get("blocked_total", 0)},
+        {"Metric": "Canonical Mismatch",     "Value": idx_s.get("canonical_mismatch", 0)},
+        {"Metric": "Title Coverage %",       "Value": cov.get("title_pct", 0)},
+        {"Metric": "Meta Coverage %",        "Value": cov.get("meta_pct", 0)},
+        {"Metric": "Canonical Coverage %",   "Value": cov.get("canonical_pct", 0)},
+        {"Metric": "OG Coverage %",          "Value": cov.get("og_pct", 0)},
+        {"Metric": "H1 Coverage %",          "Value": cov.get("h1_pct", 0)},
+        {"Metric": "HTTPS Coverage %",       "Value": cov.get("https_pct", 0)},
+        {"Metric": "Thin Content Pages",     "Value": cont.get("thin_pages", 0)},
+        {"Metric": "Thin Content %",         "Value": cont.get("thin_pct", 0)},
+    ]
+    for item in summary.get("top_issues", []):
+        summary_rows.append({"Metric": f"Issue: {item['issue']}", "Value": item["count"]})
+
+    df_summary = pd.DataFrame(summary_rows)
+
+    # ── Build Excel ───────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df_pages.to_excel(writer, index=False, sheet_name="Technical SEO")
+        df_summary.to_excel(writer, index=False, sheet_name="Site Summary")
+
+        # Style Sheet 1
+        ws1 = writer.sheets["Technical SEO"]
+        hdr_fill = PatternFill("solid", fgColor="0D1B2A")
+        for cell in ws1[1]:
+            cell.fill      = hdr_fill
+            cell.font      = Font(bold=True, color="22D3EE")
+            cell.alignment = Alignment(horizontal="center")
+
+        # Colour-code Tech Score column
+        score_col = next(
+            (i for i, c in enumerate(ws1[1], 1) if c.value == "Tech Score"), None
+        )
+        if score_col:
+            for row in ws1.iter_rows(min_row=2, min_col=score_col, max_col=score_col):
+                for cell in row:
+                    try:
+                        s = int(cell.value or 0)
+                        fgColor = "06D6A0" if s >= 70 else "FFD166" if s >= 40 else "FF4D6A"
+                        cell.fill = PatternFill("solid", fgColor=fgColor)
+                        cell.font = Font(bold=True, color="000000")
+                    except (ValueError, TypeError):
+                        pass
+
+        # Colour-code Indexability column
+        idx_col = next(
+            (i for i, c in enumerate(ws1[1], 1) if c.value == "Indexability"), None
+        )
+        if idx_col:
+            idx_colors = {
+                "Indexable": ("C8F7C5", "000000"),
+                "Likely":    ("D4EFDF", "000000"),
+                "Redirect":  ("FEF9E7", "000000"),
+                "Canonical": ("FDEBD0", "000000"),
+            }
+            for row in ws1.iter_rows(min_row=2, min_col=idx_col, max_col=idx_col):
+                for cell in row:
+                    v = str(cell.value or "")
+                    for key, (bg, fg) in idx_colors.items():
+                        if key in v:
+                            cell.fill = PatternFill("solid", fgColor=bg)
+                            cell.font = Font(bold=True, color=fg)
+                            break
+
+        # Autofit Sheet 1
+        for col in ws1.columns:
+            w = max(len(str(c.value or "")) for c in col) + 4
+            ws1.column_dimensions[get_column_letter(col[0].column)].width = min(w, 60)
+
+        # Style Sheet 2
+        ws2 = writer.sheets["Site Summary"]
+        for cell in ws2[1]:
+            cell.fill      = PatternFill("solid", fgColor="0D1B2A")
+            cell.font      = Font(bold=True, color="22D3EE")
+            cell.alignment = Alignment(horizontal="center")
+        for col in ws2.columns:
+            w = max(len(str(c.value or "")) for c in col) + 4
+            ws2.column_dimensions[get_column_letter(col[0].column)].width = min(w, 50)
+
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=technical_seo_audit.xlsx"},
     )
 
 

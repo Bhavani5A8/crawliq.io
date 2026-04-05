@@ -1,0 +1,8 @@
+venv/
+pip/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+backend/__pycache__/
+backend/*.pyc

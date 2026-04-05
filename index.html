@@ -416,6 +416,90 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
 .ft-badges{display:flex;gap:8px;flex-wrap:wrap;}
 .ft-badge{background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:10px;color:var(--muted);font-family:var(--mono);}
 
+/* ── TECH SEO PANEL ── */
+.tseo-panel{display:none;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin:8px 20px;overflow:hidden;}
+.tseo-panel.show{display:block;}
+.tseo-panel-head{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surf2);border-bottom:1px solid var(--border);}
+.tseo-panel-head h3{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--green);flex:1;}
+.tseo-summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surf2);}
+.tseo-mc{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;}
+.tseo-mc .tv{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:2px;}
+.tseo-mc .tl{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.tseo-mc .ts{font-size:10px;font-family:var(--mono);margin-top:2px;}
+.tseo-domain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);}
+.tseo-domain-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+.tseo-domain-ico{font-size:18px;flex-shrink:0;}
+.tseo-domain-info{flex:1;min-width:0;}
+.tseo-domain-title{font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.tseo-domain-val{font-size:10px;font-family:var(--mono);}
+.tseo-domain-val.ok{color:var(--green);}
+.tseo-domain-val.warn{color:var(--yellow);}
+.tseo-domain-val.err{color:var(--red);}
+.tseo-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--surf2);}
+.tseo-filters select,.tseo-filters input{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:var(--r);outline:none;}
+.tseo-filters input{width:180px;}
+.tseo-filters input:focus{border-color:var(--green);}
+.tseo-count{font-size:10px;color:var(--dim);margin-left:auto;font-family:var(--mono);}
+.tseo-wrap{overflow-x:auto;max-height:420px;overflow-y:auto;}
+.tseo-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);}
+.tseo-table thead th{background:var(--surf2);color:var(--muted);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:3;white-space:nowrap;}
+.tseo-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer;}
+.tseo-table tbody tr:last-child{border-bottom:none;}
+.tseo-table tbody tr:hover{background:rgba(16,185,129,.04);}
+.tseo-table td{padding:8px 14px;vertical-align:middle;}
+.tseo-url{max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--cyan);}
+.tseo-score-cell{font-weight:700;font-size:12px;}
+.idx-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
+.idx-ok{background:rgba(16,185,129,.2);color:var(--green);}
+.idx-likely{background:rgba(34,211,238,.15);color:var(--cyan);}
+.idx-canon{background:rgba(245,158,11,.15);color:var(--yellow);}
+.idx-redirect{background:rgba(245,158,11,.12);color:var(--yellow);}
+.idx-error{background:rgba(239,68,68,.15);color:var(--red);}
+.idx-unknown{background:rgba(107,114,128,.15);color:var(--muted);}
+.tseo-grade{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:800;font-size:12px;}
+.tseo-grade-a{background:rgba(16,185,129,.2);color:var(--green);}
+.tseo-grade-b{background:rgba(34,211,238,.15);color:var(--cyan);}
+.tseo-grade-c{background:rgba(245,158,11,.15);color:var(--yellow);}
+.tseo-grade-d,.tseo-grade-f{background:rgba(239,68,68,.15);color:var(--red);}
+.tseo-issue-count{display:inline-block;background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;}
+.tseo-issue-count.zero{background:rgba(16,185,129,.1);color:var(--green);border-color:rgba(16,185,129,.2);}
+.tseo-detail-btn{font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;white-space:nowrap;}
+.tseo-detail-btn:hover{background:rgba(16,185,129,.08);}
+
+/* Tech SEO Detail Modal */
+.tseo-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;}
+.tseo-overlay.open{display:flex;}
+.tseo-modal{background:var(--surf);border:1px solid var(--border);border-radius:12px;width:900px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;animation:popIn .2s ease;overflow:hidden;}
+.tseo-modal-head{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surf2);}
+.tseo-modal-head h2{font-family:var(--sans);font-size:14px;font-weight:700;flex:1;}
+.tseo-modal-url{font-size:10px;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;font-family:var(--mono);display:block;margin-top:2px;}
+.tseo-modal-score{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surf2);}
+.tseo-score-circle{width:58px;height:58px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--sans);flex-shrink:0;}
+.tseo-score-circle .sc-val{font-size:20px;font-weight:800;line-height:1;}
+.tseo-score-circle .sc-grade{font-size:10px;font-weight:600;opacity:.8;}
+.tseo-score-circle.sc-a{background:rgba(16,185,129,.2);color:var(--green);}
+.tseo-score-circle.sc-b{background:rgba(34,211,238,.15);color:var(--cyan);}
+.tseo-score-circle.sc-c{background:rgba(245,158,11,.15);color:var(--yellow);}
+.tseo-score-circle.sc-d,.tseo-score-circle.sc-f{background:rgba(239,68,68,.15);color:var(--red);}
+.tseo-score-meta{flex:1;}
+.tseo-score-meta .sm-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.tseo-score-meta .sm-idx{font-size:11px;color:var(--dim);}
+.tseo-component-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;overflow-y:auto;flex:1;}
+.tseo-component{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 16px;}
+.tseo-component:nth-child(3n){border-right:none;}
+.tseo-comp-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.tseo-comp-name{font-size:11px;font-weight:700;color:var(--text);flex:1;}
+.tseo-comp-score{font-size:11px;font-weight:800;}
+.tseo-comp-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:8px;overflow:hidden;}
+.tseo-comp-fill{height:100%;border-radius:2px;transition:width .3s ease;}
+.tseo-comp-issues{display:flex;flex-direction:column;gap:3px;}
+.tseo-comp-issue{font-size:10px;color:var(--red);font-family:var(--mono);padding:2px 0;}
+.tseo-comp-ok{font-size:10px;color:var(--green);font-family:var(--mono);}
+.tseo-comp-val{font-size:10px;color:var(--dim);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}
+.tseo-modal-foot{padding:10px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surf2);}
+.tseo-modal-nav{display:flex;align-items:center;gap:8px;}
+.tseo-bar-accent{border-left:3px solid var(--green) !important;}
+
 /* scrollbar */
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
@@ -546,6 +630,7 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       <div id="cbar" class="sbar c-bar"><div class="spin g" id="cspin"></div><span id="ctxt">Crawling…</span></div>
       <div id="gbar" class="sbar g-bar"><div class="spin p" id="gspin"></div><span id="gtxt">AI running…</span></div>
       <div id="obar" class="sbar" style="display:none;border-left:3px solid var(--yellow)"><div class="spin" style="border-top-color:var(--yellow);display:block" id="ospin"></div><span id="otxt">⚡ Optimizer running…</span></div>
+      <div id="tseo-bar" class="sbar tseo-bar-accent" style="display:none"><div class="spin" style="border-top-color:var(--green);display:none" id="tseo-spin"></div><span id="tseo-txt">🔬 Tech SEO ready</span></div>
 
       <div class="progress-wrap" id="progress-wrap">
         <div class="progress-info">
@@ -561,6 +646,7 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
         <button class="btn btn-orange"  id="opt-btn"     onclick="startOptimizer()" disabled>⚡ Optimize</button>
         <button class="btn btn-purple"  id="popup-btn"   onclick="openPopup()" disabled>◈ Popup</button>
         <button class="btn btn-outline" id="export-btn"  onclick="openExportModal()" disabled>↓ Export</button>
+        <button class="btn" style="border:1px solid var(--green);color:var(--green);background:transparent" id="tseo-btn" onclick="runTechSEO()" disabled>🔬 Tech SEO</button>
       </div>
 
       <div class="summary" id="summary">
@@ -607,6 +693,89 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
           <table class="otable">
             <thead><tr><th>URL</th><th>Field</th><th>Status</th><th>Current Value</th><th style="color:var(--cyan)">✦ Optimized Value</th><th>SEO Logic</th></tr></thead>
             <tbody id="opt-tbody"><tr><td colspan="6"><div class="opt-empty">Run ⚡ Optimize after crawl to generate the Live Optimization Table.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TECH SEO PANEL -->
+      <div class="tseo-panel" id="tseo-panel">
+        <div class="tseo-panel-head">
+          <h3>🔬 Technical SEO Audit</h3>
+          <span id="tseo-row-count" style="font-size:10px;color:var(--muted)"></span>
+          <button class="btn btn-outline btn-sm" onclick="downloadTechSEO()" style="margin-left:auto;border-color:var(--green);color:var(--green)">↓ Export (.xlsx)</button>
+        </div>
+        <!-- Site summary cards -->
+        <div class="tseo-summary-grid" id="tseo-summary-grid">
+          <div class="tseo-mc"><div class="tv" id="ts-score" style="color:var(--cyan)">—</div><div class="tl">Avg Tech Score</div><div class="ts" id="ts-grade" style="color:var(--cyan)">—</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-total" style="color:white">—</div><div class="tl">Pages Audited</div><div class="ts" style="color:var(--dim)">all crawled</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-indexable" style="color:var(--green)">—</div><div class="tl">Indexable Pages</div><div class="ts" id="ts-idx-pct" style="color:var(--green)">—</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-issues" style="color:var(--red)">—</div><div class="tl">Critical Issues</div><div class="ts" style="color:var(--dim)">across all pages</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-https" style="color:var(--green)">—</div><div class="tl">HTTPS Coverage</div><div class="ts" id="ts-https-status" style="color:var(--dim)">—</div></div>
+        </div>
+        <!-- Domain health -->
+        <div class="tseo-domain-grid" id="tseo-domain-grid">
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">🤖</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">robots.txt</div>
+              <div class="tseo-domain-val" id="td-robots">Checking…</div>
+            </div>
+          </div>
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">🗺</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">sitemap.xml</div>
+              <div class="tseo-domain-val" id="td-sitemap">Checking…</div>
+            </div>
+          </div>
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">📊</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">HTTP Status Distribution</div>
+              <div class="tseo-domain-val" id="td-status-dist">—</div>
+            </div>
+          </div>
+        </div>
+        <!-- Per-page table filters -->
+        <div class="tseo-filters">
+          <select id="tseo-idx-filter" onchange="renderTechSEOTable()">
+            <option value="">All Indexability</option>
+            <option value="indexable">Indexable</option>
+            <option value="likely_indexable">Likely Indexable</option>
+            <option value="canonical_mismatch">Canonical Mismatch</option>
+            <option value="not_indexable_redirect">Redirect</option>
+            <option value="not_indexable_error">Error</option>
+          </select>
+          <select id="tseo-grade-filter" onchange="renderTechSEOTable()">
+            <option value="">All Grades</option>
+            <option value="A">A (85-100)</option>
+            <option value="B">B (70-84)</option>
+            <option value="C">C (55-69)</option>
+            <option value="D">D (40-54)</option>
+            <option value="F">F (0-39)</option>
+          </select>
+          <input id="tseo-search" type="text" placeholder="Search URL…" oninput="renderTechSEOTable()"/>
+          <span class="tseo-count" id="tseo-count-label">0 pages</span>
+        </div>
+        <!-- Per-page table -->
+        <div class="tseo-wrap">
+          <table class="tseo-table">
+            <thead><tr>
+              <th>URL</th>
+              <th>HTTP</th>
+              <th>Indexability</th>
+              <th>Tech Score</th>
+              <th>Grade</th>
+              <th>Title</th>
+              <th>Meta</th>
+              <th>Canonical</th>
+              <th>H1</th>
+              <th>Content</th>
+              <th>HTTPS</th>
+              <th>Issues</th>
+              <th>Detail</th>
+            </tr></thead>
+            <tbody id="tseo-tbody"><tr><td colspan="13"><div class="opt-empty">Run 🔬 Tech SEO after crawl to audit all pages.</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -912,6 +1081,44 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   </div>
 </footer>
 
+<!-- TECH SEO DETAIL MODAL -->
+<div class="tseo-overlay" id="tseo-overlay" onclick="tseoOverlayClick(event)">
+<div class="tseo-modal" id="tseo-modal">
+  <div class="tseo-modal-head">
+    <div style="flex:1;min-width:0">
+      <h2>Technical SEO Detail</h2>
+      <span class="tseo-modal-url" id="td-url"></span>
+    </div>
+    <button class="popup-close" onclick="closeTechSEODetail()">✕</button>
+  </div>
+  <div class="tseo-modal-score">
+    <div class="tseo-score-circle" id="td-circle">
+      <span class="sc-val" id="td-sc-val">—</span>
+      <span class="sc-grade" id="td-sc-grade">—</span>
+    </div>
+    <div class="tseo-score-meta">
+      <div class="sm-title" id="td-sm-title">Technical Score</div>
+      <div class="sm-idx" id="td-sm-idx"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px" id="td-all-issues"></div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px">HTTP STATUS</div>
+      <div id="td-http-badge"></div>
+    </div>
+  </div>
+  <div class="tseo-component-grid" id="td-component-grid"></div>
+  <div class="tseo-modal-foot">
+    <div class="tseo-modal-nav">
+      <button class="nav-btn" id="td-prev" onclick="navTechPage(-1)">←</button>
+      <span class="nav-counter"><strong id="td-cur">1</strong> / <strong id="td-tot">1</strong></span>
+      <button class="nav-btn" id="td-next" onclick="navTechPage(1)">→</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-sm" style="border:1px solid var(--green);color:var(--green);background:transparent" onclick="downloadTechSEO()">↓ Export Tech SEO</button>
+  </div>
+</div>
+</div>
+
 <!-- POPUP -->
 <div class="overlay" id="popup-overlay" onclick="overlayClick(event)">
 <div class="popup" id="popup">
@@ -1004,15 +1211,19 @@ async function startCrawl() {
   const url = document.getElementById('url-input').value.trim();
   maxPages = 50;
   if (!url) { alert('Please enter a URL.'); return; }
-  allResults = []; selectedUrls = new Set(); optimizerRows = [];
+  allResults = []; selectedUrls = new Set(); optimizerRows = []; techSEOPages = []; techSEOSiteData = null;
   document.getElementById('opt-panel').classList.remove('show');
   document.getElementById('opt-tbody').innerHTML = '<tr><td colspan="6"><div class="opt-empty">Run ⚡ Optimize after crawl to generate the Live Optimization Table.</div></td></tr>';
   document.getElementById('opt-row-count').textContent = '';
   document.getElementById('opt-count-label').textContent = '0 rows';
+  document.getElementById('tseo-panel').classList.remove('show');
+  document.getElementById('tseo-tbody').innerHTML = '<tr><td colspan="13"><div class="opt-empty">Run 🔬 Tech SEO after crawl to audit all pages.</div></td></tr>';
+  document.getElementById('tseo-row-count').textContent = '';
+  bar('t', false);
   renderTable([]); hideSummary();
   bar('c', true, 'Starting crawl…'); bar('g', false);
   btnSet('crawl-btn', true);
-  btns({ gemini:1, popup:1, export:1, opt:1 });
+  btns({ gemini:1, popup:1, export:1, opt:1, tseo:1 });
   showProgress(true);
   document.getElementById('sel-toolbar').classList.remove('show');
   try {
@@ -1034,7 +1245,7 @@ function startCrawlPolling() {
       updateProgress(s);
       const live = await (await fetch(`${API}/results/live`)).json();
       if (live.results && live.results.length > allResults.length) { allResults = live.results; applyFilters(); updateSummary(allResults); }
-      if (s.error) { clearInterval(crawlTimer); bar('c', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0,opt:0}); showProgress(false); }
+      if (s.error) { clearInterval(crawlTimer); bar('c', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0}); showProgress(false); }
       if (s.done) {
         clearInterval(crawlTimer); await loadResults();
         const realPages = allResults.filter(r => r.status_code===200||r.status_code==='200');
@@ -1045,7 +1256,7 @@ function startCrawlPolling() {
           const t = s.timeouts>0 ? ` · ${s.timeouts} timeout${s.timeouts!==1?'s':''}` : '';
           const e = s.errors>0 ? ` · ${s.errors} error${s.errors!==1?'s':''}` : '';
           bar('c', false, `✓ ${realPages.length} pages crawled in ${elapsed}s${t}${e}`);
-          btns({crawl:0,gemini:0,popup:0,export:0,opt:0});
+          btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0});
         }
         btnSet('crawl-btn', false); showProgress(false);
       }
@@ -1302,7 +1513,7 @@ function showProgress(v){
   if(!v) document.getElementById('prog-fill').style.width='0%';
 }
 function bar(type,spinning,msg){
-  const map={c:['cbar','cspin','ctxt'],g:['gbar','gspin','gtxt'],o:['obar','ospin','otxt']};
+  const map={c:['cbar','cspin','ctxt'],g:['gbar','gspin','gtxt'],o:['obar','ospin','otxt'],t:['tseo-bar','tseo-spin','tseo-txt']};
   const[bid,sid,tid]=map[type];
   const el=document.getElementById(bid);
   if(msg===undefined&&!spinning){el.classList.remove('show');return;}
@@ -1311,7 +1522,7 @@ function bar(type,spinning,msg){
   if(msg) document.getElementById(tid).textContent=msg;
 }
 function btns(state){
-  const map={crawl:'crawl-btn',gemini:'gemini-btn',popup:'popup-btn',export:'export-btn',opt:'opt-btn'};
+  const map={crawl:'crawl-btn',gemini:'gemini-btn',popup:'popup-btn',export:'export-btn',opt:'opt-btn',tseo:'tseo-btn'};
   for(const[k,id]of Object.entries(map)){const el=document.getElementById(id);if(el&&k in state)el.disabled=!!state[k];}
 }
 function btnSet(id,disabled){const el=document.getElementById(id);if(el)el.disabled=disabled;}
@@ -1417,6 +1628,285 @@ async function downloadOptimizer(){
   }catch(e){alert('Optimizer export error: '+e.message);}
 }
 
+// ── TECH SEO ─────────────────────────────────────────────────────────────────
+let techSEOPages = [], techSEOSiteData = null, techSEODetailIdx = 0;
+
+async function runTechSEO() {
+  if (!allResults.length) { alert('Run a crawl first.'); return; }
+  bar('t', true, '🔬 Running Technical SEO audit…');
+  btnSet('tseo-btn', true);
+  document.getElementById('tseo-panel').classList.add('show');
+  document.getElementById('tseo-tbody').innerHTML =
+    '<tr><td colspan="13"><div class="opt-empty">Auditing pages…</div></td></tr>';
+
+  try {
+    // Fire both requests in parallel
+    const [tseoRes, siteRes] = await Promise.all([
+      fetch(`${API}/technical-seo`),
+      fetch(`${API}/site-audit`),
+    ]);
+
+    if (!tseoRes.ok) throw new Error((await tseoRes.json()).detail || 'Tech SEO failed');
+    if (!siteRes.ok) throw new Error((await siteRes.json()).detail || 'Site audit failed');
+
+    const tseoData = await tseoRes.json();
+    techSEOSiteData = await siteRes.json();
+    techSEOPages    = tseoData.pages || [];
+
+    renderTechSEOSummary(tseoData.summary, techSEOSiteData);
+    renderTechSEODomain(techSEOSiteData);
+    renderTechSEOTable();
+
+    const n = techSEOPages.length;
+    const totalIssues = techSEOPages.reduce((s, p) => s + (p.issue_count || 0), 0);
+    bar('t', false, `✓ Tech SEO complete — ${n} pages audited · ${totalIssues} issues found`);
+    set('tseo-row-count', `${n} pages`);
+  } catch (e) {
+    bar('t', false, `✗ ${e.message}`);
+    document.getElementById('tseo-tbody').innerHTML =
+      `<tr><td colspan="13"><div class="opt-empty" style="color:var(--red)">Error: ${esc(e.message)}</div></td></tr>`;
+  } finally {
+    btnSet('tseo-btn', false);
+  }
+}
+
+function renderTechSEOSummary(summary, siteData) {
+  if (!summary) return;
+  const score = summary.avg_tech_score ?? '—';
+  const grade = summary.site_grade ?? '—';
+  const gradeColor = { A:'var(--green)', B:'var(--cyan)', C:'var(--yellow)', D:'var(--red)', F:'var(--red)' }[grade] || 'var(--dim)';
+  set('ts-score', score);
+  document.getElementById('ts-score').style.color = gradeColor;
+  set('ts-grade', `Grade ${grade}`);
+  document.getElementById('ts-grade').style.color = gradeColor;
+  set('ts-total', summary.total_pages ?? '—');
+  const idx = summary.indexability || {};
+  set('ts-indexable', idx.indexable_total ?? '—');
+  set('ts-idx-pct', idx.indexable_pct != null ? `${idx.indexable_pct}% indexable` : '—');
+  const totalIssues = techSEOPages.reduce((s, p) => s + (p.issue_count || 0), 0);
+  set('ts-issues', totalIssues);
+  if (siteData && siteData.https_summary) {
+    const h = siteData.https_summary;
+    set('ts-https', `${h.https_pct}%`);
+    set('ts-https-status', h.status === 'all_https' ? '✓ All pages' :
+      h.status === 'partial' ? '⚠ Partial' : '✗ None');
+    document.getElementById('ts-https').style.color =
+      h.status === 'all_https' ? 'var(--green)' : h.status === 'partial' ? 'var(--yellow)' : 'var(--red)';
+  }
+}
+
+function renderTechSEODomain(siteData) {
+  if (!siteData) return;
+
+  const robEl  = document.getElementById('td-robots');
+  const siteEl = document.getElementById('td-sitemap');
+  const statEl = document.getElementById('td-status-dist');
+
+  // robots.txt
+  const r = siteData.robots_txt || {};
+  if (r.blocks_googlebot) {
+    robEl.textContent = '✗ Blocks Googlebot!';
+    robEl.className = 'tseo-domain-val err';
+  } else if (r.accessible) {
+    robEl.textContent = '✓ Accessible · No blocks';
+    robEl.className = 'tseo-domain-val ok';
+  } else if (r.status_code === 404) {
+    robEl.textContent = '⚠ Not Found (404)';
+    robEl.className = 'tseo-domain-val warn';
+  } else {
+    robEl.textContent = `✗ Error (${r.status_code || '?'})`;
+    robEl.className = 'tseo-domain-val err';
+  }
+
+  // sitemap.xml
+  const s = siteData.sitemap || {};
+  if (s.is_xml) {
+    siteEl.textContent = `✓ Found · ${s.url_count} URLs`;
+    siteEl.className = 'tseo-domain-val ok';
+  } else if (s.accessible) {
+    siteEl.textContent = '⚠ Found but not valid XML';
+    siteEl.className = 'tseo-domain-val warn';
+  } else if (s.status_code === 404) {
+    siteEl.textContent = '⚠ Not Found (404)';
+    siteEl.className = 'tseo-domain-val warn';
+  } else {
+    siteEl.textContent = `✗ Error (${s.status_code || '?'})`;
+    siteEl.className = 'tseo-domain-val err';
+  }
+
+  // HTTP status distribution
+  const dist = siteData.status_distribution || {};
+  const distStr = Object.entries(dist)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' · ');
+  statEl.textContent = distStr || '—';
+  statEl.className = 'tseo-domain-val ok';
+}
+
+function renderTechSEOTable() {
+  const idxF    = document.getElementById('tseo-idx-filter').value;
+  const gradeF  = document.getElementById('tseo-grade-filter').value;
+  const srch    = (document.getElementById('tseo-search').value || '').toLowerCase();
+
+  let rows = techSEOPages.filter(p => {
+    if (idxF   && (p.indexability || {}).status !== idxF) return false;
+    if (gradeF && p.tech_grade !== gradeF) return false;
+    if (srch   && !(p.url || '').toLowerCase().includes(srch)) return false;
+    return true;
+  });
+
+  document.getElementById('tseo-count-label').textContent = `${rows.length} page${rows.length !== 1 ? 's' : ''}`;
+  const tbody = document.getElementById('tseo-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="13"><div class="opt-empty">No pages match the current filters.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map((p, i) => {
+    const idx    = p.indexability || {};
+    const score  = p.tech_score ?? '—';
+    const grade  = p.tech_grade ?? '—';
+    const gc     = { A:'var(--green)', B:'var(--cyan)', C:'var(--yellow)', D:'var(--red)', F:'var(--red)' }[grade] || 'var(--dim)';
+    const tScore = p.title?.score ?? '—';
+    const mScore = p.meta?.score  ?? '—';
+    const cScore = p.canonical?.score ?? '—';
+    const h1ok   = (p.headings?.h1_count === 1);
+    const conDep = p.content?.depth ?? '—';
+    const isHttps = p.url_analysis?.is_https;
+    const ic     = p.issue_count || 0;
+    const fullIdx = techSEOPages.indexOf(p);
+    return `<tr onclick="openTechSEODetail(${fullIdx})">
+      <td class="tseo-url" title="${esc(p.url)}">${esc(p.url)}</td>
+      <td>${statusBadge(p.status_code)}</td>
+      <td>${indexBadge(idx)}</td>
+      <td class="tseo-score-cell" style="color:${gc}">${score}</td>
+      <td><span class="tseo-grade tseo-grade-${(grade||'').toLowerCase()}">${grade}</span></td>
+      <td><span class="${tScore>=80?'ss-ok':'ss-bad'} sstatus" style="font-size:9px">${tScore}</span></td>
+      <td><span class="${mScore>=80?'ss-ok':'ss-bad'} sstatus" style="font-size:9px">${mScore}</span></td>
+      <td><span class="${cScore>=80?'ss-ok':'ss-bad'} sstatus" style="font-size:9px">${cScore}</span></td>
+      <td>${h1ok ? '<span style="color:var(--green);font-size:10px">✓</span>' : '<span style="color:var(--red);font-size:10px">✗</span>'}</td>
+      <td><span style="font-size:10px;color:${conDep==='rich'?'var(--green)':conDep==='medium'?'var(--cyan)':'var(--red)'}">${conDep}</span></td>
+      <td>${isHttps ? '<span style="color:var(--green);font-size:10px">✓</span>' : '<span style="color:var(--red);font-size:10px">✗</span>'}</td>
+      <td><span class="tseo-issue-count ${ic===0?'zero':''}">${ic}</span></td>
+      <td><button class="tseo-detail-btn" onclick="event.stopPropagation();openTechSEODetail(${fullIdx})">Detail →</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function indexBadge(idx) {
+  const s = idx.status || 'unknown';
+  const l = idx.label  || 'Unknown';
+  const cls = {
+    indexable:               'idx-ok',
+    likely_indexable:        'idx-likely',
+    canonical_mismatch:      'idx-canon',
+    not_indexable_redirect:  'idx-redirect',
+    not_indexable_error:     'idx-error',
+    unknown:                 'idx-unknown',
+  }[s] || 'idx-unknown';
+  return `<span class="idx-badge ${cls}" title="${esc(idx.reason||'')}">${esc(l)}</span>`;
+}
+
+function openTechSEODetail(idx) {
+  techSEODetailIdx = idx;
+  renderTechSEODetail();
+  document.getElementById('tseo-overlay').classList.add('open');
+}
+
+function renderTechSEODetail() {
+  const p = techSEOPages[techSEODetailIdx];
+  if (!p) return;
+
+  set('td-url', p.url);
+  set('td-sc-val', p.tech_score ?? '—');
+  set('td-sc-grade', p.tech_grade ?? '—');
+  const circle = document.getElementById('td-circle');
+  const g = (p.tech_grade || '').toLowerCase();
+  circle.className = `tseo-score-circle sc-${g || 'f'}`;
+
+  const idx = p.indexability || {};
+  set('td-sm-title', `Tech Score — ${idx.label || 'Unknown'} Indexability`);
+  set('td-sm-idx', idx.reason || '');
+
+  document.getElementById('td-http-badge').innerHTML = statusBadge(p.status_code);
+
+  // Issues list
+  const issEl = document.getElementById('td-all-issues');
+  issEl.innerHTML = (p.all_issues || []).length
+    ? p.all_issues.map(i => `<span class="itag" style="font-size:9px">${esc(i)}</span>`).join('')
+    : '<span style="color:var(--green);font-size:10px">✓ No issues</span>';
+
+  // Navigation
+  set('td-cur', techSEODetailIdx + 1);
+  set('td-tot', techSEOPages.length);
+  document.getElementById('td-prev').disabled = techSEODetailIdx === 0;
+  document.getElementById('td-next').disabled = techSEODetailIdx === techSEOPages.length - 1;
+
+  // Component grid
+  const components = [
+    { name: 'Title Tag',       data: p.title,        fields: ['value','length','status'], scoreKey: 'score' },
+    { name: 'Meta Description',data: p.meta,         fields: ['value','length','status'], scoreKey: 'score' },
+    { name: 'Canonical',       data: p.canonical,    fields: ['value','status'],           scoreKey: 'score' },
+    { name: 'Headings',        data: p.headings,     fields: ['h1_count','h2_count','h1_status'], scoreKey: 'score' },
+    { name: 'Open Graph',      data: p.open_graph,   fields: ['completeness','title','description'], scoreKey: 'score' },
+    { name: 'Content',         data: p.content,      fields: ['word_count','depth','link_density'], scoreKey: 'score' },
+    { name: 'URL Structure',   data: p.url_analysis, fields: ['is_https','depth','length'], scoreKey: 'score' },
+    { name: 'Images',          data: p.images,       fields: ['alts_captured','alts_with_text','status'], scoreKey: 'score' },
+    { name: 'HTTP Status',     data: p.status,       fields: ['code'],                     scoreKey: 'score' },
+  ];
+
+  document.getElementById('td-component-grid').innerHTML = components.map(c => {
+    const d = c.data || {};
+    const sc = d[c.scoreKey] ?? 0;
+    const gc = sc >= 80 ? '#10B981' : sc >= 55 ? '#F59E0B' : '#EF4444';
+    const issues = d.issues || [];
+    const fieldLines = c.fields.map(f => {
+      const v = d[f];
+      if (v === undefined || v === null) return '';
+      const label = f.replace(/_/g,' ');
+      return `<div class="tseo-comp-val">${esc(label)}: ${esc(String(v))}</div>`;
+    }).filter(Boolean).join('');
+    const issueLines = issues.length
+      ? issues.map(i => `<div class="tseo-comp-issue">✗ ${esc(i)}</div>`).join('')
+      : `<div class="tseo-comp-ok">✓ No issues</div>`;
+    return `<div class="tseo-component">
+      <div class="tseo-comp-head">
+        <span class="tseo-comp-name">${esc(c.name)}</span>
+        <span class="tseo-comp-score" style="color:${gc}">${sc}</span>
+      </div>
+      <div class="tseo-comp-bar"><div class="tseo-comp-fill" style="width:${sc}%;background:${gc}"></div></div>
+      <div class="tseo-comp-issues">${issueLines}</div>
+      <div style="margin-top:4px">${fieldLines}</div>
+    </div>`;
+  }).join('');
+}
+
+function navTechPage(dir) {
+  const n = techSEODetailIdx + dir;
+  if (n < 0 || n >= techSEOPages.length) return;
+  techSEODetailIdx = n;
+  renderTechSEODetail();
+}
+
+function closeTechSEODetail() {
+  document.getElementById('tseo-overlay').classList.remove('open');
+}
+function tseoOverlayClick(e) {
+  if (e.target === document.getElementById('tseo-overlay')) closeTechSEODetail();
+}
+
+async function downloadTechSEO() {
+  try {
+    const res = await fetch(`${API}/export-technical-seo`);
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Export failed'); }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await res.blob());
+    a.download = 'technical_seo_audit.xlsx';
+    a.click();
+  } catch (e) { alert('Tech SEO export error: ' + e.message); }
+}
+
 function toggleFaq(item){
   const isOpen=item.classList.contains('open');
   document.querySelectorAll('.faq-item').forEach(i=>{
@@ -1430,6 +1920,12 @@ function toggleFaq(item){
 }
 
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('tseo-overlay').classList.contains('open')){
+    if(e.key==='ArrowLeft')navTechPage(-1);
+    if(e.key==='ArrowRight')navTechPage(1);
+    if(e.key==='Escape')closeTechSEODetail();
+    return;
+  }
   if(!document.getElementById('popup-overlay').classList.contains('open'))return;
   if(e.key==='ArrowLeft')navPage(-1);
   if(e.key==='ArrowRight')navPage(1);
