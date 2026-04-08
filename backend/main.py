@@ -2063,11 +2063,12 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
     if snap["status"] != "done":
         raise HTTPException(status_code=400, detail="Analysis not yet complete.")
 
-    metrics  = snap.get("metrics", {})
-    sites    = metrics.get("sites", [])
-    gaps     = metrics.get("keyword_gaps", [])
-    actions  = metrics.get("actions", [])
-    target   = metrics.get("target_url", "")
+    metrics       = snap.get("metrics", {})
+    sites         = metrics.get("sites", [])
+    gaps          = metrics.get("keyword_gaps", [])
+    actions       = metrics.get("actions", [])
+    target        = metrics.get("target_url", "")
+    crawl_errors  = metrics.get("crawl_errors", {})
 
     from openpyxl.styles import PatternFill, Font, Alignment
     from openpyxl.utils import get_column_letter
@@ -2078,19 +2079,26 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
         # ── Sheet 1: Score Comparison ─────────────────────────────────────
         score_rows = []
         for site in sites:
-            sc = site.get("scores", {})
+            sc      = site.get("scores", {})
+            blocked = site.get("crawl_blocked", False)
+            na      = "N/A (crawl blocked)" if blocked else None
+
+            def _s(key):  # return N/A string if blocked, else numeric score
+                return na if blocked else sc.get(key, 0)
+
             score_rows.append({
-                "Domain":       site.get("domain", ""),
-                "URL":          site.get("url", ""),
-                "Composite":    sc.get("composite", 0),
-                "Technical":    sc.get("technical", 0),
-                "On-Page":      sc.get("on_page", 0),
-                "Content":      sc.get("content", 0),
-                "E-E-A-T":      sc.get("eeat", 0),
-                "CTR Potential": sc.get("ctr", 0),
-                "Keywords":     sc.get("keywords", 0),
-                "Page Speed":   sc.get("page_speed", 0),
-                "Is Target":    "✓" if site.get("url") == target else "",
+                "Domain":        site.get("domain", ""),
+                "URL":           site.get("url", ""),
+                "Composite":     _s("composite"),
+                "Technical":     _s("technical"),
+                "On-Page":       _s("on_page"),
+                "Content":       _s("content"),
+                "E-E-A-T":       _s("eeat"),
+                "CTR Potential": _s("ctr"),
+                "Keywords":      _s("keywords"),
+                "Page Speed":    _s("page_speed"),
+                "Is Target":     "✓" if site.get("url") == target else "",
+                "Crawl Status":  "Blocked" if blocked else f"{site.get('real_pages', 0)} pages",
             })
         df_scores = pd.DataFrame(score_rows)
         df_scores.to_excel(writer, index=False, sheet_name="Score Comparison")
@@ -2164,6 +2172,22 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
             ws4 = writer.sheets["Action Plan"]
             _style_header(ws4)
             _autofit(ws4)
+
+        # ── Sheet 5: Crawl Errors (only if any sites were blocked) ────────
+        if crawl_errors:
+            err_rows = [
+                {
+                    "URL":    url,
+                    "Domain": _urlparse(url).netloc,
+                    "Reason": reason,
+                    "Fix":    "Add delay/User-Agent rotation, or use Playwright for JS-heavy sites",
+                }
+                for url, reason in crawl_errors.items()
+            ]
+            pd.DataFrame(err_rows).to_excel(writer, index=False, sheet_name="Crawl Errors")
+            ws5 = writer.sheets["Crawl Errors"]
+            _style_header(ws5)
+            _autofit(ws5)
 
     buf.seek(0)
     safe_domain = (_urlparse(target).netloc or "competitor").replace(".", "_")

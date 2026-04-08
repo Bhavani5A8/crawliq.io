@@ -152,9 +152,14 @@ async def _fetch_psi(url: str, strategy: str = "mobile") -> dict:
     timeout = aiohttp.ClientTimeout(total=PSI_TIMEOUT)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as sess:
-            async with sess.get(PSI_API_URL, params=params, ssl=False) as resp:
+            async with sess.get(PSI_API_URL, params=params) as resp:
+                if resp.status == 429:
+                    logger.warning(
+                        "PSI API rate-limited (429) for %s. "
+                        "Set PSI_API_KEY env var for higher quota.", url)
+                    return {}
                 if resp.status != 200:
-                    logger.debug("PSI API %d for %s", resp.status, url)
+                    logger.warning("PSI API HTTP %d for %s", resp.status, url)
                     return {}
                 data = await resp.json()
 
@@ -233,6 +238,19 @@ async def fetch_psi_all(urls: list[str], strategy: str = "mobile") -> dict[str, 
 # ════════════════════════════════════════════════════════════════════════════
 # ── SECTION 2: SITE CRAWLING ─────────────────────────────────────────────────
 # ════════════════════════════════════════════════════════════════════════════
+
+def _normalize_url(url: str) -> str:
+    """
+    Normalize any URL to its root domain homepage.
+    Strips subpaths so we always crawl/score the site root.
+    e.g. https://proprofs.com/mock-test-series-online → https://proprofs.com/
+    """
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    p = urlparse(url)
+    return f"{p.scheme}://{p.netloc}/"
+
 
 async def _crawl_site(url: str) -> list[dict]:
     """
@@ -886,6 +904,11 @@ async def run_competitor_analysis(
 
     Never raises — all errors are caught and stored in DB.
     """
+    # Normalize all URLs to root domains before anything else.
+    # Strips subpaths like /mock-test-series-online so we crawl the homepage.
+    target_url      = _normalize_url(target_url)
+    competitor_urls = [_normalize_url(u) for u in competitor_urls]
+
     update_snapshot(task_id, status="running")
     logger.info("[%s] Competitor analysis started: %s vs %d competitors",
                 task_id, target_url, len(competitor_urls))
@@ -914,6 +937,20 @@ async def run_competitor_analysis(
         # Ensure we have at least empty lists for all URLs
         for u in all_urls:
             pages_map.setdefault(u, [])
+
+        # Track which sites returned no usable pages (blocked / timed out)
+        crawl_errors: dict[str, str] = {}
+        for u in all_urls:
+            real = [p for p in pages_map[u] if p.get("status_code") == 200]
+            if not real:
+                total = len(pages_map[u])
+                msg = (
+                    f"0 pages crawled — site is blocking bots (Cloudflare/JS wall)"
+                    if total == 0 else
+                    f"{total} pages fetched but none returned HTTP 200 (all errors/redirects)"
+                )
+                crawl_errors[u] = msg
+                logger.warning("[%s] Crawl blocked for %s: %s", task_id, u, msg)
 
         # ── Step 2: Keyword extraction per site ───────────────────────────
         for url in all_urls:
@@ -979,17 +1016,20 @@ async def run_competitor_analysis(
 
         # ── Step 8: Build per-site page summaries ─────────────────────────
         def _site_summary(url: str) -> dict:
-            pages = pages_map[url]
-            real  = [p for p in pages if p.get("status_code") == 200]
+            pages   = pages_map[url]
+            real    = [p for p in pages if p.get("status_code") == 200]
+            blocked = url in crawl_errors
             return {
-                "url":          url,
-                "domain":       urlparse(url).netloc,
+                "url":           url,
+                "domain":        urlparse(url).netloc,
                 "pages_crawled": len(pages),
-                "real_pages":   len(real),
-                "issues_count": sum(1 for p in real if p.get("issues")),
-                "scores":       site_scores[url],
-                "cwv":          cwv_by_site.get(url, {}),
-                "top_keywords": list({
+                "real_pages":    len(real),
+                "crawl_blocked": blocked,
+                "crawl_error":   crawl_errors.get(url, ""),
+                "issues_count":  sum(1 for p in real if p.get("issues")),
+                "scores":        site_scores[url],
+                "cwv":           cwv_by_site.get(url, {}),
+                "top_keywords":  list({
                     k if isinstance(k, str) else k.get("keyword", "")
                     for p in real
                     for k in (p.get("keywords") or [])
@@ -1012,6 +1052,7 @@ async def run_competitor_analysis(
             "keyword_gaps":      keyword_gaps,
             "similarities":      similarities,
             "actions":           actions,
+            "crawl_errors":      crawl_errors,
             "phase":             1,
         }
 
