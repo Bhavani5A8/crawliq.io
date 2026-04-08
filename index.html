@@ -201,9 +201,10 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:rgba(15,17,23,.96);
 .ai-pill-dot{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative;flex-shrink:0;}
 .ai-pill-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);opacity:.3;animation:ping 2s ease-in-out infinite;}
 @keyframes ping{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.8);opacity:0}}
-.gemini-pill{font-size:12px;color:var(--dim);font-family:var(--mono);background:none;border:none;padding:0;}
+.gemini-pill{font-size:12px;color:var(--dim);font-family:var(--mono);background:none;border:none;padding:0;cursor:pointer;transition:opacity .15s;}
+.gemini-pill:hover{opacity:.75;}
 .gemini-pill.up{color:var(--green);}
-.gemini-pill.down{color:var(--red);}
+.gemini-pill.down{color:var(--red);text-decoration:underline dotted;}
 .nav-login{font-size:14px;color:var(--dim);text-decoration:none;font-weight:500;transition:color .15s;}
 .nav-login:hover{color:var(--text);}
 
@@ -743,7 +744,7 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   <div class="nav-right">
     <a class="btn-nav-cta" href="#dash-sec">Start Free</a>
     <button class="btn-ai-setup" onclick="openAiSetup()" title="Configure AI provider &amp; API key">⚙ AI Setup</button>
-    <div class="ai-pill">
+    <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer" title="Click to configure AI">
       <div class="ai-pill-dot"></div>
       <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
     </div>
@@ -1511,9 +1512,18 @@ async function checkGemini() {
   try {
     const d = await (await fetch(`${API}/ai-config`)).json();
     const pill = document.getElementById('gemini-pill');
-    if (d.configured) { pill.textContent = `✨ ${d.label} · Ready`; pill.className = 'gemini-pill up'; }
-    else { pill.textContent = '⚙ AI: click AI Setup'; pill.className = 'gemini-pill down'; }
-  } catch {}
+    if (d.configured) {
+      pill.textContent = `✨ ${d.label} · Ready`;
+      pill.className   = 'gemini-pill up';
+    } else {
+      pill.textContent = '⚙ Set API Key ↗';
+      pill.className   = 'gemini-pill down';
+    }
+  } catch {
+    const pill = document.getElementById('gemini-pill');
+    pill.textContent = '⚙ Set API Key ↗';
+    pill.className   = 'gemini-pill down';
+  }
 }
 
 function startCrawlHero() {

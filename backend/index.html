@@ -24,9 +24,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 header{display:flex;align-items:center;gap:12px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:16px;}
 h1{font-family:var(--sans);font-size:22px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .tag{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;border:1px solid var(--border);padding:2px 8px;border-radius:20px;}
-.gemini-pill{margin-left:auto;font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--dim);}
+.gemini-pill{margin-left:auto;font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:opacity .15s;}
+.gemini-pill:hover{opacity:.75;}
 .gemini-pill.up{border-color:var(--green);color:var(--green);}
-.gemini-pill.down{border-color:var(--red);color:var(--red);}
+.gemini-pill.down{border-color:var(--red);color:var(--red);text-decoration:underline dotted;}
 
 /* Input panel */
 .input-panel{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
@@ -388,7 +389,7 @@ td.check-cell{width:28px;padding:7px 6px;}
 <header>
   <h1>SEO Crawler</h1>
   <span class="tag">v5 · Live</span>
-  <span class="gemini-pill" id="gemini-pill">AI: checking…</span>
+  <span class="gemini-pill" id="gemini-pill" onclick="openAiSetup()" title="Click to configure AI">AI: checking…</span>
   <button class="btn btn-ai-setup" id="ai-setup-btn" onclick="openAiSetup()" title="Configure AI provider &amp; API key">⚙ AI Setup</button>
 </header>
 
@@ -738,10 +739,14 @@ async function checkGemini() {
       pill.textContent = `✨ ${d.label} · ready`;
       pill.className   = 'gemini-pill up';
     } else {
-      pill.textContent = `⚙ AI: not configured — click AI Setup`;
+      pill.textContent = '⚙ Set API Key ↗';
       pill.className   = 'gemini-pill down';
     }
-  } catch {}
+  } catch {
+    const pill = document.getElementById('gemini-pill');
+    pill.textContent = '⚙ Set API Key ↗';
+    pill.className   = 'gemini-pill down';
+  }
 }
 
 // ── Crawl ─────────────────────────────────────────────────────────────────────
