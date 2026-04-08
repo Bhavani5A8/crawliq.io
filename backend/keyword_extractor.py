@@ -159,6 +159,14 @@ def _tfidf_extract(pages: list[dict], texts: list[str], top_n: int) -> None:
                 for idx in top_indices
                 if scores[idx] > 0 and feature_names[idx] not in _STOPWORDS
             ][:top_n]
+            # BUG-N37: log when stopword filtering leaves fewer than top_n results
+            # so high-stopword pages are visible in debug output.
+            if len(keywords) < top_n:
+                logger.debug(
+                    "TF-IDF sparse result for %s: %d/%d keywords extracted "
+                    "(high stopword density — consider raising TFIDF_MAX_PAGES or reviewing content)",
+                    page.get("url", "?"), len(keywords), top_n,
+                )
             page["keywords"] = keywords
 
     except Exception as e:

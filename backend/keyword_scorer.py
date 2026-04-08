@@ -22,23 +22,27 @@ Design rules:
 import re
 import logging
 from collections import Counter
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
 # BUG-N01: pre-compiled word-boundary pattern used by _in_text().
 # Python's `kw in text` is substring matching — "art" matches "startup".
 # Using \b...\b ensures we only count whole-word occurrences.
-_WB_CACHE: dict[str, re.Pattern] = {}
+#
+# BUG-N40: replaced the unbounded module-level dict with lru_cache(maxsize=2048).
+# In long-running deployments crawling many sites the old dict grew indefinitely;
+# lru_cache evicts the least-recently-used entries once the cap is reached.
+
+@lru_cache(maxsize=2048)
+def _compile_wb(kw: str) -> re.Pattern:
+    return re.compile(rf"\b{re.escape(kw)}\b")
 
 def _in_text(kw: str, text: str) -> bool:
     """True only when kw appears as a whole word in text (case-normalised)."""
     if not kw or not text:
         return False
-    pat = _WB_CACHE.get(kw)
-    if pat is None:
-        pat = re.compile(rf"\b{re.escape(kw)}\b")
-        _WB_CACHE[kw] = pat
-    return bool(pat.search(text))
+    return bool(_compile_wb(kw).search(text))
 
 # ── Scoring weights ───────────────────────────────────────────────────────────
 # Each condition adds points. Thresholds: ≥6 HIGH, 3-5 MEDIUM, <3 LOW.

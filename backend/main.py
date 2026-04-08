@@ -82,7 +82,7 @@ from urllib.parse import unquote, urlparse as _urlparse
 # ── Third-party ───────────────────────────────────────────────────────────────
 import aiohttp
 import pandas as pd
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
@@ -931,14 +931,18 @@ def get_crawl_status():
 
 
 @app.get("/results")
-def get_results(limit: int = 0, offset: int = 0):
+def get_results(
+    limit:  int = Query(default=0, ge=0, description="Max pages to return (0 = all)"),
+    offset: int = Query(default=0, ge=0, description="Number of pages to skip"),
+):
     """
     Full results after crawl completes.
     BUG-007: supports optional pagination via limit/offset query params
     (limit=0 means return all — preserves existing behaviour for the frontend).
+    BUG-N26: limit/offset now validated by Query(ge=0) — negative values return 422.
     """
     all_results = list(crawl_results)
-    sliced = all_results[offset: offset + limit] if limit > 0 else all_results
+    sliced = all_results[offset: offset + limit] if limit > 0 else all_results[offset:]
     return {
         "status":        crawl_status,
         "gemini_status": gemini_status,
@@ -1017,8 +1021,15 @@ def _merge_gemini_results(snapshot: list[dict]) -> None:
     """
     Write AI results from the snapshot back into live crawl_results.
     Called after AI analysis completes in the thread pool.
+
+    BUG-N23: build the url_map from a snapshot copy so we never iterate
+    crawl_results directly while another coroutine may be clearing it.
+    We write back using index lookup on the same snapshot-derived map,
+    which is safe because list entries are mutable dicts shared by reference.
     """
-    url_map = {p["url"]: p for p in crawl_results}
+    # Snapshot the list reference once — safe even if crawl_results is replaced
+    current = list(crawl_results)
+    url_map = {p["url"]: p for p in current}
     for page in snapshot:
         url = page["url"]
         if url in url_map:
@@ -1138,13 +1149,20 @@ def _build_popup_fields(page: dict) -> list[dict]:
 # ── Status field helpers ──────────────────────────────────────────────────────
 
 def _title_status(s: set) -> str:
-    if "Missing Title"  in s: return "Missing"
-    if "Title Too Long" in s: return "Too Long"
+    # BUG-N38: "Title Too Short" was falling through to "OK" — popup showed
+    # wrong status, suppressing the fix-suggestion row for short titles.
+    if "Missing Title"   in s: return "Missing"
+    if "Title Too Long"  in s: return "Too Long"
+    if "Title Too Short" in s: return "Too Short"
     return "OK"
 
 def _meta_status(s: set) -> str:
-    if "Missing Meta Description"   in s: return "Missing"
-    if "Duplicate Meta Description" in s: return "Duplicate"
+    # BUG-N44: "Meta Description Too Long" and "Too Short" were both mapped
+    # to "OK" — popup suppressed fix rows for length issues.
+    if "Missing Meta Description"    in s: return "Missing"
+    if "Duplicate Meta Description"  in s: return "Duplicate"
+    if "Meta Description Too Long"   in s: return "Too Long"
+    if "Meta Description Too Short"  in s: return "Too Short"
     return "OK"
 
 def _h1_status(s: set) -> str:
@@ -1173,6 +1191,10 @@ async def start_optimize(request: OptimizeRequest):
         raise HTTPException(status_code=409, detail="Optimizer already running.")
     if not _ai_configured():
         raise HTTPException(status_code=400, detail=_ai_key_error_detail())
+
+    # BUG-N31: clear stale rows before each run so re-running /optimize
+    # on the same crawl session never accumulates rows from prior runs.
+    clear_optimization_store()
 
     snapshot = list(crawl_results)
     urls     = request.urls if request.urls else None
@@ -1632,38 +1654,47 @@ def export_technical_seo():
     # ── Sheet 1: Per-page rows ────────────────────────────────────────────────
     page_rows = []
     for a in pages:
-        idx = a.get("indexability", {})
+        # BUG-N27: use .get() throughout so a partial audit dict never raises KeyError.
+        idx      = a.get("indexability", {})
+        title_a  = a.get("title", {})
+        meta_a   = a.get("meta", {})
+        canon_a  = a.get("canonical", {})
+        head_a   = a.get("headings", {})
+        og_a     = a.get("open_graph", {})
+        cont_a   = a.get("content", {})
+        url_a    = a.get("url_analysis", {})
+        img_a    = a.get("images", {})
         page_rows.append({
-            "URL":              a["url"],
-            "HTTP Status":      a["status_code"],
+            "URL":              a.get("url", ""),
+            "HTTP Status":      a.get("status_code", ""),
             "Indexability":     idx.get("label", "Unknown"),
             "Index Reason":     idx.get("reason", ""),
-            "Tech Score":       a["tech_score"],
-            "Tech Grade":       a["tech_grade"],
-            "Issue Count":      a["issue_count"],
-            "All Issues":       " | ".join(a["all_issues"]),
+            "Tech Score":       a.get("tech_score", 0),
+            "Tech Grade":       a.get("tech_grade", "?"),
+            "Issue Count":      a.get("issue_count", 0),
+            "All Issues":       " | ".join(a.get("all_issues", [])),
             # Component scores
-            "Title Score":      a["title"]["score"],
-            "Title Status":     a["title"]["status"],
-            "Title Value":      a["title"]["value"],
-            "Meta Score":       a["meta"]["score"],
-            "Meta Status":      a["meta"]["status"],
-            "Meta Value":       a["meta"]["value"],
-            "Canonical Score":  a["canonical"]["score"],
-            "Canonical Status": a["canonical"]["status"],
-            "H1 Count":         a["headings"]["h1_count"],
-            "H2 Count":         a["headings"]["h2_count"],
-            "Heading Score":    a["headings"]["score"],
-            "OG Score":         a["open_graph"]["score"],
-            "OG Status":        a["open_graph"]["completeness"],
-            "Content Words":    a["content"]["word_count"],
-            "Content Depth":    a["content"]["depth"],
-            "Content Score":    a["content"]["score"],
-            "URL HTTPS":        a["url_analysis"]["is_https"],
-            "URL Depth":        a["url_analysis"]["depth"],
-            "URL Score":        a["url_analysis"]["score"],
-            "Image Score":      a["images"]["score"],
-            "Image Status":     a["images"]["status"],
+            "Title Score":      title_a.get("score", 0),
+            "Title Status":     title_a.get("status", ""),
+            "Title Value":      title_a.get("value", ""),
+            "Meta Score":       meta_a.get("score", 0),
+            "Meta Status":      meta_a.get("status", ""),
+            "Meta Value":       meta_a.get("value", ""),
+            "Canonical Score":  canon_a.get("score", 0),
+            "Canonical Status": canon_a.get("status", ""),
+            "H1 Count":         head_a.get("h1_count", 0),
+            "H2 Count":         head_a.get("h2_count", 0),
+            "Heading Score":    head_a.get("score", 0),
+            "OG Score":         og_a.get("score", 0),
+            "OG Status":        og_a.get("completeness", ""),
+            "Content Words":    cont_a.get("word_count", 0),
+            "Content Depth":    cont_a.get("depth", ""),
+            "Content Score":    cont_a.get("score", 0),
+            "URL HTTPS":        url_a.get("is_https", False),
+            "URL Depth":        url_a.get("depth", 0),
+            "URL Score":        url_a.get("score", 0),
+            "Image Score":      img_a.get("score", 0),
+            "Image Status":     img_a.get("status", ""),
         })
 
     df_pages = pd.DataFrame(page_rows)

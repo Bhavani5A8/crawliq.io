@@ -34,7 +34,7 @@ from urllib.parse import urlparse
 
 TITLE_MIN       = 30    # chars — shorter = too short
 TITLE_MAX       = 60    # chars — longer  = too long
-META_MIN        = 70    # chars
+META_MIN        = 120   # chars — BUG-N28: aligned with issues.py threshold (Google ~155 desktop)
 META_MAX        = 160   # chars
 WORD_COUNT_THIN = 300   # below = thin content
 WORD_COUNT_RICH = 800   # above = rich content

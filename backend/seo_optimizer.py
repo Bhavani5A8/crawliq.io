@@ -28,16 +28,14 @@ import json
 import re
 import time
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama3-70b-8192")
 
-# BUG-008: reject AI values that contain placeholder brackets/braces/angles.
-# Pattern covers [keyword], {brand}, <insert>, etc.
-# BUG-008: reject bracket/brace/angle placeholders: [keyword], {brand}, <insert>
+# Reject AI values with placeholder brackets/braces/angles: [keyword], {brand}, <insert>
 _PLACEHOLDER_RE = re.compile(r"\[.*?\]|\{.*?\}|<[^>]+>")
 
 # BUG-N11: also reject common English word-based placeholders that AI uses
@@ -152,6 +150,13 @@ def run_optimization(pages: list[dict], urls: list[str] | None = None) -> None:
             except Exception as e:
                 logger.error("Optimizer batch failed: %s", e)
                 optimizer_status["processed"] += len(batch)
+                # BUG-N36: write rule-based fallback rows so these pages always
+                # appear in /optimize-table rather than silently disappearing.
+                for item in [_rule_based_rows(p) for p in batch]:
+                    url  = item.get("url", "")
+                    rows = item.get("rows", [])
+                    if url and rows:
+                        _optimization_store[url] = rows
 
     optimizer_status.update({"running": False, "done": True})
 
@@ -180,7 +185,10 @@ def _run_batch(batch: list[dict]) -> list[dict]:
         except Exception as e:
             logger.warning("Optimizer attempt %d failed: %s", attempt, e)
             if attempt <= MAX_RETRIES:
-                time.sleep(2 ** attempt)
+                # BUG-N25: use constant 2s delay instead of exponential 2**attempt.
+                # Exponential backoff caused up to 4s dead time per retry on free-tier;
+                # constant delay is predictable and sufficient for rate-limit recovery.
+                time.sleep(2)
 
     logger.error("All optimizer retries failed — using rule-based fallback")
     return [_rule_based_rows(p) for p in batch]

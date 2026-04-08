@@ -51,19 +51,8 @@ from keyword_pipeline import run_keyword_pipeline
 logger = logging.getLogger(__name__)
 
 
-def _ssl_ctx_permissive():
-    """
-    DEAD CODE — intentionally never called.
-
-    All fetch and probe paths use ssl=False (boolean). ssl=False bypasses
-    the Windows SChannel TLS provider entirely, eliminating:
-      - "ssl:default" errors (ssl=None reaching the connection)
-      - "The semaphore timeout period has expired" (Windows TLS handle contention)
-
-    Kept as a no-op stub for external API compatibility only.
-    If called accidentally, returns False to be safe.
-    """
-    return False  # safe no-op — never creates SSLContext
+# BUG-N33: removed _ssl_ctx_permissive() dead-code stub.
+# All fetch paths use ssl=False (boolean) — no SSLContext is needed.
 
 # ── Shared state ──────────────────────────────────────────────────────────────
 crawl_results: list[dict] = []

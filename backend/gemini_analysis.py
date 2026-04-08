@@ -574,7 +574,17 @@ def _parse_response(batch: list[dict], raw: str) -> list[dict]:
                     page["optimized_meta"] = item["optimized_meta"]
                 if item.get("optimized_h1"):
                     page["optimized_h1"] = item["optimized_h1"]
-        return [result_map.get(p["url"], _rule_based_fallback(p)) for p in batch]
+        # BUG-N35: log any batch page that the AI response omitted so missing
+        # pages are visible in debug output rather than silently falling back.
+        results = []
+        for p in batch:
+            url = p["url"]
+            if url in result_map:
+                results.append(result_map[url])
+            else:
+                logger.debug("AI response missing page %s — using rule-based fallback", url)
+                results.append(_rule_based_fallback(p))
+        return results
     except (json.JSONDecodeError, KeyError) as e:
         logger.error("JSON parse error: %s — raw: %s", e, raw[:300])
         return [_rule_based_fallback(p) for p in batch]

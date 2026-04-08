@@ -179,10 +179,11 @@ def merge_keywords(
         kw = kw.strip().lower()
         if not kw or kw in seen:
             return
-        # Drop if already covered by an existing shorter keyword
-        for existing in seen:
-            if existing in kw or kw in existing:
-                return
+        # BUG-N22: only reject exact duplicates here.
+        # The old broad substring check (`existing in kw`) caused single-word
+        # TF-IDF keywords (added first) to silently drop all n-gram phrases
+        # that contained them — e.g. "marketing" blocked "digital marketing".
+        # N-gram phrases are valuable SEO targets and must survive dedup.
         seen.add(kw)
         result.append(kw)
 
