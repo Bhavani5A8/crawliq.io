@@ -63,6 +63,13 @@ FASTAPI ENDPOINTS (web server mode)
   GET  /technical-seo/{url}      → tech SEO audit for a single page
   GET  /site-audit               → domain-level health (robots.txt, sitemap, HTTPS)
   GET  /export-technical-seo     → download technical SEO audit Excel
+
+  POST /competitor/analyze        → start competitor analysis task
+  GET  /competitor/status/{id}    → poll task status
+  GET  /competitor/results/{id}   → full analysis results (when done)
+  GET  /competitor/history        → list past analysis snapshots
+  DELETE /competitor/{id}         → delete a snapshot
+  GET  /competitor/export/{id}    → download competitor report as Excel
 """
 
 # ── Standard library ──────────────────────────────────────────────────────────
@@ -108,6 +115,12 @@ from technical_seo import analyze_page as _tseo_page, analyze_all as _tseo_all
 from issues import detect_issues
 from keyword_extractor import extract_keywords_corpus
 from keyword_scorer import score_keywords, build_structured_page
+from competitor_analysis import (
+    run_competitor_analysis as _run_comp_analysis,
+    get_analysis_result     as _get_comp_result,
+    generate_task_id        as _comp_task_id,
+)
+from competitor_db import list_snapshots as _list_comp_snapshots, delete_snapshot as _del_comp_snapshot
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -1889,6 +1902,283 @@ def export_technical_seo():
         content=buf.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=technical_seo_audit.xlsx"},
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 7c: COMPETITOR ANALYSIS ENDPOINTS ────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+class CompetitorRequest(BaseModel):
+    target_url:       str = Field(..., min_length=10, max_length=2048)
+    competitor_urls:  list[str] = Field(..., min_length=1, max_length=5)
+
+
+@app.post("/competitor/analyze")
+async def start_competitor_analysis(request: CompetitorRequest):
+    """
+    Start a competitor analysis task.
+    Crawls target + competitor sites, fetches Core Web Vitals from PSI,
+    scores 7 dimensions, computes keyword gaps and radar chart data.
+
+    Returns immediately with a task_id — poll /competitor/status/{task_id}.
+    Analysis typically completes in 30–90 seconds.
+    """
+    target = request.target_url.strip()
+    if not target.startswith(("http://", "https://")):
+        target = "https://" + target
+
+    # SSRF guard
+    _host = (_urlparse(target).hostname or "").lower()
+    if _host in _SSRF_BLOCKED or _host.startswith(("192.168.", "10.", "172.16.")):
+        raise HTTPException(status_code=400, detail="Private IPs not allowed.")
+
+    # Normalise competitor URLs
+    competitors = []
+    for u in request.competitor_urls:
+        u = u.strip()
+        if u:
+            if not u.startswith(("http://", "https://")):
+                u = "https://" + u
+            competitors.append(u)
+
+    if not competitors:
+        raise HTTPException(status_code=400, detail="At least one competitor URL required.")
+    if len(competitors) > 5:
+        raise HTTPException(status_code=400, detail="Maximum 5 competitor URLs.")
+
+    task_id = _comp_task_id()
+
+    # Persist pending row before starting background task
+    from competitor_db import save_snapshot as _save_snap
+    _save_snap(task_id, target, competitors)
+
+    # Run analysis as background task (non-blocking)
+    asyncio.create_task(_run_comp_analysis(task_id, target, competitors))
+
+    logger.info("Competitor analysis started: task=%s target=%s competitors=%d",
+                task_id, target, len(competitors))
+    return {
+        "task_id":          task_id,
+        "status":           "running",
+        "target_url":       target,
+        "competitor_urls":  competitors,
+        "message":          "Analysis started. Poll /competitor/status/" + task_id,
+    }
+
+
+@app.get("/competitor/status/{task_id}")
+def get_competitor_status(task_id: str):
+    """
+    Poll competitor analysis task status.
+    Returns {task_id, status, created_at, completed_at, error_msg}.
+    status: pending | running | done | error
+    """
+    snap = _get_comp_result(task_id)
+    if snap is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+    return {
+        "task_id":      snap["task_id"],
+        "status":       snap["status"],
+        "created_at":   snap.get("created_at"),
+        "completed_at": snap.get("completed_at"),
+        "error_msg":    snap.get("error_msg"),
+    }
+
+
+@app.get("/competitor/results/{task_id}")
+def get_competitor_results(task_id: str):
+    """
+    Return full competitor analysis results once status == 'done'.
+    Raises 404 if not found, 202 if still running.
+    """
+    snap = _get_comp_result(task_id)
+    if snap is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+    if snap["status"] == "running":
+        return Response(
+            content='{"status":"running","message":"Analysis still in progress. Poll /competitor/status/' + task_id + '"}',
+            status_code=202,
+            media_type="application/json",
+        )
+    if snap["status"] == "error":
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {snap.get('error_msg', 'unknown error')}",
+        )
+    return {
+        "task_id":   snap["task_id"],
+        "status":    snap["status"],
+        "created_at": snap.get("created_at"),
+        "completed_at": snap.get("completed_at"),
+        "results":   snap.get("metrics", {}),
+    }
+
+
+@app.get("/competitor/history")
+def get_competitor_history(
+    domain: str | None = Query(default=None, description="Filter by domain substring"),
+    limit:  int        = Query(default=20, ge=1, le=100),
+):
+    """
+    List past competitor analysis snapshots, newest first.
+    Optionally filter by target domain substring.
+    """
+    snapshots = _list_comp_snapshots(domain=domain, limit=limit)
+    return {
+        "total":     len(snapshots),
+        "snapshots": [
+            {
+                "task_id":      s["task_id"],
+                "target_url":   s["target_url"],
+                "competitor_urls": s.get("competitor_urls", []),
+                "status":       s["status"],
+                "created_at":   s.get("created_at"),
+                "completed_at": s.get("completed_at"),
+                "summary":      s.get("summary", {}),
+            }
+            for s in snapshots
+        ],
+    }
+
+
+@app.delete("/competitor/{task_id}")
+def delete_competitor_snapshot(task_id: str):
+    """Hard-delete a competitor analysis snapshot and all related data."""
+    deleted = _del_comp_snapshot(task_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+    return {"ok": True, "task_id": task_id}
+
+
+@app.get("/competitor/export/{task_id}")
+def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
+    """
+    Download competitor analysis as a styled multi-sheet Excel file.
+    Sheets: Summary Scores | Keyword Gaps | E-E-A-T | Core Web Vitals | Actions
+    """
+    snap = _get_comp_result(task_id)
+    if snap is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if snap["status"] != "done":
+        raise HTTPException(status_code=400, detail="Analysis not yet complete.")
+
+    metrics  = snap.get("metrics", {})
+    sites    = metrics.get("sites", [])
+    gaps     = metrics.get("keyword_gaps", [])
+    actions  = metrics.get("actions", [])
+    target   = metrics.get("target_url", "")
+
+    from openpyxl.styles import PatternFill, Font, Alignment
+    from openpyxl.utils import get_column_letter
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+
+        # ── Sheet 1: Score Comparison ─────────────────────────────────────
+        score_rows = []
+        for site in sites:
+            sc = site.get("scores", {})
+            score_rows.append({
+                "Domain":       site.get("domain", ""),
+                "URL":          site.get("url", ""),
+                "Composite":    sc.get("composite", 0),
+                "Technical":    sc.get("technical", 0),
+                "On-Page":      sc.get("on_page", 0),
+                "Content":      sc.get("content", 0),
+                "E-E-A-T":      sc.get("eeat", 0),
+                "CTR Potential": sc.get("ctr", 0),
+                "Keywords":     sc.get("keywords", 0),
+                "Page Speed":   sc.get("page_speed", 0),
+                "Is Target":    "✓" if site.get("url") == target else "",
+            })
+        df_scores = pd.DataFrame(score_rows)
+        df_scores.to_excel(writer, index=False, sheet_name="Score Comparison")
+        ws = writer.sheets["Score Comparison"]
+        _style_header(ws)
+        _autofit(ws)
+        # Colour Composite column
+        for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
+            for cell in row:
+                try:
+                    s = float(cell.value or 0)
+                    fgColor = "06D6A0" if s >= 70 else "FFD166" if s >= 45 else "FF4D6A"
+                    cell.fill = PatternFill("solid", fgColor=fgColor)
+                    cell.font = Font(bold=True, color="000000")
+                except (ValueError, TypeError):
+                    pass
+
+        # ── Sheet 2: Keyword Gaps ─────────────────────────────────────────
+        if gaps:
+            gap_rows = [
+                {
+                    "Keyword":            g["keyword"],
+                    "Competitor Count":   g["competitor_count"],
+                    "Found In":           ", ".join(g.get("found_in", [])),
+                    "Opportunity Score":  g["opportunity_score"],
+                }
+                for g in gaps[:100]
+            ]
+            pd.DataFrame(gap_rows).to_excel(writer, index=False, sheet_name="Keyword Gaps")
+            ws2 = writer.sheets["Keyword Gaps"]
+            _style_header(ws2)
+            _autofit(ws2)
+
+        # ── Sheet 3: Core Web Vitals ──────────────────────────────────────
+        cwv_rows = []
+        for site in sites:
+            cwv = site.get("cwv", {})
+            if cwv:
+                cwv_rows.append({
+                    "Domain":       site.get("domain", ""),
+                    "Perf Score":   cwv.get("perf_score", ""),
+                    "LCP (ms)":     cwv.get("lcp_ms", ""),
+                    "LCP Status":   cwv.get("lcp_status", ""),
+                    "CLS":          cwv.get("cls", ""),
+                    "CLS Status":   cwv.get("cls_status", ""),
+                    "FCP (ms)":     cwv.get("fcp_ms", ""),
+                    "TTFB (ms)":    cwv.get("ttfb_ms", ""),
+                    "Field Data":   cwv.get("field_data", ""),
+                    "Strategy":     cwv.get("strategy", "mobile"),
+                })
+        if cwv_rows:
+            pd.DataFrame(cwv_rows).to_excel(writer, index=False, sheet_name="Core Web Vitals")
+            ws3 = writer.sheets["Core Web Vitals"]
+            _style_header(ws3)
+            _autofit(ws3)
+
+        # ── Sheet 4: Action Priority List ─────────────────────────────────
+        if actions:
+            act_rows = [
+                {
+                    "Priority":             a["priority"],
+                    "Dimension":            a["label"],
+                    "Target Score":         a["target_score"],
+                    "Avg Competitor Score": a["avg_competitor_score"],
+                    "Gap":                  a["gap"],
+                    "Recommended Action":   a["action"],
+                }
+                for a in actions
+            ]
+            pd.DataFrame(act_rows).to_excel(writer, index=False, sheet_name="Action Plan")
+            ws4 = writer.sheets["Action Plan"]
+            _style_header(ws4)
+            _autofit(ws4)
+
+    buf.seek(0)
+    safe_domain = (_urlparse(target).netloc or "competitor").replace(".", "_")
+    filename    = f"competitor_analysis_{safe_domain}.xlsx"
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.write(buf.getvalue())
+    tmp.close()
+
+    return FileResponse(
+        tmp.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        background=BackgroundTask(_delete_tempfile, tmp.name),
     )
 
 

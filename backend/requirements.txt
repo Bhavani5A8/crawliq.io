@@ -26,3 +26,11 @@ google-generativeai>=0.5.0,<1.0
 # openai>=1.30.0       # OpenAI: pip install openai        (set AI_PROVIDER=openai)
 # anthropic>=0.25.0    # Claude: pip install anthropic     (set AI_PROVIDER=claude)
 # playwright>=1.44.0   # JS-heavy sites: pip install playwright && playwright install chromium
+
+# ── Competitor Analysis Phase 1 ──────────────────────────────
+# SQLite3 is built into Python — no pip install needed
+# PSI API uses aiohttp (already listed above)
+# ECharts loaded from CDN in frontend — no server dep
+# Phase 2 optional:
+# apscheduler>=3.10.0  # Scheduled monitoring (Phase 3)
+# weasyprint>=60.0     # PDF export (Phase 4)
