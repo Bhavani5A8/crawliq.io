@@ -1926,7 +1926,7 @@ async function waitForSpace(maxWaitMs = 300000) {
   let elapsed = 0;
   while (elapsed < maxWaitMs) {
     try {
-      const r = await fetch(`${API}/health`, { cache: 'no-store' });
+      const r = await fetch(`${API}/healthz`, { cache: 'no-store' });
       const ct = r.headers.get('content-type') || '';
       if (r.ok && ct.includes('application/json')) return true;  // space is up
     } catch (_) { /* network error — keep waiting */ }
@@ -1959,7 +1959,7 @@ async function startCompAnalysis() {
 
   // ── Step 1: quick health check — if space is cold, wait for it ───────────
   try {
-    const probe = await fetch(`${API}/health`, { cache: 'no-store' });
+    const probe = await fetch(`${API}/healthz`, { cache: 'no-store' });
     const ct = probe.headers.get('content-type') || '';
     if (!probe.ok || !ct.includes('application/json')) {
       compBar(true, 'Space is waking up… 0s elapsed (max 5 min)');
