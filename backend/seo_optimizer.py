@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+
+# BUG-008: reject AI values that contain placeholder brackets/braces/angles.
+# Pattern covers [keyword], {brand}, <insert>, etc.
+_PLACEHOLDER_RE = re.compile(r"\[.*?\]|\{.*?\}|<[^>]+>")
 BATCH_SIZE   = 2    # pages per API call — keep low for free tier
 MAX_WORKERS  = 1    # sequential batches — avoids rate limit bursts
 MAX_RETRIES  = 2
@@ -465,6 +469,21 @@ Return this exact JSON (one entry per URL, one row per problem field):
 
 # ── Response parser ───────────────────────────────────────────────────────────
 
+def _sanitize_optimized_value(value: str) -> str:
+    """
+    BUG-008: reject AI values that contain placeholder text such as
+    [brand], {keyword}, <insert here>.  Replace them with a signal so
+    users know AI couldn't produce a clean value rather than silently
+    copying broken text into their CMS.
+    """
+    if not value:
+        return value
+    if _PLACEHOLDER_RE.search(value):
+        logger.warning("Optimizer: placeholder detected in AI value — falling back: %s", value[:80])
+        return "Insufficient Data — AI produced a placeholder value; run again or edit manually."
+    return value
+
+
 def _parse_response(batch: list[dict], raw: str) -> list[dict]:
     """Parse AI JSON response into optimization rows."""
     cleaned = re.sub(r"```(?:json)?\s*", "", raw)
@@ -483,6 +502,10 @@ def _parse_response(batch: list[dict], raw: str) -> list[dict]:
                 rows = item.get("rows", [])
                 for row in rows:
                     row["url"] = item["url"]
+                    # BUG-008: sanitize each row's optimized_value
+                    row["optimized_value"] = _sanitize_optimized_value(
+                        row.get("optimized_value", "")
+                    )
                 result_map[item["url"]] = item
 
         return [
@@ -497,22 +520,28 @@ def _parse_response(batch: list[dict], raw: str) -> list[dict]:
 # ── Rule-based fallback ───────────────────────────────────────────────────────
 
 _STATUS_MAP = {
-    "Missing Title":              ("Title",            "Missing"),
-    "Title Too Long":             ("Title",            "Too Long"),
-    "Missing Meta Description":   ("Meta Description", "Missing"),
-    "Duplicate Meta Description": ("Meta Description", "Duplicate"),
-    "Missing H1":                 ("H1",               "Missing"),
-    "Multiple H1 Tags":           ("H1",               "Multiple"),
-    "Missing H2":                 ("H2",               "Missing"),
-    "Missing Canonical":          ("Canonical",        "Missing"),
-    "Canonical Mismatch":         ("Canonical",        "Mismatch"),
+    "Missing Title":                ("Title",            "Missing"),
+    "Title Too Long":               ("Title",            "Too Long"),
+    "Title Too Short":              ("Title",            "Too Short"),   # BUG-012
+    "Missing Meta Description":     ("Meta Description", "Missing"),
+    "Duplicate Meta Description":   ("Meta Description", "Duplicate"),
+    "Meta Description Too Long":    ("Meta Description", "Too Long"),    # BUG-013
+    "Meta Description Too Short":   ("Meta Description", "Too Short"),   # BUG-013
+    "Missing H1":                   ("H1",               "Missing"),
+    "Multiple H1 Tags":             ("H1",               "Multiple"),
+    "Missing H2":                   ("H2",               "Missing"),
+    "Missing Canonical":            ("Canonical",        "Missing"),
+    "Canonical Mismatch":           ("Canonical",        "Mismatch"),
 }
 
 _FALLBACK_LOGIC = {
     ("Title", "Missing"):              "Missing title prevents Google from understanding page topic — direct ranking loss.",
     ("Title", "Too Long"):             "Title truncation in SERPs reduces CTR by hiding the key message.",
+    ("Title", "Too Short"):            "Short titles (<30 chars) like 'Home' give Google no topical signal — expand with primary keyword.",
     ("Meta Description", "Missing"):   "Google generates auto-snippets which often miss the page value proposition.",
     ("Meta Description", "Duplicate"): "Identical snippets reduce click differentiation in SERPs.",
+    ("Meta Description", "Too Long"):  "Meta >160 chars is truncated in SERPs, cutting off the call-to-action.",
+    ("Meta Description", "Too Short"): "Short meta (<70 chars) wastes available SERP real estate and reduces CTR.",
     ("H1", "Missing"):                 "H1 absence removes the strongest on-page topical signal for crawlers.",
     ("H1", "Multiple"):                "Multiple H1 tags dilute page authority and confuse topical focus.",
     ("H2", "Missing"):                 "No H2 structure reduces scannability and secondary keyword coverage.",

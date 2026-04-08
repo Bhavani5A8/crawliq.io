@@ -8,9 +8,10 @@ beautifulsoup4==4.12.3
 lxml==5.2.1
 
 # ── Keyword extraction (NLP, zero LLM) ───────────────────────
-scikit-learn>=1.4.0
-numpy>=1.26.0
-nltk>=3.8.0
+# BUG-020: upper bounds prevent silent breakage on major version bumps.
+scikit-learn>=1.4.0,<2.0
+numpy>=1.26.0,<3.0
+nltk>=3.8.0,<4.0
 
 # ── Export ────────────────────────────────────────────────────
 pandas==2.2.2
@@ -18,7 +19,7 @@ openpyxl==3.1.2
 
 # ── AI: Gemini (default provider) ────────────────────────────
 # FIX: use google-generativeai (official SDK), NOT google-genai
-google-generativeai>=0.5.0
+google-generativeai>=0.5.0,<1.0
 
 # ── AI: Optional providers (install only what you use) ───────
 # groq>=0.9.0          # Groq:   pip install groq          (set AI_PROVIDER=groq)

@@ -62,9 +62,21 @@ def _per_page_issues(page: dict) -> list[str]:
     elif len(title) > 60:
         issues.append("Title Too Long")
 
+    # BUG-012: Title Too Short (< 30 characters) — e.g. "Home", "Contact"
+    elif len(title) < 30:
+        issues.append("Title Too Short")
+
     # 3. Missing Meta Description
     if not meta:
         issues.append("Missing Meta Description")
+
+    # BUG-013: Meta Description Too Long (> 160 chars) — truncated in SERPs
+    elif len(meta) > 160:
+        issues.append("Meta Description Too Long")
+
+    # BUG-013: Meta Description Too Short (< 70 chars) — under-utilises SERP space
+    elif len(meta) < 70:
+        issues.append("Meta Description Too Short")
 
     # 4. Missing H1
     if not h1_list:

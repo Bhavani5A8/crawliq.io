@@ -27,6 +27,7 @@ def generate_with_groq(prompt: str) -> str:
 
     client = Groq(api_key=key)
     try:
+        # BUG-003: hard 15-second timeout prevents hanging the thread pool worker.
         resp = client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[
@@ -37,6 +38,7 @@ def generate_with_groq(prompt: str) -> str:
             ],
             temperature=0.15,
             max_tokens=800,
+            timeout=15,
         )
         return resp.choices[0].message.content or ""
     except Exception as exc:

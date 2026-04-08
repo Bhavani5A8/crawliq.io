@@ -28,6 +28,7 @@ def generate_with_openai(prompt: str, max_tokens: int = 800) -> str:
     """
     client = _get_openai_client()
     try:
+        # BUG-003: hard 15-second timeout prevents hanging the thread pool worker.
         resp = client.chat.completions.create(
             model="gpt-4o-mini",     # cheapest capable model: $0.15/1M tokens
             messages=[
@@ -39,6 +40,7 @@ def generate_with_openai(prompt: str, max_tokens: int = 800) -> str:
             temperature=0.15,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},  # forces valid JSON output
+            timeout=15,
         )
         return resp.choices[0].message.content or ""
     except Exception as exc:

@@ -84,7 +84,8 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 import uvicorn
 
 # ── Project modules ───────────────────────────────────────────────────────────
@@ -791,10 +792,41 @@ def _run_cli(args: argparse.Namespace) -> None:
 # ════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(title="SEO Crawler API")
+
+# BUG-006: restrict CORS — read from env so production can lock it down.
+# Default stays open for local dev / Hugging Face Space usage.
+_allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
+
+# BUG-001: lock prevents two simultaneous /crawl requests corrupting shared state.
+_crawl_lock = asyncio.Lock()
+
+
+def _delete_tempfile(path: str) -> None:
+    """BUG-004: delete temp export file after response is fully sent."""
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
+# ── Health check (BUG-019: k8s readiness/liveness probe) ────────────────────
+
+@app.get("/healthz")
+def health_check():
+    """Kubernetes readiness/liveness probe. Always returns 200 when the process is up."""
+    return {
+        "status":        "ok",
+        "crawl_running": crawl_status.get("running", False),
+        "pages_crawled": len(crawl_results),
+        "ai_provider":   os.getenv("AI_PROVIDER", "groq"),
+        "ai_configured": _ai_configured(),
+    }
 
 
 # ── Frontend (HTML dashboard) ─────────────────────────────────────────────────
@@ -811,7 +843,8 @@ def serve_ui():
 
 class CrawlRequest(BaseModel):
     url:       str
-    max_pages: int = 50
+    # BUG-002: enforce 1–500 range to prevent DoS via huge crawl requests.
+    max_pages: int = Field(50, ge=1, le=500)
 
 class SelectedPagesRequest(BaseModel):
     urls: list[str]
@@ -825,8 +858,12 @@ async def start_crawl(request: CrawlRequest):
     Fire-and-forget async crawl.
     Returns immediately — poll /crawl-status every 2s for progress.
     """
-    if crawl_status.get("running"):
-        raise HTTPException(status_code=409, detail="Crawl already running.")
+    # BUG-001: acquire lock so the check+set is atomic — prevents two
+    # simultaneous requests both passing the running-check and racing.
+    async with _crawl_lock:
+        if crawl_status.get("running"):
+            raise HTTPException(status_code=409, detail="Crawl already running.")
+        crawl_status["running"] = True  # claim the slot before releasing lock
 
     url = request.url.strip()
     if not url.startswith(("http://", "https://")):
@@ -871,12 +908,19 @@ def get_crawl_status():
 
 
 @app.get("/results")
-def get_results():
-    """Full results after crawl completes."""
+def get_results(limit: int = 0, offset: int = 0):
+    """
+    Full results after crawl completes.
+    BUG-007: supports optional pagination via limit/offset query params
+    (limit=0 means return all — preserves existing behaviour for the frontend).
+    """
+    all_results = list(crawl_results)
+    sliced = all_results[offset: offset + limit] if limit > 0 else all_results
     return {
         "status":        crawl_status,
         "gemini_status": gemini_status,
-        "results":       crawl_results,
+        "total":         len(all_results),
+        "results":       sliced,
     }
 
 
@@ -1171,10 +1215,12 @@ def export_optimizer_excel():
                         cell.font = Font(color="000000", bold=True)
         _autofit(ws)
 
+    # BUG-004: delete temp file after the response is fully streamed.
     return FileResponse(tmp.name,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="seo_optimization_table.xlsx",
-        headers={"Content-Disposition": "attachment; filename=seo_optimization_table.xlsx"})
+        headers={"Content-Disposition": "attachment; filename=seo_optimization_table.xlsx"},
+        background=BackgroundTask(_delete_tempfile, tmp.name))
 
 
 @app.get("/export")
@@ -1221,10 +1267,12 @@ def export_excel_endpoint():
         _style_score_col(ws)
         _autofit(ws)
 
+    # BUG-004: delete temp file after the response is fully streamed.
     return FileResponse(tmp.name,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="seo_report.xlsx",
-        headers={"Content-Disposition": "attachment; filename=seo_report.xlsx"})
+        headers={"Content-Disposition": "attachment; filename=seo_report.xlsx"},
+        background=BackgroundTask(_delete_tempfile, tmp.name))
 
 
 @app.get("/export-popup")
@@ -1273,10 +1321,12 @@ def export_popup_excel():
                         cell.font = Font(color="FFFFFF", bold=True)
         _autofit(ws)
 
+    # BUG-004: delete temp file after the response is fully streamed.
     return FileResponse(tmp.name,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="seo_field_report.xlsx",
-        headers={"Content-Disposition": "attachment; filename=seo_field_report.xlsx"})
+        headers={"Content-Disposition": "attachment; filename=seo_field_report.xlsx"},
+        background=BackgroundTask(_delete_tempfile, tmp.name))
 
 
 # ── Content generation endpoints ──────────────────────────────────────────────
