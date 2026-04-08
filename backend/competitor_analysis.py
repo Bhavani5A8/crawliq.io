@@ -57,6 +57,8 @@ from collections import Counter
 from urllib.parse import urlparse
 
 import aiohttp
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,16 @@ try:
 except ImportError:
     _SKLEARN = False
     logger.info("sklearn not installed — keyword gap uses frequency fallback")
+
+# curl_cffi — Chrome TLS fingerprint impersonation, bypasses Cloudflare/Akamai
+try:
+    from curl_cffi.requests import AsyncSession as _CffiSession
+    _CFFI = True
+    logger.info("curl_cffi available — Cloudflare bypass enabled")
+except ImportError:
+    _CffiSession = None  # type: ignore
+    _CFFI = False
+    logger.info("curl_cffi not installed — Cloudflare bypass disabled")
 
 # ── Internal project imports ──────────────────────────────────────────────────
 from competitor_db import (
@@ -324,6 +336,192 @@ async def _crawl_site_safe(url: str) -> tuple[str, list[dict]]:
     """Wrapper that always returns (url, pages) regardless of errors."""
     pages = await _crawl_site(url)
     return url, pages
+
+
+# ── curl_cffi Cloudflare-bypass crawler ──────────────────────────────────────
+
+_CFFI_IMPERSONATE = "chrome120"   # TLS fingerprint to impersonate
+_CFFI_MAX_PAGES   = 8             # pages to fetch per blocked site
+_CFFI_TIMEOUT     = 20            # seconds per request
+
+# Priority paths to try after homepage — improves E-E-A-T scoring
+_EEAT_PATHS = ["/about", "/about-us", "/contact", "/team", "/privacy-policy",
+               "/privacy", "/blog", "/authors", "/staff"]
+
+
+def _parse_html_to_page(url: str, html: str) -> dict:
+    """
+    Parse raw HTML into the standard page-dict format expected by all scorers.
+    Matches the fields produced by SEOCrawler so all scoring functions work
+    without modification.
+    """
+    soup = BeautifulSoup(html, "lxml")
+
+    # Title
+    title_tag = soup.find("title")
+    title = title_tag.get_text().strip() if title_tag else ""
+
+    # Meta description
+    meta_desc = ""
+    for attr in ({"name": "description"}, {"property": "og:description"}):
+        tag = soup.find("meta", attrs=attr)
+        if tag and tag.get("content"):
+            meta_desc = tag["content"].strip()
+            break
+
+    # Headings
+    h1 = [h.get_text().strip() for h in soup.find_all("h1")]
+    h2 = [h.get_text().strip() for h in soup.find_all("h2")]
+    h3 = [h.get_text().strip() for h in soup.find_all("h3")]
+
+    # Canonical
+    canonical = ""
+    can_tag = soup.find("link", rel="canonical")
+    if can_tag:
+        canonical = can_tag.get("href", "")
+
+    # Schema markup
+    schema_tags  = soup.find_all("script", type="application/ld+json")
+    schema_types = []
+    for st in schema_tags:
+        try:
+            import json as _json
+            obj = _json.loads(st.string or "{}")
+            t = obj.get("@type")
+            if t:
+                schema_types.append(t if isinstance(t, str) else str(t))
+        except Exception:
+            pass
+    has_schema = bool(schema_tags)
+
+    # Body text — strip nav/footer/script/style noise
+    for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
+        tag.decompose()
+    body_text = soup.get_text(" ", strip=True)
+
+    # Images without alt
+    images_without_alt = sum(
+        1 for img in soup.find_all("img")
+        if not img.get("alt", "").strip()
+    )
+
+    # Internal links (for multi-page crawl)
+    parsed_base = urlparse(url)
+    base_domain = parsed_base.netloc
+    internal_links: list[str] = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        full = urljoin(url, href)
+        p = urlparse(full)
+        if p.netloc == base_domain and p.path not in ("", "/"):
+            internal_links.append(full)
+
+    return {
+        "url":                url,
+        "status_code":        200,
+        "title":              title,
+        "meta_description":   meta_desc,
+        "h1":                 h1,
+        "h2":                 h2,
+        "h3":                 h3,
+        "canonical":          canonical,
+        "schema_types":       schema_types,
+        "has_schema":         has_schema,
+        "body_text":          body_text[:8000],
+        "word_count":         len(body_text.split()),
+        "images_without_alt": images_without_alt,
+        "internal_links":     list(dict.fromkeys(internal_links))[:60],
+        "keywords":           [],
+        "issues":             [],
+    }
+
+
+async def _cffi_get(session, url: str) -> str | None:
+    """
+    Fetch one URL using the shared cffi session.
+    Returns HTML string or None on failure.
+    """
+    try:
+        resp = await session.get(
+            url,
+            impersonate=_CFFI_IMPERSONATE,
+            timeout=_CFFI_TIMEOUT,
+            allow_redirects=True,
+        )
+        if resp.status_code == 200:
+            return resp.text
+        logger.debug("cffi %d for %s", resp.status_code, url)
+    except Exception as exc:
+        logger.debug("cffi error for %s: %s", url, exc)
+    return None
+
+
+async def _crawl_site_cffi(url: str) -> list[dict]:
+    """
+    Crawl a Cloudflare-protected site using Chrome TLS impersonation.
+
+    Strategy:
+      1. Fetch homepage
+      2. Try known E-E-A-T paths (/about, /contact, /privacy, /blog …)
+      3. Follow up to _CFFI_MAX_PAGES internal links from the homepage
+
+    Returns page-dicts compatible with all scoring functions.
+    Never raises.
+    """
+    if not _CFFI:
+        return []
+
+    pages: list[dict] = []
+    visited: set[str] = set()
+
+    try:
+        async with _CffiSession() as sess:
+            # ── 1. Homepage ───────────────────────────────────────────────
+            html = await _cffi_get(sess, url)
+            if not html:
+                logger.warning("cffi: homepage fetch failed for %s", url)
+                return []
+
+            home_page = _parse_html_to_page(url, html)
+            pages.append(home_page)
+            visited.add(url)
+            logger.info("cffi: homepage OK for %s (%d words)",
+                        url, home_page.get("word_count", 0))
+
+            # ── 2. Priority E-E-A-T paths ─────────────────────────────────
+            base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+            priority_urls = [base + path for path in _EEAT_PATHS]
+            for purl in priority_urls:
+                if purl in visited:
+                    continue
+                await asyncio.sleep(0.3)   # polite delay
+                ph = await _cffi_get(sess, purl)
+                if ph:
+                    pages.append(_parse_html_to_page(purl, ph))
+                    visited.add(purl)
+                if len(pages) >= _CFFI_MAX_PAGES:
+                    break
+
+            # ── 3. Internal links from homepage ───────────────────────────
+            if len(pages) < _CFFI_MAX_PAGES:
+                for link in home_page.get("internal_links", []):
+                    if link in visited:
+                        continue
+                    await asyncio.sleep(0.3)
+                    lh = await _cffi_get(sess, link)
+                    if lh:
+                        pages.append(_parse_html_to_page(link, lh))
+                        visited.add(link)
+                    if len(pages) >= _CFFI_MAX_PAGES:
+                        break
+
+    except Exception as exc:
+        logger.warning("cffi crawl error for %s: %s", url, exc)
+
+    logger.info("cffi crawl done for %s: %d pages", url, len(pages))
+    return pages
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1092,12 +1290,30 @@ async def run_competitor_analysis(
             if not real:
                 total = len(pages_map[u])
                 msg = (
-                    f"0 pages crawled — site is blocking bots (Cloudflare/JS wall)"
+                    "0 pages crawled — site is blocking bots (Cloudflare/JS wall)"
                     if total == 0 else
-                    f"{total} pages fetched but none returned HTTP 200 (all errors/redirects)"
+                    f"{total} pages fetched but none returned HTTP 200"
                 )
                 crawl_errors[u] = msg
                 logger.warning("[%s] Crawl blocked for %s: %s", task_id, u, msg)
+
+        # ── Step 1b: curl_cffi bypass for Cloudflare-blocked sites ────────
+        # curl_cffi impersonates Chrome's exact TLS fingerprint (JA3/JA4).
+        # Cloudflare whitelists Chrome — this bypasses the bot-detection wall.
+        if _CFFI and crawl_errors:
+            logger.info("[%s] Trying curl_cffi bypass for %d blocked sites",
+                        task_id, len(crawl_errors))
+            for u in list(crawl_errors.keys()):
+                cffi_pages = await _crawl_site_cffi(u)
+                real_cffi  = [p for p in cffi_pages if p.get("status_code") == 200]
+                if real_cffi:
+                    pages_map[u] = cffi_pages
+                    del crawl_errors[u]
+                    logger.info("[%s] cffi bypass SUCCESS for %s — %d pages",
+                                task_id, u, len(real_cffi))
+                else:
+                    logger.warning("[%s] cffi bypass FAILED for %s — PSI fallback next",
+                                   task_id, u)
 
         # ── Step 2: Keyword extraction per site ───────────────────────────
         for url in all_urls:

@@ -27,6 +27,11 @@ google-generativeai>=0.5.0,<1.0
 # anthropic>=0.25.0    # Claude: pip install anthropic     (set AI_PROVIDER=claude)
 # playwright>=1.44.0   # JS-heavy sites: pip install playwright && playwright install chromium
 
+# ── Cloudflare bypass (TLS fingerprint impersonation) ────────
+# curl_cffi impersonates Chrome's exact JA3/JA4 TLS fingerprint.
+# Ships pre-compiled manylinux wheels — no system libcurl needed.
+curl_cffi>=0.7.0,<1.0
+
 # ── Competitor Analysis Phase 1 ──────────────────────────────
 # SQLite3 is built into Python — no pip install needed
 # PSI API uses aiohttp (already listed above)
