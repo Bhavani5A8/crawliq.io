@@ -18,6 +18,8 @@ COPY backend/main.py \
      backend/keyword_scorer.py \
      backend/issues.py \
      backend/competitor.py \
+     backend/competitor_analysis.py \
+     backend/competitor_db.py \
      backend/groq_adapter.py \
      backend/openai_adapter.py \
      backend/claude_adapter.py \
