@@ -251,6 +251,134 @@ td.check-cell{width:28px;padding:7px 6px;}
 .btn-orange:hover:not(:disabled){background:rgba(255,159,67,.08);}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── AI Setup button in header ── */
+.btn-ai-setup{
+  font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.4px;
+  padding:5px 12px;border-radius:var(--r);border:1px solid var(--purple);
+  color:var(--purple);background:transparent;cursor:pointer;transition:background .15s;
+  margin-left:8px;
+}
+.btn-ai-setup:hover{background:rgba(167,139,250,.1);}
+
+/* ── AI Setup Modal ── */
+.ai-overlay{
+  display:none;position:fixed;inset:0;z-index:400;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;padding:20px;
+}
+.ai-overlay.open{display:flex;}
+.ai-modal{
+  background:var(--surf);border:1px solid var(--border);border-radius:12px;
+  width:520px;max-width:96vw;animation:popIn .2s ease;overflow:hidden;
+}
+.ai-modal-head{
+  padding:18px 22px 14px;background:var(--surf2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.ai-modal-head h2{
+  font-family:var(--sans);font-size:15px;font-weight:700;
+  background:linear-gradient(90deg,var(--purple),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1;
+}
+.ai-modal-close{
+  background:none;border:none;color:var(--muted);font-size:20px;
+  cursor:pointer;line-height:1;padding:2px 6px;
+}
+.ai-modal-close:hover{color:var(--text);}
+.ai-modal-body{padding:22px;}
+
+/* Current status row */
+.ai-current-status{
+  display:flex;align-items:center;gap:10px;
+  background:var(--surf2);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px 14px;margin-bottom:20px;
+}
+.ai-current-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  background:var(--muted);
+}
+.ai-current-dot.active{background:var(--green);}
+.ai-current-dot.inactive{background:var(--red);}
+.ai-current-info{flex:1;}
+.ai-current-provider{font-size:12px;font-weight:600;color:var(--text);}
+.ai-current-hint{font-size:10px;color:var(--dim);margin-top:2px;}
+
+/* Provider grid */
+.ai-providers-label{
+  font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--dim);margin-bottom:10px;
+}
+.ai-provider-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;
+}
+.ai-provider-card{
+  border:1.5px solid var(--border);border-radius:var(--r);
+  padding:10px 8px;text-align:center;cursor:pointer;
+  transition:border-color .15s,background .15s;background:var(--bg);
+}
+.ai-provider-card:hover{border-color:var(--purple);background:rgba(167,139,250,.05);}
+.ai-provider-card.selected{
+  border-color:var(--purple);background:rgba(167,139,250,.1);
+}
+.ai-provider-card.selected .ai-pcard-name{color:var(--purple);}
+.ai-pcard-icon{font-size:18px;margin-bottom:4px;}
+.ai-pcard-name{font-size:10px;font-weight:600;color:var(--text);}
+.ai-pcard-desc{font-size:9px;color:var(--dim);margin-top:2px;line-height:1.4;}
+
+/* Key input */
+.ai-key-group{margin-bottom:18px;}
+.ai-key-label{
+  font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--dim);margin-bottom:7px;display:block;
+}
+.ai-key-row{display:flex;gap:6px;align-items:center;}
+.ai-key-input{
+  flex:1;background:var(--bg);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:9px 12px;border-radius:var(--r);outline:none;
+  transition:border-color .15s;
+}
+.ai-key-input:focus{border-color:var(--purple);}
+.ai-key-input::placeholder{color:var(--muted);}
+.ai-key-toggle{
+  background:var(--surf2);border:1px solid var(--border);
+  color:var(--dim);font-size:12px;padding:9px 10px;
+  border-radius:var(--r);cursor:pointer;line-height:1;
+  transition:color .15s;white-space:nowrap;
+}
+.ai-key-toggle:hover{color:var(--text);}
+
+/* Auto-detect badge */
+.ai-detect-badge{
+  display:none;align-items:center;gap:6px;
+  font-size:10px;color:var(--cyan);margin-top:6px;
+}
+.ai-detect-badge.show{display:flex;}
+
+/* No-key notice */
+.ai-no-key-notice{
+  display:none;font-size:10px;color:var(--dim);
+  background:rgba(0,229,160,.04);border:1px solid rgba(0,229,160,.15);
+  border-radius:var(--r);padding:8px 12px;margin-bottom:12px;line-height:1.6;
+}
+.ai-no-key-notice.show{display:block;}
+
+/* Feedback row */
+.ai-feedback{
+  min-height:22px;font-size:11px;margin-bottom:14px;
+  padding:6px 10px;border-radius:var(--r);display:none;
+}
+.ai-feedback.show{display:block;}
+.ai-feedback.ok{background:rgba(0,229,160,.08);color:var(--green);}
+.ai-feedback.err{background:rgba(255,77,106,.08);color:var(--red);}
+
+/* Modal footer */
+.ai-modal-foot{
+  display:flex;gap:8px;justify-content:flex-end;
+  padding-top:4px;
+}
 </style>
 </head>
 <body>
@@ -260,7 +388,8 @@ td.check-cell{width:28px;padding:7px 6px;}
 <header>
   <h1>SEO Crawler</h1>
   <span class="tag">v5 · Live</span>
-  <span class="gemini-pill" id="gemini-pill">Gemini: checking…</span>
+  <span class="gemini-pill" id="gemini-pill">AI: checking…</span>
+  <button class="btn btn-ai-setup" id="ai-setup-btn" onclick="openAiSetup()" title="Configure AI provider &amp; API key">⚙ AI Setup</button>
 </header>
 
 <!-- Input Panel -->
@@ -475,6 +604,99 @@ td.check-cell{width:28px;padding:7px 6px;}
 </div>
 </div>
 
+<!-- ── AI Setup Modal ── -->
+<div class="ai-overlay" id="ai-overlay" onclick="aiOverlayClick(event)">
+<div class="ai-modal" id="ai-modal">
+
+  <div class="ai-modal-head">
+    <h2>⚙ AI Setup</h2>
+    <button class="ai-modal-close" onclick="closeAiSetup()">✕</button>
+  </div>
+
+  <div class="ai-modal-body">
+
+    <!-- Current status -->
+    <div class="ai-current-status">
+      <div class="ai-current-dot" id="ai-dot"></div>
+      <div class="ai-current-info">
+        <div class="ai-current-provider" id="ai-cur-provider">Loading…</div>
+        <div class="ai-current-hint" id="ai-cur-hint"></div>
+      </div>
+    </div>
+
+    <!-- Provider selection grid -->
+    <div class="ai-providers-label">Select AI Provider</div>
+    <div class="ai-provider-grid" id="ai-provider-grid">
+      <div class="ai-provider-card" data-provider="groq" onclick="selectProvider('groq')">
+        <div class="ai-pcard-icon">⚡</div>
+        <div class="ai-pcard-name">Groq</div>
+        <div class="ai-pcard-desc">Llama 3 · Free tier · Fast</div>
+      </div>
+      <div class="ai-provider-card" data-provider="gemini" onclick="selectProvider('gemini')">
+        <div class="ai-pcard-icon">✨</div>
+        <div class="ai-pcard-name">Gemini</div>
+        <div class="ai-pcard-desc">Google AI · Free quota</div>
+      </div>
+      <div class="ai-provider-card" data-provider="openai" onclick="selectProvider('openai')">
+        <div class="ai-pcard-icon">🤖</div>
+        <div class="ai-pcard-name">OpenAI</div>
+        <div class="ai-pcard-desc">GPT-4o-mini · Paid</div>
+      </div>
+      <div class="ai-provider-card" data-provider="claude" onclick="selectProvider('claude')">
+        <div class="ai-pcard-icon">🧠</div>
+        <div class="ai-pcard-name">Claude</div>
+        <div class="ai-pcard-desc">Anthropic · Haiku</div>
+      </div>
+      <div class="ai-provider-card" data-provider="ollama" onclick="selectProvider('ollama')">
+        <div class="ai-pcard-icon">🏠</div>
+        <div class="ai-pcard-name">Ollama</div>
+        <div class="ai-pcard-desc">Local · No key needed</div>
+      </div>
+      <div class="ai-provider-card" data-provider="rules" onclick="selectProvider('rules')">
+        <div class="ai-pcard-icon">📋</div>
+        <div class="ai-pcard-name">Rules Only</div>
+        <div class="ai-pcard-desc">No AI · Always works</div>
+      </div>
+    </div>
+
+    <!-- No-key providers notice -->
+    <div class="ai-no-key-notice" id="ai-no-key-notice">
+      This provider does not require an API key. Click <strong>Apply</strong> to activate it.
+    </div>
+
+    <!-- API key input -->
+    <div class="ai-key-group" id="ai-key-group">
+      <label class="ai-key-label" for="ai-key-input">API Key</label>
+      <div class="ai-key-row">
+        <input
+          class="ai-key-input" id="ai-key-input"
+          type="password"
+          placeholder="Paste your API key here…"
+          oninput="onKeyInput(this.value)"
+          autocomplete="off" spellcheck="false"
+        />
+        <button class="ai-key-toggle" onclick="toggleKeyVisible()" id="ai-key-toggle" title="Show / hide key">👁</button>
+      </div>
+      <!-- Auto-detect badge appears when key prefix matches a known provider -->
+      <div class="ai-detect-badge" id="ai-detect-badge">
+        <span>🔍</span><span id="ai-detect-text">Detected: —</span>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="ai-feedback" id="ai-feedback"></div>
+
+    <!-- Footer buttons -->
+    <div class="ai-modal-foot">
+      <button class="btn btn-outline btn-sm" onclick="closeAiSetup()">Cancel</button>
+      <button class="btn btn-cyan btn-sm" onclick="testAiConnection()" id="ai-test-btn">Test Connection</button>
+      <button class="btn btn-green btn-sm" onclick="applyAiKey()" id="ai-apply-btn">Apply</button>
+    </div>
+
+  </div>
+</div>
+</div>
+
 <!-- Export Modal -->
 <div class="eoverlay" id="eoverlay">
 <div class="emodal">
@@ -510,14 +732,14 @@ window.addEventListener('load', checkGemini);
 
 async function checkGemini() {
   try {
-    const d = await (await fetch(`${API}/gemini-health`)).json();
+    const d    = await (await fetch(`${API}/ai-config`)).json();
     const pill = document.getElementById('gemini-pill');
     if (d.configured) {
-      pill.textContent = `✨ ${d.model} · top ${d.max_pages} pages`;
-      pill.className = 'gemini-pill up';
+      pill.textContent = `✨ ${d.label} · ready`;
+      pill.className   = 'gemini-pill up';
     } else {
-      pill.textContent = '✨ Gemini: set GEMINI_API_KEY';
-      pill.className = 'gemini-pill down';
+      pill.textContent = `⚙ AI: not configured — click AI Setup`;
+      pill.className   = 'gemini-pill down';
     }
   } catch {}
 }
@@ -1181,6 +1403,10 @@ async function downloadOptimizer() {
 
 // ── Keyboard
 document.addEventListener('keydown', e => {
+  if (document.getElementById('ai-overlay').classList.contains('open')) {
+    if (e.key === 'Escape') closeAiSetup();
+    return;
+  }
   if (!document.getElementById('popup-overlay').classList.contains('open')) return;
   if (e.key==='ArrowLeft')  navPage(-1);
   if (e.key==='ArrowRight') navPage(1);
@@ -1189,6 +1415,198 @@ document.addEventListener('keydown', e => {
 document.getElementById('url-input').addEventListener('keydown', e => {
   if (e.key==='Enter') startCrawl();
 });
+
+// ══════════════════════════════════════════════════════════════
+// AI SETUP MODAL
+// ══════════════════════════════════════════════════════════════
+
+// Detect provider from API key prefix — no network call needed
+const KEY_PATTERNS = [
+  { prefix: 'gsk_',    provider: 'groq',   label: 'Groq'           },
+  { prefix: 'AIzaSy',  provider: 'gemini', label: 'Google Gemini'  },
+  { prefix: 'sk-ant-', provider: 'claude', label: 'Anthropic Claude'},
+  { prefix: 'sk-',     provider: 'openai', label: 'OpenAI'         },
+];
+
+// Providers that do not require a key
+const NO_KEY_PROVIDERS = new Set(['ollama', 'rules']);
+
+let _selectedProvider = 'groq';  // tracks the currently selected card
+
+function detectProviderFromKey(key) {
+  const trimmed = key.trim();
+  for (const { prefix, provider, label } of KEY_PATTERNS) {
+    if (trimmed.startsWith(prefix)) return { provider, label };
+  }
+  return null;
+}
+
+async function openAiSetup() {
+  const overlay = document.getElementById('ai-overlay');
+  overlay.classList.add('open');
+  setAiFeedback('', '');
+
+  // Load current config from server
+  try {
+    const cfg = await (await fetch(`${API}/ai-config`)).json();
+    _selectedProvider = cfg.provider || 'groq';
+    highlightProviderCard(_selectedProvider);
+    updateNoKeyNotice(_selectedProvider);
+
+    // Show current status
+    const dot = document.getElementById('ai-dot');
+    dot.className = 'ai-current-dot ' + (cfg.configured ? 'active' : 'inactive');
+    document.getElementById('ai-cur-provider').textContent =
+      cfg.label || cfg.provider || '—';
+    document.getElementById('ai-cur-hint').textContent =
+      cfg.configured
+        ? `Key: ${cfg.key_hint} · Ready`
+        : 'No API key set — AI features disabled';
+  } catch {
+    document.getElementById('ai-cur-provider').textContent = 'Could not load config';
+  }
+}
+
+function closeAiSetup() {
+  document.getElementById('ai-overlay').classList.remove('open');
+  document.getElementById('ai-key-input').value = '';
+  setAiFeedback('', '');
+  document.getElementById('ai-detect-badge').classList.remove('show');
+}
+
+function aiOverlayClick(e) {
+  if (e.target === document.getElementById('ai-overlay')) closeAiSetup();
+}
+
+function selectProvider(provider) {
+  _selectedProvider = provider;
+  highlightProviderCard(provider);
+  updateNoKeyNotice(provider);
+  // If key is already typed, re-check auto-detect
+  const key = document.getElementById('ai-key-input').value;
+  if (key) onKeyInput(key);
+  setAiFeedback('', '');
+}
+
+function highlightProviderCard(provider) {
+  document.querySelectorAll('#ai-provider-grid .ai-provider-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.provider === provider);
+  });
+}
+
+function updateNoKeyNotice(provider) {
+  const needsKey  = !NO_KEY_PROVIDERS.has(provider);
+  const keyGroup  = document.getElementById('ai-key-group');
+  const notice    = document.getElementById('ai-no-key-notice');
+  keyGroup.style.display  = needsKey ? '' : 'none';
+  notice.classList.toggle('show', !needsKey);
+}
+
+function onKeyInput(key) {
+  const badge   = document.getElementById('ai-detect-badge');
+  const detected = detectProviderFromKey(key);
+
+  if (detected) {
+    document.getElementById('ai-detect-text').textContent =
+      `Detected: ${detected.label} — switching provider`;
+    badge.classList.add('show');
+    // Auto-switch the provider card to match the key
+    _selectedProvider = detected.provider;
+    highlightProviderCard(detected.provider);
+    updateNoKeyNotice(detected.provider);
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+function toggleKeyVisible() {
+  const inp = document.getElementById('ai-key-input');
+  const btn = document.getElementById('ai-key-toggle');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = '🙈';
+    btn.title = 'Hide key';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+    btn.title = 'Show key';
+  }
+}
+
+function setAiFeedback(msg, type) {
+  const el = document.getElementById('ai-feedback');
+  el.textContent = msg;
+  el.className = 'ai-feedback' + (msg ? ` show ${type}` : '');
+}
+
+async function applyAiKey() {
+  const key      = document.getElementById('ai-key-input').value.trim();
+  const provider = _selectedProvider;
+  const needsKey = !NO_KEY_PROVIDERS.has(provider);
+
+  if (needsKey && !key) {
+    setAiFeedback('Please enter your API key before applying.', 'err');
+    return;
+  }
+
+  const applyBtn = document.getElementById('ai-apply-btn');
+  applyBtn.disabled = true;
+  applyBtn.textContent = 'Applying…';
+  setAiFeedback('', '');
+
+  try {
+    const res  = await fetch(`${API}/set-api-key`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ provider, api_key: key }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed');
+
+    setAiFeedback(
+      `✓ ${data.label} activated — key ${data.key_hint}`,
+      'ok'
+    );
+    // Refresh the header pill
+    await checkGemini();
+    // Update status row
+    const dot = document.getElementById('ai-dot');
+    dot.className = 'ai-current-dot ' + (data.configured ? 'active' : 'inactive');
+    document.getElementById('ai-cur-provider').textContent = data.label;
+    document.getElementById('ai-cur-hint').textContent =
+      data.configured ? `Key: ${data.key_hint} · Ready` : 'No key set';
+    // Clear key field after success
+    document.getElementById('ai-key-input').value = '';
+    document.getElementById('ai-detect-badge').classList.remove('show');
+  } catch (e) {
+    setAiFeedback(`✗ ${e.message}`, 'err');
+  } finally {
+    applyBtn.disabled = false;
+    applyBtn.textContent = 'Apply';
+  }
+}
+
+async function testAiConnection() {
+  const testBtn = document.getElementById('ai-test-btn');
+  testBtn.disabled = true;
+  testBtn.textContent = 'Testing…';
+  setAiFeedback('', '');
+
+  try {
+    const d = await (await fetch(`${API}/gemini-health`)).json();
+    if (d.configured) {
+      const model = d.model ? ` · model: ${d.model}` : '';
+      setAiFeedback(`✓ Connected to ${d.provider || 'AI'}${model}`, 'ok');
+    } else {
+      setAiFeedback(`✗ Not configured — set an API key first`, 'err');
+    }
+  } catch (e) {
+    setAiFeedback(`✗ Connection test failed: ${e.message}`, 'err');
+  } finally {
+    testBtn.disabled = false;
+    testBtn.textContent = 'Test Connection';
+  }
+}
 </script>
 </body>
 </html>

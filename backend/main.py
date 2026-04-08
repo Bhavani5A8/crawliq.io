@@ -1060,6 +1060,99 @@ def gemini_health():
     return info
 
 
+# ── AI Key Setup endpoints ────────────────────────────────────────────────────
+
+# Map of provider → env variable that holds its key
+_PROVIDER_KEY_MAP = {
+    "groq":   "GROQ_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "claude": "ANTHROPIC_API_KEY",
+    "ollama": None,   # no key needed — local
+    "rules":  None,   # no key needed — rule-based only
+}
+
+_PROVIDER_LABELS = {
+    "groq":   "Groq (Llama 3)",
+    "gemini": "Google Gemini",
+    "openai": "OpenAI GPT-4o-mini",
+    "claude": "Anthropic Claude",
+    "ollama": "Ollama (Local)",
+    "rules":  "Rule-based (no AI)",
+}
+
+
+class SetApiKeyRequest(BaseModel):
+    provider: str
+    api_key: str = ""
+
+
+@app.get("/ai-config")
+def get_ai_config():
+    """
+    Return current AI provider configuration.
+    Used by the frontend AI Setup popup to show current state.
+    """
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    env_var  = _PROVIDER_KEY_MAP.get(provider)
+    key      = os.getenv(env_var, "") if env_var else ""
+    key_hint = ("..." + key[-4:]) if len(key) > 8 else ("(set)" if key else "(not set)")
+    configured = bool(key) or provider in ("ollama", "rules")
+    return {
+        "provider":   provider,
+        "label":      _PROVIDER_LABELS.get(provider, provider),
+        "configured": configured,
+        "key_hint":   key_hint,
+        "providers":  list(_PROVIDER_LABELS.items()),   # [{provider, label}, ...]
+    }
+
+
+@app.post("/set-api-key")
+def set_api_key(req: SetApiKeyRequest):
+    """
+    Set the AI provider and its API key at runtime.
+
+    Updates:
+      - os.environ so new key lookups via os.getenv() see the change immediately
+      - gemini_analysis.AI_PROVIDER and seo_optimizer.AI_PROVIDER module-level
+        variables so in-flight provider routing switches without a server restart
+
+    The key is never logged or returned — only the last-4 hint is echoed back.
+    """
+    provider = req.provider.lower().strip()
+    if provider not in _PROVIDER_KEY_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown provider '{provider}'. Valid: {', '.join(_PROVIDER_KEY_MAP)}"
+        )
+
+    # Update env vars
+    os.environ["AI_PROVIDER"] = provider
+    env_var = _PROVIDER_KEY_MAP.get(provider)
+    api_key = req.api_key.strip()
+    if api_key and env_var:
+        os.environ[env_var] = api_key
+
+    # Update module-level AI_PROVIDER in both AI modules so the change
+    # takes effect without a server restart (modules are singletons in Python).
+    import gemini_analysis as _ga
+    import seo_optimizer   as _so
+    _ga.AI_PROVIDER = provider
+    _so.AI_PROVIDER = provider
+
+    key_hint = ("..." + api_key[-4:]) if len(api_key) > 8 else ("(set)" if api_key else "(not set)")
+    configured = bool(api_key) or provider in ("ollama", "rules")
+
+    logger.info("AI provider updated to '%s' via /set-api-key", provider)
+    return {
+        "ok":         True,
+        "provider":   provider,
+        "label":      _PROVIDER_LABELS.get(provider, provider),
+        "configured": configured,
+        "key_hint":   key_hint,
+    }
+
+
 # ── Ranking + popup ───────────────────────────────────────────────────────────
 
 @app.get("/ranking/{page_url:path}")
