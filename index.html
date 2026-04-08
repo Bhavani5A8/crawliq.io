@@ -2603,6 +2603,20 @@ function addCompetitorRow(){
   document.getElementById('comp-input-grid').appendChild(row);
 }
 
+// ── Safe JSON helper (handles HF Space cold-start HTML responses) ─────────────
+async function safeJson(res){
+  const ct=res.headers.get('content-type')||'';
+  if(!ct.includes('application/json')){
+    const txt=await res.text();
+    const lower=txt.toLowerCase();
+    if(lower.includes('space')||lower.includes('waking')||lower.includes('sleeping')||res.status>=502){
+      throw new Error('HF Space is starting up. Please wait ~30 seconds and try again.');
+    }
+    throw new Error(`Server error (HTTP ${res.status}). Please retry.`);
+  }
+  return res.json();
+}
+
 async function startCompAnalysis(){
   const target=document.getElementById('comp-target').value.trim();
   if(!target){alert('Enter your site URL.');return;}
@@ -2622,14 +2636,14 @@ async function startCompAnalysis(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({target_url:target,competitor_urls:competitors}),
     });
-    if(!res.ok){const e=await res.json();throw new Error(e.detail||'Failed');}
-    const data=await res.json();
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Failed');}
+    const data=await safeJson(res);
     compTaskId=data.task_id;
     compBar(true,`Crawling ${1+competitors.length} sites + fetching Core Web Vitals…`);
     if(compPollTimer)clearInterval(compPollTimer);
     compPollTimer=setInterval(async()=>{
       try{
-        const s=await(await fetch(`${API}/competitor/status/${compTaskId}`)).json();
+        const s=await safeJson(await fetch(`${API}/competitor/status/${compTaskId}`));
         if(s.status==='done'){
           clearInterval(compPollTimer);compBar(false);
           document.getElementById('comp-analyze-btn').disabled=false;
@@ -2652,7 +2666,7 @@ async function startCompAnalysis(){
 async function loadCompResultsById(taskId){
   try{
     const res=await fetch(`${API}/competitor/results/${taskId}`);
-    const data=await res.json();
+    const data=await safeJson(res);
     if(data.status==='running')return;
     compResults=data.results;
     renderCompResults(compResults);
@@ -2786,7 +2800,7 @@ function renderCompCharts(r){
 
 async function loadCompHistory(){
   try{
-    const data=await(await fetch(`${API}/competitor/history?limit=10`)).json();
+    const data=await safeJson(await fetch(`${API}/competitor/history?limit=10`));
     const snaps=data.snapshots||[];
     const tbody=document.getElementById('comp-hist-tbody');
     const panel=document.getElementById('comp-hist-panel');

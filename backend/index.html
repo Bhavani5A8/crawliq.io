@@ -1904,6 +1904,20 @@ function addCompetitorRow() {
   document.getElementById('comp-input-grid').appendChild(row);
 }
 
+// ── Safe JSON helper (handles HF Space cold-start HTML responses) ─────────────
+async function safeJson(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const txt = await res.text();
+    const lower = txt.toLowerCase();
+    if (lower.includes('space') || lower.includes('waking') || lower.includes('sleeping') || res.status >= 502) {
+      throw new Error('HF Space is starting up. Please wait ~30 seconds and try again.');
+    }
+    throw new Error(`Server error (HTTP ${res.status}). Please retry.`);
+  }
+  return res.json();
+}
+
 // ── Start analysis ────────────────────────────────────────────────────────────
 async function startCompAnalysis() {
   const target = document.getElementById('comp-target').value.trim();
@@ -1929,10 +1943,10 @@ async function startCompAnalysis() {
       body: JSON.stringify({ target_url: target, competitor_urls: competitors }),
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await safeJson(res);
       throw new Error(err.detail || 'Failed to start');
     }
-    const data = await res.json();
+    const data = await safeJson(res);
     compTaskId = data.task_id;
     compBar(true, `Crawling ${1 + competitors.length} sites + fetching Core Web Vitals…`);
     startCompPolling();
@@ -1947,7 +1961,7 @@ function startCompPolling() {
   if (compPollTimer) clearInterval(compPollTimer);
   compPollTimer = setInterval(async () => {
     try {
-      const status = await (await fetch(`${API}/competitor/status/${compTaskId}`)).json();
+      const status = await safeJson(await fetch(`${API}/competitor/status/${compTaskId}`));
       if (status.status === 'done') {
         clearInterval(compPollTimer);
         compBar(false);
@@ -1970,7 +1984,7 @@ function startCompPolling() {
 async function loadCompResults(taskId) {
   try {
     const res  = await fetch(`${API}/competitor/results/${taskId}`);
-    const data = await res.json();
+    const data = await safeJson(res);
     if (data.status === 'running') return;  // still going
     compResults = data.results;
     renderCompResults(compResults);
@@ -2176,7 +2190,7 @@ function renderCwvBars(r) {
 // ── History ───────────────────────────────────────────────────────────────────
 async function loadCompHistory() {
   try {
-    const data = await (await fetch(`${API}/competitor/history?limit=10`)).json();
+    const data = await safeJson(await fetch(`${API}/competitor/history?limit=10`));
     const snaps = data.snapshots || [];
     const tbody = document.getElementById('comp-hist-tbody');
     const panel = document.getElementById('comp-hist-panel');
