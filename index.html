@@ -678,7 +678,52 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   .ft{grid-template-columns:1fr 1fr;}
   .cta-wrap{margin:0 20px 60px;padding:32px 20px;}
   .metric-grid{grid-template-columns:1fr 1fr;}
+  .ai-provider-grid{grid-template-columns:repeat(2,1fr);}
 }
+/* ── AI Setup button in nav ── */
+.btn-ai-setup{font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px solid var(--indigo);color:var(--indigo);background:transparent;cursor:pointer;transition:background .15s;white-space:nowrap;}
+.btn-ai-setup:hover{background:rgba(99,102,241,.12);}
+/* ── AI Setup Modal ── */
+.ai-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px;}
+.ai-overlay.open{display:flex;}
+.ai-modal{background:var(--surf);border:1px solid var(--border);border-radius:14px;width:520px;max-width:96vw;animation:popIn .2s ease;overflow:hidden;}
+@keyframes popIn{from{transform:scale(.94) translateY(10px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;}}
+.ai-modal-head{padding:18px 22px 14px;background:var(--surf2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.ai-modal-head h2{font-size:15px;font-weight:700;background:linear-gradient(90deg,var(--indigo),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1;}
+.ai-modal-close{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;}
+.ai-modal-close:hover{color:var(--text);}
+.ai-modal-body{padding:22px;}
+.ai-current-status{display:flex;align-items:center;gap:10px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:20px;}
+.ai-current-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--dim);}
+.ai-current-dot.active{background:#06d6a0;}.ai-current-dot.inactive{background:#ff4d6a;}
+.ai-current-provider{font-size:12px;font-weight:600;color:var(--text);}
+.ai-current-hint{font-size:10px;color:var(--dim);margin-top:2px;}
+.ai-providers-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+.ai-provider-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+.ai-provider-card{border:1.5px solid var(--border);border-radius:var(--r);padding:10px 8px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg);}
+.ai-provider-card:hover{border-color:var(--indigo);background:rgba(99,102,241,.06);}
+.ai-provider-card.selected{border-color:var(--indigo);background:rgba(99,102,241,.1);}
+.ai-provider-card.selected .ai-pcard-name{color:var(--indigo);}
+.ai-pcard-icon{font-size:18px;margin-bottom:4px;}
+.ai-pcard-name{font-size:10px;font-weight:600;color:var(--text);}
+.ai-pcard-desc{font-size:9px;color:var(--dim);margin-top:2px;line-height:1.4;}
+.ai-key-group{margin-bottom:18px;}
+.ai-key-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:7px;display:block;}
+.ai-key-row{display:flex;gap:6px;align-items:center;}
+.ai-key-input{flex:1;background:var(--bg);border:1.5px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;border-radius:var(--r);outline:none;transition:border-color .15s;}
+.ai-key-input:focus{border-color:var(--indigo);}
+.ai-key-input::placeholder{color:var(--dim);}
+.ai-key-toggle{background:var(--surf2);border:1px solid var(--border);color:var(--dim);font-size:12px;padding:9px 10px;border-radius:var(--r);cursor:pointer;line-height:1;transition:color .15s;}
+.ai-key-toggle:hover{color:var(--text);}
+.ai-detect-badge{display:none;align-items:center;gap:6px;font-size:10px;color:var(--cyan);margin-top:6px;}
+.ai-detect-badge.show{display:flex;}
+.ai-no-key-notice{display:none;font-size:10px;color:var(--dim);background:rgba(34,211,238,.04);border:1px solid rgba(34,211,238,.15);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;line-height:1.6;}
+.ai-no-key-notice.show{display:block;}
+.ai-feedback{min-height:22px;font-size:11px;margin-bottom:14px;padding:6px 10px;border-radius:var(--r);display:none;}
+.ai-feedback.show{display:block;}
+.ai-feedback.ok{background:rgba(6,214,160,.08);color:#06d6a0;}
+.ai-feedback.err{background:rgba(255,77,106,.08);color:#ff4d6a;}
+.ai-modal-foot{display:flex;gap:8px;justify-content:flex-end;padding-top:4px;}
 </style>
 </head>
 <body>
@@ -697,6 +742,7 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
   </div>
   <div class="nav-right">
     <a class="btn-nav-cta" href="#dash-sec">Start Free</a>
+    <button class="btn-ai-setup" onclick="openAiSetup()" title="Configure AI provider &amp; API key">⚙ AI Setup</button>
     <div class="ai-pill">
       <div class="ai-pill-dot"></div>
       <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
@@ -1362,6 +1408,80 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
 </div>
 
 <!-- EXPORT MODAL -->
+<!-- ── AI Setup Modal ── -->
+<div class="ai-overlay" id="ai-overlay" onclick="aiOverlayClick(event)">
+<div class="ai-modal" id="ai-modal">
+  <div class="ai-modal-head">
+    <h2>⚙ AI Setup</h2>
+    <button class="ai-modal-close" onclick="closeAiSetup()">✕</button>
+  </div>
+  <div class="ai-modal-body">
+    <div class="ai-current-status">
+      <div class="ai-current-dot" id="ai-dot"></div>
+      <div>
+        <div class="ai-current-provider" id="ai-cur-provider">Loading…</div>
+        <div class="ai-current-hint" id="ai-cur-hint"></div>
+      </div>
+    </div>
+    <div class="ai-providers-label">Select AI Provider</div>
+    <div class="ai-provider-grid" id="ai-provider-grid">
+      <div class="ai-provider-card" data-provider="groq" onclick="aiSelectProvider('groq')">
+        <div class="ai-pcard-icon">⚡</div>
+        <div class="ai-pcard-name">Groq</div>
+        <div class="ai-pcard-desc">Llama 3 · Free · Fast</div>
+      </div>
+      <div class="ai-provider-card" data-provider="gemini" onclick="aiSelectProvider('gemini')">
+        <div class="ai-pcard-icon">✨</div>
+        <div class="ai-pcard-name">Gemini</div>
+        <div class="ai-pcard-desc">Google AI · Free quota</div>
+      </div>
+      <div class="ai-provider-card" data-provider="openai" onclick="aiSelectProvider('openai')">
+        <div class="ai-pcard-icon">🤖</div>
+        <div class="ai-pcard-name">OpenAI</div>
+        <div class="ai-pcard-desc">GPT-4o-mini · Paid</div>
+      </div>
+      <div class="ai-provider-card" data-provider="claude" onclick="aiSelectProvider('claude')">
+        <div class="ai-pcard-icon">🧠</div>
+        <div class="ai-pcard-name">Claude</div>
+        <div class="ai-pcard-desc">Anthropic · Haiku</div>
+      </div>
+      <div class="ai-provider-card" data-provider="ollama" onclick="aiSelectProvider('ollama')">
+        <div class="ai-pcard-icon">🏠</div>
+        <div class="ai-pcard-name">Ollama</div>
+        <div class="ai-pcard-desc">Local · No key needed</div>
+      </div>
+      <div class="ai-provider-card" data-provider="rules" onclick="aiSelectProvider('rules')">
+        <div class="ai-pcard-icon">📋</div>
+        <div class="ai-pcard-name">Rules Only</div>
+        <div class="ai-pcard-desc">No AI · Always works</div>
+      </div>
+    </div>
+    <div class="ai-no-key-notice" id="ai-no-key-notice">
+      This provider does not require an API key. Click <strong>Apply</strong> to activate it.
+    </div>
+    <div class="ai-key-group" id="ai-key-group">
+      <label class="ai-key-label" for="ai-key-input">API Key</label>
+      <div class="ai-key-row">
+        <input class="ai-key-input" id="ai-key-input" type="password"
+          placeholder="Paste your API key here…"
+          oninput="aiOnKeyInput(this.value)"
+          autocomplete="off" spellcheck="false"/>
+        <button class="ai-key-toggle" onclick="aiToggleKeyVisible()" id="ai-key-toggle" title="Show / hide key">👁</button>
+      </div>
+      <div class="ai-detect-badge" id="ai-detect-badge">
+        <span>🔍</span><span id="ai-detect-text"></span>
+      </div>
+    </div>
+    <div class="ai-feedback" id="ai-feedback"></div>
+    <div class="ai-modal-foot">
+      <button class="btn btn-outline btn-sm" style="font-size:11px;padding:6px 14px" onclick="closeAiSetup()">Cancel</button>
+      <button class="btn btn-cyan btn-sm" style="font-size:11px;padding:6px 14px" onclick="aiTestConnection()" id="ai-test-btn">Test Connection</button>
+      <button class="btn btn-green btn-sm" style="font-size:11px;padding:6px 14px" onclick="aiApplyKey()" id="ai-apply-btn">Apply</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <div class="eoverlay" id="eoverlay">
 <div class="emodal">
   <button class="eclose" onclick="closeExportModal()">✕</button>
@@ -1389,10 +1509,10 @@ window.addEventListener('load', checkGemini);
 
 async function checkGemini() {
   try {
-    const d = await (await fetch(`${API}/gemini-health`)).json();
+    const d = await (await fetch(`${API}/ai-config`)).json();
     const pill = document.getElementById('gemini-pill');
-    if (d.configured) { pill.textContent = `✨ ${d.model} · Online`; pill.className = 'gemini-pill up'; }
-    else { pill.textContent = '⚠ AI: set API key'; pill.className = 'gemini-pill down'; }
+    if (d.configured) { pill.textContent = `✨ ${d.label} · Ready`; pill.className = 'gemini-pill up'; }
+    else { pill.textContent = '⚙ AI: click AI Setup'; pill.className = 'gemini-pill down'; }
   } catch {}
 }
 
@@ -2114,6 +2234,9 @@ function toggleFaq(item){
 }
 
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('ai-overlay').classList.contains('open')){
+    if(e.key==='Escape')closeAiSetup(); return;
+  }
   if(document.getElementById('tseo-overlay').classList.contains('open')){
     if(e.key==='ArrowLeft')navTechPage(-1);
     if(e.key==='ArrowRight')navTechPage(1);
@@ -2126,6 +2249,134 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closePopup();
 });
 document.getElementById('url-input').addEventListener('keydown',e=>{if(e.key==='Enter')startCrawlHero();});
+
+// ══════════════════════════════════════════════════════════════
+// AI SETUP MODAL
+// ══════════════════════════════════════════════════════════════
+const _AI_KEY_PATTERNS=[
+  {prefix:'gsk_',    provider:'groq',   label:'Groq'},
+  {prefix:'AIzaSy',  provider:'gemini', label:'Google Gemini'},
+  {prefix:'sk-ant-', provider:'claude', label:'Anthropic Claude'},
+  {prefix:'sk-',     provider:'openai', label:'OpenAI'},
+];
+const _AI_NO_KEY=new Set(['ollama','rules']);
+let _aiSelectedProvider='groq';
+
+function _aiDetect(key){
+  for(const {prefix,provider,label} of _AI_KEY_PATTERNS)
+    if(key.trim().startsWith(prefix)) return {provider,label};
+  return null;
+}
+
+async function openAiSetup(){
+  document.getElementById('ai-overlay').classList.add('open');
+  aiSetFeedback('','');
+  try{
+    const cfg=await(await fetch(`${API}/ai-config`)).json();
+    _aiSelectedProvider=cfg.provider||'groq';
+    aiHighlightCard(_aiSelectedProvider);
+    aiUpdateNoKey(_aiSelectedProvider);
+    const dot=document.getElementById('ai-dot');
+    dot.className='ai-current-dot '+(cfg.configured?'active':'inactive');
+    document.getElementById('ai-cur-provider').textContent=cfg.label||cfg.provider||'—';
+    document.getElementById('ai-cur-hint').textContent=
+      cfg.configured?`Key: ${cfg.key_hint} · Ready`:'No API key set — AI features disabled';
+  }catch{document.getElementById('ai-cur-provider').textContent='Could not load config';}
+}
+
+function closeAiSetup(){
+  document.getElementById('ai-overlay').classList.remove('open');
+  document.getElementById('ai-key-input').value='';
+  aiSetFeedback('','');
+  document.getElementById('ai-detect-badge').classList.remove('show');
+}
+
+function aiOverlayClick(e){if(e.target===document.getElementById('ai-overlay'))closeAiSetup();}
+
+function aiSelectProvider(p){
+  _aiSelectedProvider=p;
+  aiHighlightCard(p);
+  aiUpdateNoKey(p);
+  const key=document.getElementById('ai-key-input').value;
+  if(key)aiOnKeyInput(key);
+  aiSetFeedback('','');
+}
+
+function aiHighlightCard(p){
+  document.querySelectorAll('#ai-provider-grid .ai-provider-card').forEach(c=>{
+    c.classList.toggle('selected',c.dataset.provider===p);
+  });
+}
+
+function aiUpdateNoKey(p){
+  const needs=!_AI_NO_KEY.has(p);
+  document.getElementById('ai-key-group').style.display=needs?'':'none';
+  document.getElementById('ai-no-key-notice').classList.toggle('show',!needs);
+}
+
+function aiOnKeyInput(key){
+  const badge=document.getElementById('ai-detect-badge');
+  const det=_aiDetect(key);
+  if(det){
+    document.getElementById('ai-detect-text').textContent=`Detected: ${det.label} — switching`;
+    badge.classList.add('show');
+    _aiSelectedProvider=det.provider;
+    aiHighlightCard(det.provider);
+    aiUpdateNoKey(det.provider);
+  }else{badge.classList.remove('show');}
+}
+
+function aiToggleKeyVisible(){
+  const inp=document.getElementById('ai-key-input');
+  const btn=document.getElementById('ai-key-toggle');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';btn.title='Hide key';}
+  else{inp.type='password';btn.textContent='👁';btn.title='Show key';}
+}
+
+function aiSetFeedback(msg,type){
+  const el=document.getElementById('ai-feedback');
+  el.textContent=msg;
+  el.className='ai-feedback'+(msg?` show ${type}`:'');
+}
+
+async function aiApplyKey(){
+  const key=document.getElementById('ai-key-input').value.trim();
+  const provider=_aiSelectedProvider;
+  if(!_AI_NO_KEY.has(provider)&&!key){aiSetFeedback('Please enter your API key before applying.','err');return;}
+  const btn=document.getElementById('ai-apply-btn');
+  btn.disabled=true;btn.textContent='Applying…';aiSetFeedback('','');
+  try{
+    const res=await fetch(`${API}/set-api-key`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({provider,api_key:key}),
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Failed');
+    aiSetFeedback(`✓ ${data.label} activated — key ${data.key_hint}`,'ok');
+    await checkGemini();
+    const dot=document.getElementById('ai-dot');
+    dot.className='ai-current-dot '+(data.configured?'active':'inactive');
+    document.getElementById('ai-cur-provider').textContent=data.label;
+    document.getElementById('ai-cur-hint').textContent=
+      data.configured?`Key: ${data.key_hint} · Ready`:'No key set';
+    document.getElementById('ai-key-input').value='';
+    document.getElementById('ai-detect-badge').classList.remove('show');
+  }catch(e){aiSetFeedback(`✗ ${e.message}`,'err');}
+  finally{btn.disabled=false;btn.textContent='Apply';}
+}
+
+async function aiTestConnection(){
+  const btn=document.getElementById('ai-test-btn');
+  btn.disabled=true;btn.textContent='Testing…';aiSetFeedback('','');
+  try{
+    const d=await(await fetch(`${API}/gemini-health`)).json();
+    if(d.configured){
+      const m=d.model?` · model: ${d.model}`:'';
+      aiSetFeedback(`✓ Connected to ${d.provider||'AI'}${m}`,'ok');
+    }else{aiSetFeedback('✗ Not configured — set an API key first','err');}
+  }catch(e){aiSetFeedback(`✗ Connection test failed: ${e.message}`,'err');}
+  finally{btn.disabled=false;btn.textContent='Test Connection';}
+}
 </script>
 </body>
 </html>
