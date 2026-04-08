@@ -2083,8 +2083,12 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
             blocked = site.get("crawl_blocked", False)
             na      = "N/A (crawl blocked)" if blocked else None
 
-            def _s(key):  # return N/A string if blocked, else numeric score
-                return na if blocked else sc.get(key, 0)
+            source = site.get("score_source", "crawl")
+
+            def _s(key):
+                if source == "no_data":
+                    return "N/A (no data)"
+                return sc.get(key, 0)
 
             score_rows.append({
                 "Domain":        site.get("domain", ""),
@@ -2098,7 +2102,8 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
                 "Keywords":      _s("keywords"),
                 "Page Speed":    _s("page_speed"),
                 "Is Target":     "✓" if site.get("url") == target else "",
-                "Crawl Status":  "Blocked" if blocked else f"{site.get('real_pages', 0)} pages",
+                "Score Source":  {"crawl": "Crawled", "psi_derived": "PSI/Lighthouse", "no_data": "No Data"}.get(source, source),
+                "Pages Crawled": site.get("real_pages", 0) if source == "crawl" else "—",
             })
         df_scores = pd.DataFrame(score_rows)
         df_scores.to_excel(writer, index=False, sheet_name="Score Comparison")

@@ -141,18 +141,26 @@ _SW = {
 async def _fetch_psi(url: str, strategy: str = "mobile") -> dict:
     """
     Call Google PageSpeed Insights API for one URL.
-    Returns normalised CWV dict. Never raises — returns empty dict on failure.
+    Requests BOTH performance + seo categories so we can score blocked sites
+    from Lighthouse audit data alone (Google's Chrome bypasses Cloudflare).
 
+    Returns normalised CWV dict + raw SEO audits. Never raises.
     Free quota: 25,000 requests/day without key, 100 k/day with PSI_API_KEY.
     """
-    params: dict = {"url": url, "strategy": strategy}
+    # Use list-of-tuples so aiohttp sends two separate category= params
+    params_list: list[tuple] = [
+        ("url",      url),
+        ("strategy", strategy),
+        ("category", "performance"),
+        ("category", "seo"),         # ← gives us full Lighthouse SEO audits
+    ]
     if PSI_API_KEY:
-        params["key"] = PSI_API_KEY
+        params_list.append(("key", PSI_API_KEY))
 
     timeout = aiohttp.ClientTimeout(total=PSI_TIMEOUT)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as sess:
-            async with sess.get(PSI_API_URL, params=params) as resp:
+            async with sess.get(PSI_API_URL, params=params_list) as resp:
                 if resp.status == 429:
                     logger.warning(
                         "PSI API rate-limited (429) for %s. "
@@ -163,37 +171,63 @@ async def _fetch_psi(url: str, strategy: str = "mobile") -> dict:
                     return {}
                 data = await resp.json()
 
-        lhr = data.get("lighthouseResult", {})
-        cats = lhr.get("categories", {})
+        lhr    = data.get("lighthouseResult", {})
+        cats   = lhr.get("categories", {})
         audits = lhr.get("audits", {})
-        le = data.get("loadingExperience", {})
+        le     = data.get("loadingExperience", {})
 
         def _num(key: str) -> float | None:
             v = audits.get(key, {}).get("numericValue")
             return round(float(v), 1) if v is not None else None
 
+        def _pass(key: str) -> bool:
+            """True if Lighthouse audit passed (score == 1)."""
+            return audits.get(key, {}).get("score") == 1
+
+        # ── Core SEO audit IDs we use for fallback scoring ────────────────
+        _SEO_AUDIT_IDS = [
+            "document-title", "meta-description", "heading-order",
+            "link-text", "crawlable-anchors", "is-crawlable",
+            "robots-txt", "canonical", "structured-data", "hreflang",
+            "image-alt", "font-size", "tap-targets", "plugins",
+        ]
+        seo_audits: dict[str, dict] = {}
+        for aid in _SEO_AUDIT_IDS:
+            a = audits.get(aid, {})
+            seo_audits[aid] = {
+                "score":        a.get("score"),          # 1=pass 0=fail None=n/a
+                "numericValue": a.get("numericValue"),
+                "displayValue": a.get("displayValue", ""),
+            }
+        # DOM size from performance audits (node count ≈ content richness)
+        dom_audit = audits.get("dom-size", {})
+        seo_audits["dom-size"] = {
+            "score":        dom_audit.get("score"),
+            "numericValue": dom_audit.get("numericValue"),  # total DOM nodes
+            "displayValue": dom_audit.get("displayValue", ""),
+        }
+
         result = {
             "perf_score":      round((cats.get("performance", {}).get("score") or 0) * 100, 1),
+            "seo_score":       round((cats.get("seo",         {}).get("score") or 0) * 100, 1),
             "lcp_ms":          _num("largest-contentful-paint"),
-            "inp_ms":          _num("total-blocking-time"),     # TBT as INP proxy
+            "inp_ms":          _num("total-blocking-time"),
             "cls":             _num("cumulative-layout-shift"),
             "fcp_ms":          _num("first-contentful-paint"),
             "ttfb_ms":         _num("server-response-time"),
             "speed_index_ms":  _num("speed-index"),
             "tti_ms":          _num("interactive"),
-            "field_data":      le.get("overall_category", "UNKNOWN"),  # FAST/AVERAGE/SLOW
+            "field_data":      le.get("overall_category", "UNKNOWN"),
             "strategy":        strategy,
+            "_seo_audits":     seo_audits,   # raw audits for fallback scoring
         }
 
-        # LCP status (good < 2500ms, needs improvement < 4000ms, poor ≥ 4000ms)
         lcp = result["lcp_ms"]
         result["lcp_status"] = (
             "Good" if lcp and lcp < 2500 else
             "Needs Improvement" if lcp and lcp < 4000 else
             "Poor" if lcp else "Unknown"
         )
-
-        # CLS status (good < 0.1, needs improvement < 0.25, poor ≥ 0.25)
         cls_ = result["cls"]
         result["cls_status"] = (
             "Good" if cls_ is not None and cls_ < 0.1 else
@@ -201,15 +235,15 @@ async def _fetch_psi(url: str, strategy: str = "mobile") -> dict:
             "Poor" if cls_ is not None else "Unknown"
         )
 
-        logger.debug("PSI done: %s  perf=%.0f  lcp=%.0fms  strategy=%s",
-                     url, result["perf_score"], lcp or 0, strategy)
+        logger.info("PSI done: %s  perf=%.0f  seo=%.0f  lcp=%.0fms",
+                    url, result["perf_score"], result["seo_score"], lcp or 0)
         return result
 
     except asyncio.TimeoutError:
-        logger.debug("PSI timeout for %s", url)
+        logger.warning("PSI timeout for %s", url)
         return {}
     except Exception as exc:
-        logger.debug("PSI error for %s: %s", url, exc)
+        logger.warning("PSI error for %s: %s", url, exc)
         return {}
 
 
@@ -815,8 +849,12 @@ def build_radar_data(site_scores: dict[str, dict[str, float]]) -> dict:
     series = []
     for url, scores in site_scores.items():
         domain = urlparse(url).netloc or url
-        values = [round(scores.get(d, 0), 1) for d in dim_order]
-        series.append({"name": domain, "value": values})
+        values = [round(float(scores.get(d, 0)), 1) for d in dim_order]
+        series.append({
+            "name":   domain,
+            "value":  values,
+            "source": scores.get("score_source", "crawl"),
+        })
 
     return {"indicators": indicators, "series": series}
 
@@ -875,6 +913,115 @@ def build_action_list(
 
     actions.sort(key=lambda x: -x["gap"])
     return actions[:5]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 5b: PSI-DERIVED FALLBACK SCORING ─────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def _score_from_psi(psi: dict, url: str) -> dict:
+    """
+    Derive all 7 dimension scores from PSI / Lighthouse data alone.
+
+    Used when a site blocks our aiohttp crawler (Cloudflare, JS walls) but
+    Google's own Chrome infrastructure (PSI) can still fetch it.
+
+    Coverage per dimension:
+      technical   — Lighthouse SEO audits: is-crawlable, robots-txt, canonical,
+                    structured-data, hreflang, plugins
+      on_page     — Lighthouse SEO audits: document-title, meta-description,
+                    heading-order, link-text, image-alt, crawlable-anchors
+      content     — DOM node count (dom-size audit) + font-size + tap-targets
+      eeat        — TLD authority + structured-data + overall SEO score
+      ctr         — title presence + meta presence + Lighthouse SEO score
+      keywords    — title + meta signals (limited without body text)
+      page_speed  — Lighthouse performance score (direct)
+    """
+    if not psi:
+        return {}
+
+    audits    = psi.get("_seo_audits", {})
+    seo_score = psi.get("seo_score", 0) or 0  # Lighthouse SEO category 0-100
+
+    def _pass(aid: str) -> bool:
+        return audits.get(aid, {}).get("score") == 1
+
+    # ── Technical SEO ─────────────────────────────────────────────────────
+    tech = 0.0
+    if _pass("is-crawlable"):    tech += 25   # not noindexed — biggest signal
+    if _pass("robots-txt"):      tech += 20   # robots.txt valid
+    if _pass("canonical"):       tech += 20   # canonical tag present
+    if _pass("structured-data"): tech += 20   # schema markup present
+    if _pass("hreflang"):        tech += 10   # hreflang (optional)
+    if _pass("plugins"):         tech += 5    # no Flash/Java plugins
+    tech = min(tech, 100.0)
+
+    # ── On-Page SEO ───────────────────────────────────────────────────────
+    on_page = 0.0
+    if _pass("document-title"):     on_page += 25
+    if _pass("meta-description"):   on_page += 25
+    if _pass("heading-order"):      on_page += 20
+    if _pass("link-text"):          on_page += 15
+    if _pass("image-alt"):          on_page += 10
+    if _pass("crawlable-anchors"):  on_page += 5
+    on_page = min(on_page, 100.0)
+
+    # ── Content Depth ─────────────────────────────────────────────────────
+    # DOM node count is the best content-richness proxy available via PSI.
+    # Lighthouse "good" threshold is ≤ 1500 nodes, but rich content pages
+    # commonly have 2000–5000 nodes.
+    dom_nodes = audits.get("dom-size", {}).get("numericValue") or 0
+    content = 15.0   # baseline — page loads at all
+    if dom_nodes >= 3000:   content += 40
+    elif dom_nodes >= 1500: content += 30
+    elif dom_nodes >= 600:  content += 15
+    elif dom_nodes >= 200:  content += 5
+    if _pass("font-size"):   content += 15   # legible text = real content
+    if _pass("tap-targets"): content += 10   # structured layout
+    if _pass("heading-order"): content += 10 # heading hierarchy = structured content
+    content = min(content, 100.0)
+
+    # ── E-E-A-T ───────────────────────────────────────────────────────────
+    # Limited without crawl — use domain authority signals + SEO quality.
+    parsed = urlparse(url)
+    tld    = "." + (parsed.netloc.split(".")[-1] if parsed.netloc else "")
+    eeat   = 15.0   # baseline
+    if tld in _AUTHORITY_TLDS:       eeat += 35   # .edu/.gov/.org
+    if _pass("structured-data"):     eeat += 20   # schema = trust signals
+    if _pass("document-title"):      eeat += 10
+    if _pass("meta-description"):    eeat += 10
+    eeat += min(seo_score * 0.10, 10)  # overall SEO quality bonus (max 10)
+    eeat = min(eeat, 100.0)
+
+    # ── CTR Potential ─────────────────────────────────────────────────────
+    ctr = 0.0
+    if _pass("document-title"):    ctr += 35
+    if _pass("meta-description"):  ctr += 35
+    ctr += min(seo_score * 0.30, 30)  # Lighthouse SEO score bonus (max 30)
+    ctr = min(ctr, 100.0)
+
+    # ── Keywords ─────────────────────────────────────────────────────────
+    # Very limited without body text — only title + meta signals available.
+    kw = 0.0
+    if _pass("document-title"):    kw += 25
+    if _pass("meta-description"):  kw += 25
+    kw += min(seo_score * 0.20, 20)   # SEO score proxy (max 20)
+    kw = min(kw, 70.0)  # cap at 70 — we can't verify body keywords without crawl
+
+    # ── Page Speed ────────────────────────────────────────────────────────
+    page_speed = float(psi.get("perf_score") or 0)
+
+    scores = {
+        "technical":  round(tech, 1),
+        "on_page":    round(on_page, 1),
+        "content":    round(content, 1),
+        "eeat":       round(eeat, 1),
+        "ctr":        round(ctr, 1),
+        "keywords":   round(kw, 1),
+        "page_speed": round(page_speed, 1),
+    }
+    logger.info("PSI-derived scores for %s: %s", url, scores)
+    return scores
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -977,20 +1124,44 @@ async def run_competitor_analysis(
             cwv_by_site[site_url] = cwv_map.get(home, {})
 
         # ── Step 4: Score all dimensions per site ─────────────────────────
+        # Strategy:
+        #   crawl succeeded → score from crawled pages (full accuracy)
+        #   crawl blocked but PSI succeeded → derive all 7 dims from
+        #     Lighthouse SEO audits (Google's Chrome bypasses Cloudflare)
+        #   both failed → zeros with score_source="no_data"
         site_scores: dict[str, dict[str, float]] = {}
         for url in all_urls:
             pages = pages_map[url]
             cwv   = cwv_by_site.get(url, {})
-            site_scores[url] = {
-                "technical":  score_technical(pages),
-                "on_page":    score_on_page(pages),
-                "content":    score_content(pages),
-                "eeat":       score_eeat(pages, url),
-                "ctr":        score_ctr_potential(pages),
-                "keywords":   score_keywords(pages),
-                "page_speed": score_page_speed(cwv),
-            }
-            site_scores[url]["composite"] = compute_composite(site_scores[url])
+            blocked = url in crawl_errors
+
+            if not blocked:
+                # Normal path — site was crawled successfully
+                dims = {
+                    "technical":  score_technical(pages),
+                    "on_page":    score_on_page(pages),
+                    "content":    score_content(pages),
+                    "eeat":       score_eeat(pages, url),
+                    "ctr":        score_ctr_potential(pages),
+                    "keywords":   score_keywords(pages),
+                    "page_speed": score_page_speed(cwv),
+                }
+                source = "crawl"
+            elif cwv:
+                # Crawl blocked but PSI succeeded — use Lighthouse SEO audits
+                # PSI uses Google's own Chrome → bypasses Cloudflare/JS walls
+                dims = _score_from_psi(cwv, url)
+                source = "psi_derived"
+                logger.info("[%s] Using PSI-derived scores for blocked site %s", task_id, url)
+            else:
+                # Both crawl and PSI failed — return zeros
+                dims = {k: 0.0 for k in _WEIGHTS}
+                source = "no_data"
+                logger.warning("[%s] No data at all for %s (crawl + PSI both failed)", task_id, url)
+
+            site_scores[url] = dims
+            site_scores[url]["composite"] = compute_composite(dims)
+            site_scores[url]["score_source"] = source
 
         # ── Step 5: Keyword gap analysis ──────────────────────────────────
         competitor_pages_map = {
@@ -1019,6 +1190,17 @@ async def run_competitor_analysis(
             pages   = pages_map[url]
             real    = [p for p in pages if p.get("status_code") == 200]
             blocked = url in crawl_errors
+            sc      = site_scores[url]
+            source  = sc.get("score_source", "crawl")
+            # Strip internal metadata key from the scores dict shown in the UI
+            clean_scores = {k: v for k, v in sc.items() if k != "score_source"}
+            # For PSI-derived sites, extract title/meta from PSI audit displayValues
+            cwv = cwv_by_site.get(url, {})
+            psi_title = ""
+            psi_meta  = ""
+            if source == "psi_derived" and cwv:
+                psi_title = cwv.get("_seo_audits", {}).get("document-title", {}).get("displayValue", "")
+                psi_meta  = cwv.get("_seo_audits", {}).get("meta-description", {}).get("displayValue", "")
             return {
                 "url":           url,
                 "domain":        urlparse(url).netloc,
@@ -1026,9 +1208,12 @@ async def run_competitor_analysis(
                 "real_pages":    len(real),
                 "crawl_blocked": blocked,
                 "crawl_error":   crawl_errors.get(url, ""),
+                "score_source":  source,   # "crawl" | "psi_derived" | "no_data"
+                "psi_title":     psi_title,
+                "psi_meta":      psi_meta,
                 "issues_count":  sum(1 for p in real if p.get("issues")),
-                "scores":        site_scores[url],
-                "cwv":           cwv_by_site.get(url, {}),
+                "scores":        clean_scores,
+                "cwv":           {k: v for k, v in cwv.items() if not k.startswith("_")},
                 "top_keywords":  list({
                     k if isinstance(k, str) else k.get("keyword", "")
                     for p in real
