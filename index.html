@@ -2619,7 +2619,26 @@ async function safeJson(res){
   return res.json();
 }
 
-// ── Start analysis (with cold-start auto-retry) ───────────────────────────────
+// ── Wait for HF Space to be ready (pings /health until 200 JSON) ─────────────
+async function waitForSpace(maxWaitMs=300000){
+  const start=Date.now();let elapsed=0;
+  while(elapsed<maxWaitMs){
+    try{
+      const r=await fetch(`${API}/health`,{cache:'no-store'});
+      const ct=r.headers.get('content-type')||'';
+      if(r.ok&&ct.includes('application/json'))return true;
+    }catch(_){}
+    elapsed=Date.now()-start;
+    const remaining=Math.round((maxWaitMs-elapsed)/1000);
+    const secs=Math.round(elapsed/1000);
+    compBar(true,`Space is waking up… ${secs}s elapsed (max 5 min, ${remaining}s left)`);
+    await new Promise(r=>setTimeout(r,5000));
+    elapsed=Date.now()-start;
+  }
+  return false;
+}
+
+// ── Start analysis (waits for space, then fires) ──────────────────────────────
 async function startCompAnalysis(){
   const target=document.getElementById('comp-target').value.trim();
   if(!target){alert('Enter your site URL.');return;}
@@ -2631,51 +2650,55 @@ async function startCompAnalysis(){
   document.getElementById('comp-results').style.display='none';
   document.getElementById('comp-export-btn').disabled=true;
   document.getElementById('comp-analyze-btn').disabled=true;
+  compBar(true,'Checking server…');
 
-  const MAX_RETRIES=3, RETRY_SECS=30;
-
-  for(let attempt=0;attempt<=MAX_RETRIES;attempt++){
-    compBar(true,attempt===0?'Starting competitor analysis…':'Retrying…');
-    try{
-      const res=await fetch(`${API}/competitor/analyze`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({target_url:target,competitor_urls:competitors}),
-      });
-      if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Failed');}
-      const data=await safeJson(res);
-      compTaskId=data.task_id;
-      compBar(true,`Crawling ${1+competitors.length} sites + fetching Core Web Vitals…`);
-      if(compPollTimer)clearInterval(compPollTimer);
-      compPollTimer=setInterval(async()=>{
-        try{
-          const s=await safeJson(await fetch(`${API}/competitor/status/${compTaskId}`));
-          if(s.status==='done'){
-            clearInterval(compPollTimer);compBar(false);
-            document.getElementById('comp-analyze-btn').disabled=false;
-            await loadCompResultsById(compTaskId);
-            loadCompHistory();
-          }else if(s.status==='error'){
-            clearInterval(compPollTimer);compBar(false);
-            document.getElementById('comp-analyze-btn').disabled=false;
-            alert(`Analysis error: ${s.error_msg}`);
-          }
-        }catch(e){console.error('Comp poll error:',e);}
-      },4000);
-      return;  // success
-    }catch(e){
-      if(e.isColdStart&&attempt<MAX_RETRIES){
-        for(let s=RETRY_SECS;s>0;s--){
-          compBar(true,`Space is waking up — retrying in ${s}s (attempt ${attempt+1}/${MAX_RETRIES})…`);
-          await new Promise(r=>setTimeout(r,1000));
-        }
-        continue;
-      }
-      compBar(false);
-      alert(`Analysis failed: ${e.message}`);
-      document.getElementById('comp-analyze-btn').disabled=false;
-      return;
+  // Step 1: probe health — if cold, wait for space to wake up
+  try{
+    const probe=await fetch(`${API}/health`,{cache:'no-store'});
+    const ct=probe.headers.get('content-type')||'';
+    if(!probe.ok||!ct.includes('application/json')){
+      compBar(true,'Space is waking up… 0s elapsed (max 5 min)');
+      const ready=await waitForSpace();
+      if(!ready){compBar(false);alert('Space did not wake up within 5 minutes. Please try again later.');document.getElementById('comp-analyze-btn').disabled=false;return;}
     }
+  }catch(_){
+    compBar(true,'Space is waking up… 0s elapsed (max 5 min)');
+    const ready=await waitForSpace();
+    if(!ready){compBar(false);alert('Space did not wake up within 5 minutes. Please try again later.');document.getElementById('comp-analyze-btn').disabled=false;return;}
+  }
+
+  // Step 2: space is ready — fire the analysis
+  compBar(true,'Starting competitor analysis…');
+  try{
+    const res=await fetch(`${API}/competitor/analyze`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({target_url:target,competitor_urls:competitors}),
+    });
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Failed');}
+    const data=await safeJson(res);
+    compTaskId=data.task_id;
+    compBar(true,`Crawling ${1+competitors.length} sites + fetching Core Web Vitals…`);
+    if(compPollTimer)clearInterval(compPollTimer);
+    compPollTimer=setInterval(async()=>{
+      try{
+        const s=await safeJson(await fetch(`${API}/competitor/status/${compTaskId}`));
+        if(s.status==='done'){
+          clearInterval(compPollTimer);compBar(false);
+          document.getElementById('comp-analyze-btn').disabled=false;
+          await loadCompResultsById(compTaskId);
+          loadCompHistory();
+        }else if(s.status==='error'){
+          clearInterval(compPollTimer);compBar(false);
+          document.getElementById('comp-analyze-btn').disabled=false;
+          alert(`Analysis error: ${s.error_msg}`);
+        }
+      }catch(e){console.error('Comp poll error:',e);}
+    },4000);
+  }catch(e){
+    compBar(false);
+    alert(`Analysis failed: ${e.message}`);
+    document.getElementById('comp-analyze-btn').disabled=false;
   }
 }
 
