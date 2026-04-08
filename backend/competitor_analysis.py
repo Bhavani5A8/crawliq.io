@@ -75,10 +75,15 @@ from competitor_db import (
     save_snapshot, update_snapshot, get_snapshot,
     save_cwv, save_keyword_rankings,
 )
-from crawler import SEOCrawler
+from crawler import SEOCrawler, crawl_results as _shared_crawl_results
 from technical_seo import analyze_page as _tseo_page
 from issues import detect_issues
 from keyword_extractor import extract_keywords_corpus
+
+# Serialise all competitor crawls so they don't clobber the shared crawl_results.
+# Each crawl: clear → run → snapshot → clear.
+# Concurrent dashboard crawls are blocked during this window (same as normal crawl).
+_comp_crawl_lock = asyncio.Lock()
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -232,24 +237,35 @@ async def fetch_psi_all(urls: list[str], strategy: str = "mobile") -> dict[str, 
 async def _crawl_site(url: str) -> list[dict]:
     """
     Crawl one site up to MAX_CRAWL_PAGES using the existing SEOCrawler.
-    Returns page list. Never raises.
+
+    The crawler writes to the module-level crawl_results list (shared state).
+    We serialise all competitor crawls through _comp_crawl_lock so they
+    never interleave, then snapshot and clear after each run.
+
+    Returns a private list of page dicts. Never raises.
     """
-    from crawler import crawl_results as _cr
-    # Use a dedicated results store per crawl via a thread-local approach
-    # — SEOCrawler accepts a custom results list via injection
-    results: list[dict] = []
-    try:
-        if not url.startswith(("http://", "https://")):
-            url = "https://" + url
-        crawler = SEOCrawler(url, max_pages=MAX_CRAWL_PAGES)
-        # Inject our own results list so we don't pollute shared crawl_results
-        crawler._results = results
-        await asyncio.wait_for(crawler.crawl_async(), timeout=CRAWL_TIMEOUT)
-    except asyncio.TimeoutError:
-        logger.warning("Crawl timeout for %s (got %d pages)", url, len(results))
-    except Exception as exc:
-        logger.warning("Crawl failed for %s: %s", url, exc)
-    return results
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    async with _comp_crawl_lock:
+        # Clear shared store before this crawl
+        _shared_crawl_results.clear()
+        try:
+            await asyncio.wait_for(
+                SEOCrawler(url, max_pages=MAX_CRAWL_PAGES).crawl_async(),
+                timeout=CRAWL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Comp crawl timeout for %s (got %d pages)",
+                           url, len(_shared_crawl_results))
+        except Exception as exc:
+            logger.warning("Comp crawl failed for %s: %s", url, exc)
+
+        # Snapshot and clear so the next crawl starts clean
+        pages = list(_shared_crawl_results)
+        _shared_crawl_results.clear()
+
+    return pages
 
 
 async def _crawl_site_safe(url: str) -> tuple[str, list[dict]]:
@@ -879,7 +895,10 @@ async def run_competitor_analysis(
     try:
         all_urls = [target_url] + competitor_urls
 
-        # ── Step 1: Parallel crawl ────────────────────────────────────────
+        # ── Step 1: Sequential crawl (serialised through _comp_crawl_lock) ──
+        # asyncio.gather submits all tasks, but _comp_crawl_lock inside
+        # _crawl_site ensures only one site is crawled at a time — safe
+        # against shared crawl_results corruption.
         crawl_tasks = [_crawl_site_safe(u) for u in all_urls]
         crawl_results = await asyncio.gather(*crawl_tasks, return_exceptions=True)
 
