@@ -7,6 +7,12 @@ checks (e.g. duplicate meta descriptions) work correctly.
 """
 
 from collections import Counter
+from urllib.parse import urlparse as _up
+
+
+def _is_homepage(url: str) -> bool:
+    """BUG-N09: return True if url is the site root (no meaningful path)."""
+    return _up(url).path.rstrip("/") == ""
 
 
 def detect_issues(pages: list[dict]) -> list[dict]:
@@ -62,20 +68,22 @@ def _per_page_issues(page: dict) -> list[str]:
     elif len(title) > 60:
         issues.append("Title Too Long")
 
-    # BUG-012: Title Too Short (< 30 characters) — e.g. "Home", "Contact"
-    elif len(title) < 30:
+    # BUG-012 / BUG-N09: skip short-title check on the homepage — brand names
+    # and "Home" are intentionally short there and should not be flagged.
+    elif len(title) < 30 and not _is_homepage(url):
         issues.append("Title Too Short")
 
     # 3. Missing Meta Description
     if not meta:
         issues.append("Missing Meta Description")
 
-    # BUG-013: Meta Description Too Long (> 160 chars) — truncated in SERPs
+    # BUG-013 / BUG-N10: tightened thresholds to match real SERP behaviour.
+    # Google displays ~155 chars desktop / ~120 chars mobile — 160 is the safe max.
+    # Anything under 120 chars under-utilises available SERP space on desktop.
     elif len(meta) > 160:
         issues.append("Meta Description Too Long")
 
-    # BUG-013: Meta Description Too Short (< 70 chars) — under-utilises SERP space
-    elif len(meta) < 70:
+    elif len(meta) < 120:
         issues.append("Meta Description Too Short")
 
     # 4. Missing H1
@@ -121,16 +129,17 @@ def _flag_duplicate_meta(pages: list[dict]) -> None:
     while crawling.
     """
 
-    # Step 1: tally occurrences of each meta string (ignore blanks)
+    # Step 1: tally occurrences of each meta string (ignore blanks).
+    # BUG-N05: normalise to lowercase so "Buy Coffee" == "buy coffee".
     meta_counts = Counter(
-        page["meta_description"].strip()
+        page["meta_description"].strip().lower()
         for page in pages
         if (page.get("meta_description") or "").strip()
     )
 
     # Step 2: flag pages whose meta appears more than once
     for page in pages:
-        meta = (page.get("meta_description") or "").strip()
+        meta = (page.get("meta_description") or "").strip().lower()
         if meta and meta_counts[meta] > 1:
             # Avoid adding the label twice if detect_issues is called again
             if "Duplicate Meta Description" not in page["issues"]:

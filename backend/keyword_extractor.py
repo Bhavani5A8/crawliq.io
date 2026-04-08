@@ -109,18 +109,31 @@ def extract_keywords_corpus(pages: list[dict], top_n: int = 10) -> None:
     TF-IDF gives each page's *distinctive* keywords — words that are
     frequent on that page but rare across the whole site.
     Falls back to per-page frequency if sklearn is unavailable.
+
+    BUG-N15: limits TF-IDF to TFIDF_MAX_PAGES (default 200) to prevent OOM on
+    large enterprise crawls. Pages beyond the cap fall back to frequency-based
+    extraction, which uses constant memory per page.
     """
+    import os as _os
+    _TFIDF_MAX = int(_os.getenv("TFIDF_MAX_PAGES", "200"))
+
     if not pages:
         return
 
-    texts = [_page_to_text(p) for p in pages]
+    tfidf_pages  = pages[:_TFIDF_MAX]
+    freq_pages   = pages[_TFIDF_MAX:]   # empty list on small crawls
 
-    if _SKLEARN and len(pages) >= 3:
-        _tfidf_extract(pages, texts, top_n)
+    texts = [_page_to_text(p) for p in tfidf_pages]
+
+    if _SKLEARN and len(tfidf_pages) >= 3:
+        _tfidf_extract(tfidf_pages, texts, top_n)
     else:
-        # Fallback: simple frequency per page
-        for page, text in zip(pages, texts):
+        for page, text in zip(tfidf_pages, texts):
             page["keywords"] = extract_keywords_single(text, top_n)
+
+    # Pages beyond the cap use per-page frequency (constant memory)
+    for page in freq_pages:
+        page["keywords"] = extract_keywords_single(_page_to_text(page), top_n)
 
 
 def _tfidf_extract(pages: list[dict], texts: list[str], top_n: int) -> None:

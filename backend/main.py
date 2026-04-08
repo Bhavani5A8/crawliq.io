@@ -72,6 +72,7 @@ import io
 import json
 import logging
 import os
+import signal
 import sys
 import tempfile
 import time
@@ -793,9 +794,14 @@ def _run_cli(args: argparse.Namespace) -> None:
 
 app = FastAPI(title="SEO Crawler API")
 
-# BUG-006: restrict CORS — read from env so production can lock it down.
+# BUG-006 / BUG-N16: restrict CORS — read from env so production can lock it down.
 # Default stays open for local dev / Hugging Face Space usage.
 _allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+if "*" in _allowed_origins:
+    logger.warning(
+        "CORS is open to all origins (ALLOWED_ORIGINS=*). "
+        "Set ALLOWED_ORIGINS=https://yourdomain.com before exposing this server publicly."
+    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
@@ -842,9 +848,18 @@ def serve_ui():
 # ── Request models ────────────────────────────────────────────────────────────
 
 class CrawlRequest(BaseModel):
-    url:       str
+    # BUG-N04: min/max length rejects empty strings and 1MB+ URLs before
+    # any processing happens.
+    url:       str = Field(..., min_length=10, max_length=2048)
     # BUG-002: enforce 1–500 range to prevent DoS via huge crawl requests.
     max_pages: int = Field(50, ge=1, le=500)
+
+# BUG-N04: private / cloud-metadata hostnames the crawler must never reach.
+_SSRF_BLOCKED = {
+    "localhost", "127.0.0.1", "0.0.0.0",
+    "169.254.169.254",          # AWS / GCP / Azure instance metadata
+    "metadata.google.internal", # GCP metadata alias
+}
 
 class SelectedPagesRequest(BaseModel):
     urls: list[str]
@@ -858,38 +873,46 @@ async def start_crawl(request: CrawlRequest):
     Fire-and-forget async crawl.
     Returns immediately — poll /crawl-status every 2s for progress.
     """
-    # BUG-001: acquire lock so the check+set is atomic — prevents two
-    # simultaneous requests both passing the running-check and racing.
-    async with _crawl_lock:
-        if crawl_status.get("running"):
-            raise HTTPException(status_code=409, detail="Crawl already running.")
-        crawl_status["running"] = True  # claim the slot before releasing lock
-
     url = request.url.strip()
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
-    # Reset all state for fresh crawl
-    crawl_results.clear()
-    clear_optimization_store()
-    crawl_status.update({
-        "running": True, "done": False,
-        "pages_crawled": 0, "pages_queued": 0,
-        "errors": 0, "timeouts": 0, "ssl_fallbacks": 0,
-        "current_url": "", "error": None,
-        "started_at": None, "elapsed_s": 0,
-    })
-    content_gen_status.update({
-        "running": False, "done": False, "error": None,
-        "processed": 0, "total": 0,
-    })
-    gemini_status.update({
-        "running": False, "done": False, "error": None,
-        "processed": 0, "total": 0, "skipped": 0,
-    })
+    # BUG-N04: SSRF guard — reject private/metadata IP addresses and hostnames.
+    _parsed_url = _urlparse(url)
+    _host = (_parsed_url.hostname or "").lower()
+    if _host in _SSRF_BLOCKED or _host.startswith(("192.168.", "10.", "172.16.")):
+        raise HTTPException(
+            status_code=400,
+            detail="Private or reserved IP addresses are not allowed.",
+        )
+
+    # BUG-N07 + BUG-001: the entire state reset is now inside the lock so no
+    # concurrent request ever sees a window where running=True but results are
+    # from the previous crawl.
+    async with _crawl_lock:
+        if crawl_status.get("running"):
+            raise HTTPException(status_code=409, detail="Crawl already running.")
+        # Reset all state under the lock — prevents readers seeing stale data
+        crawl_results.clear()
+        clear_optimization_store()
+        crawl_status.update({
+            "running": True, "done": False,
+            "pages_crawled": 0, "pages_queued": 0,
+            "errors": 0, "timeouts": 0, "ssl_fallbacks": 0,
+            "current_url": "", "error": None,
+            "started_at": None, "elapsed_s": 0,
+        })
+        content_gen_status.update({
+            "running": False, "done": False, "error": None,
+            "processed": 0, "total": 0,
+        })
+        gemini_status.update({
+            "running": False, "done": False, "error": None,
+            "processed": 0, "total": 0, "skipped": 0,
+        })
 
     asyncio.create_task(_run_crawl(url, request.max_pages))
-    return {"message": "Crawl started", "status": "running"}
+    return {"status": "running", "message": "Crawl started"}
 
 
 async def _run_crawl(url: str, max_pages: int) -> None:
@@ -927,10 +950,12 @@ def get_results(limit: int = 0, offset: int = 0):
 @app.get("/results/live")
 def get_results_live():
     """Pages crawled so far — safe to call mid-crawl for live table updates."""
+    # BUG-N18: use "total" (not "count") — same key as /results for consistency.
+    snapshot = list(crawl_results)
     return {
         "status":  crawl_status,
-        "count":   len(crawl_results),
-        "results": list(crawl_results),
+        "total":   len(snapshot),
+        "results": snapshot,
     }
 
 
@@ -1480,19 +1505,34 @@ async def get_site_audit():
     blocks_googlebot  = False
     disallow_all      = False
     if robots_accessible:
-        # Check for "User-agent: Googlebot" or "User-agent: *" followed by "Disallow: /"
+        # BUG-N20: accumulate agents across consecutive User-agent lines so a
+        # multi-agent block like:
+        #   User-agent: Googlebot
+        #   User-agent: Bingbot
+        #   Disallow: /
+        # correctly detects that Googlebot is blocked (not just Bingbot).
         lines = [ln.strip() for ln in robots_body.splitlines()]
         current_agents: list[str] = []
+        _prev_was_directive = False
         for ln in lines:
             low = ln.lower()
             if low.startswith("user-agent:"):
                 agent = ln.split(":", 1)[1].strip().lower()
-                current_agents = [agent]
-            elif low.startswith("disallow:"):
+                # A blank line or directive before this line starts a new group
+                if _prev_was_directive:
+                    current_agents = []
+                    _prev_was_directive = False
+                current_agents.append(agent)
+            elif low.startswith(("disallow:", "allow:")):
                 path = ln.split(":", 1)[1].strip()
                 if path == "/" and any(a in ("*", "googlebot") for a in current_agents):
                     blocks_googlebot = True
                     disallow_all     = True
+                _prev_was_directive = True
+            elif ln == "":
+                # Blank line ends the current agent group
+                current_agents = []
+                _prev_was_directive = False
 
     robots_result = {
         "url":               robots_url,
@@ -1802,6 +1842,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _handle_sigterm(sig, frame):
+    """
+    BUG-N19: graceful SIGTERM — mark crawl as stopped so the next startup
+    does not show a stale running=True flag from the previous container.
+    """
+    logger.info("SIGTERM received — shutting down gracefully.")
+    crawl_status.update({"running": False, "done": False, "error": "Server shutdown"})
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _handle_sigterm)
 
 
 if __name__ == "__main__":

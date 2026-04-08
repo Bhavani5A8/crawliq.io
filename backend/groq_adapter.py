@@ -27,7 +27,10 @@ def generate_with_groq(prompt: str) -> str:
 
     client = Groq(api_key=key)
     try:
-        # BUG-003: hard 15-second timeout prevents hanging the thread pool worker.
+        # BUG-N03: removed inner timeout=15 — it was nested inside the outer
+        # _call_with_timeout() guard in gemini_analysis.py (~50s), so the inner
+        # always fired first and made the outer guard dead code.
+        # The outer wrapper now owns timeout responsibility.
         resp = client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[
@@ -38,7 +41,6 @@ def generate_with_groq(prompt: str) -> str:
             ],
             temperature=0.15,
             max_tokens=800,
-            timeout=15,
         )
         return resp.choices[0].message.content or ""
     except Exception as exc:

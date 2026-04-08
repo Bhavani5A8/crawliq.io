@@ -47,6 +47,13 @@ MAX_SUGGEST     = 5      # suggestions to fetch per top keyword
 MAX_KEYWORDS    = 15     # final merged keyword cap per page
 CONCURRENCY     = 6      # parallel suggest requests across all pages
 
+# BUG-N08: allow disabling Google Suggest entirely (large crawls exhaust the
+# public endpoint and trigger IP bans). Set SUGGEST_ENABLED=false to skip.
+# SUGGEST_DELAY adds a per-call pause to stay under implicit rate limits.
+import os as _os
+SUGGEST_ENABLED = _os.getenv("SUGGEST_ENABLED", "true").lower() == "true"
+SUGGEST_DELAY   = float(_os.getenv("SUGGEST_DELAY", "0.2"))  # seconds between calls
+
 # ── Stopwords (reuse from keyword_extractor without importing its private set)
 _SW = {
     "a","an","the","and","or","but","in","on","at","to","for","of","with","by",
@@ -79,8 +86,13 @@ def extract_ngrams(text: str, top_n: int = 10) -> list[str]:
                 for i in range(len(tokens)-2)]
 
     counts = Counter(bigrams + trigrams)
-    # Only keep phrases seen at least twice (reduces noise)
-    phrases = [p for p, c in counts.most_common(top_n * 2) if c >= 2]
+    # BUG-N13: bigrams require freq ≥2 (noise filter); trigrams use ≥1 so
+    # valuable long-tail phrases like "advanced seo techniques" aren't dropped
+    # just because they appear once in a well-focused page.
+    phrases = [
+        p for p, c in counts.most_common(top_n * 2)
+        if c >= 2 or len(p.split()) == 3
+    ]
     return phrases[:top_n]
 
 
@@ -119,13 +131,18 @@ async def fetch_suggestions_for_page(
     """
     Fetch suggestions for the top 2 keywords of a page, concurrently.
     Returns merged, deduplicated list.
+    BUG-N08: returns [] immediately when SUGGEST_ENABLED=false.
     """
-    if not keywords:
+    if not SUGGEST_ENABLED or not keywords:
         return []
 
     # Only expand the top 2 — enough signal, minimal network load
     top2 = keywords[:2]
     async with sem:
+        # BUG-N08: inter-request delay reduces burst pressure on Google's
+        # autocomplete endpoint (implicit rate limit, no official quota).
+        if SUGGEST_DELAY > 0:
+            await asyncio.sleep(SUGGEST_DELAY)
         tasks = [_fetch_suggestions(session, kw) for kw in top2]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

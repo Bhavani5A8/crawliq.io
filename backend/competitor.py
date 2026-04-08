@@ -236,14 +236,28 @@ def _compute_gaps(
             "competitor_count": 0,
         }
 
-    src_kws    = set((source_page.get("keywords") or []))
+    # BUG-N06: keywords can be list[str] (from TF-IDF) or list[dict] (from
+    # scorer). Normalise both to lowercase strings before set operations to
+    # avoid TypeError: unhashable type on dict and silent wrong gap results.
+    def _norm_kws(kws) -> set[str]:
+        result: set[str] = set()
+        for k in (kws or []):
+            if isinstance(k, str):
+                result.add(k.lower())
+            elif isinstance(k, dict):
+                kw = k.get("keyword", "")
+                if kw:
+                    result.add(kw.lower())
+        return result
+
+    src_kws    = _norm_kws(source_page.get("keywords"))
     src_title  = (source_page.get("title") or "").strip()
     src_h1     = " ".join(source_page.get("h1") or []).strip()
 
-    # Collect all competitor keywords
+    # Collect all competitor keywords (also normalised)
     comp_kws: list[str] = []
     for cp in competitor_pages:
-        comp_kws.extend(cp.get("keywords") or [])
+        comp_kws.extend(_norm_kws(cp.get("keywords")))
 
     # Keywords that appear in ≥1 competitor but NOT in source
     from collections import Counter

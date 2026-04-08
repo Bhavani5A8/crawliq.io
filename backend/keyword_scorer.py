@@ -25,6 +25,21 @@ from collections import Counter
 
 logger = logging.getLogger(__name__)
 
+# BUG-N01: pre-compiled word-boundary pattern used by _in_text().
+# Python's `kw in text` is substring matching — "art" matches "startup".
+# Using \b...\b ensures we only count whole-word occurrences.
+_WB_CACHE: dict[str, re.Pattern] = {}
+
+def _in_text(kw: str, text: str) -> bool:
+    """True only when kw appears as a whole word in text (case-normalised)."""
+    if not kw or not text:
+        return False
+    pat = _WB_CACHE.get(kw)
+    if pat is None:
+        pat = re.compile(rf"\b{re.escape(kw)}\b")
+        _WB_CACHE[kw] = pat
+    return bool(pat.search(text))
+
 # ── Scoring weights ───────────────────────────────────────────────────────────
 # Each condition adds points. Thresholds: ≥6 HIGH, 3-5 MEDIUM, <3 LOW.
 
@@ -167,20 +182,20 @@ def score_keywords(
         freq = item["freq"]
         pts  = 0
 
-        # +3: in title or H1
-        if kw in title_norm or kw in h1_norm:
+        # +3: in title or H1 — BUG-N01: whole-word match, not substring
+        if _in_text(kw, title_norm) or _in_text(kw, h1_norm):
             pts += _W_TITLE_H1
 
-        # +2: in H2 or H3
-        if kw in h2_norm or kw in h3_norm:
+        # +2: in H2 or H3 — BUG-N01: whole-word match
+        if _in_text(kw, h2_norm) or _in_text(kw, h3_norm):
             pts += _W_H2_H3
 
         # +2: body frequency > 5
         if freq > 5:
             pts += _W_HIGH_FREQ
 
-        # +3: returned by Google Suggest
-        if kw in suggest_set or any(kw in s for s in suggest_set):
+        # +3: returned by Google Suggest — BUG-N01: whole-word match in suggest strings
+        if kw in suggest_set or any(_in_text(kw, s) for s in suggest_set):
             pts += _W_SUGGEST
 
         # Map to importance label

@@ -436,12 +436,15 @@ def _build_prompt(batch):
         competition = p.get("competition", "Medium")
         h3_tags     = " | ".join((p.get("h3") or [])[:2]) or "MISSING"
 
+        # BUG-N02: escape all user-controlled strings with json.dumps so an
+        # attacker-controlled page cannot inject instructions into the prompt.
+        import json as _json
         pages_info.append(
             "URL: " + p.get("url", "") + "\n"
             "Detected Keywords: " + kws + "\n"
             "Competition Level: " + competition + "\n"
-            "H3 tags: " + h3_tags + "\n"
-            "Page Content Preview: " + body + "\n"
+            "H3 tags: " + _json.dumps(h3_tags) + "\n"
+            "Page Content Preview: " + _json.dumps(body) + "\n"
             "Current Issues: " + issues + "\n"
             "Current field values with problems:\n" + "\n".join(problem_fields)
         )

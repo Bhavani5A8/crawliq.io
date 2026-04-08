@@ -37,7 +37,16 @@ GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama3-70b-8192")
 
 # BUG-008: reject AI values that contain placeholder brackets/braces/angles.
 # Pattern covers [keyword], {brand}, <insert>, etc.
+# BUG-008: reject bracket/brace/angle placeholders: [keyword], {brand}, <insert>
 _PLACEHOLDER_RE = re.compile(r"\[.*?\]|\{.*?\}|<[^>]+>")
+
+# BUG-N11: also reject common English word-based placeholders that AI uses
+# when it lacks real page data: "your brand", "insert keyword", "example.com".
+_PLACEHOLDER_WORDS = re.compile(
+    r"\b(insert|your[\s_-]?brand|your[\s_-]?keyword|example\.com|"
+    r"company[\s_-]?name|placeholder|todo|tbd)\b",
+    re.IGNORECASE,
+)
 BATCH_SIZE   = 2    # pages per API call — keep low for free tier
 MAX_WORKERS  = 1    # sequential batches — avoids rate limit bursts
 MAX_RETRIES  = 2
@@ -478,7 +487,8 @@ def _sanitize_optimized_value(value: str) -> str:
     """
     if not value:
         return value
-    if _PLACEHOLDER_RE.search(value):
+    # BUG-N11: check both bracket-style and word-based placeholders
+    if _PLACEHOLDER_RE.search(value) or _PLACEHOLDER_WORDS.search(value):
         logger.warning("Optimizer: placeholder detected in AI value — falling back: %s", value[:80])
         return "Insufficient Data — AI produced a placeholder value; run again or edit manually."
     return value
