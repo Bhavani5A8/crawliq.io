@@ -1063,7 +1063,7 @@ async function startCrawl() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ url, max_pages: maxPages }),
     });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
+    if (!res.ok) throw new Error((await safeJson(res)).detail || 'Failed');
     startCrawlPolling();
   } catch (e) {
     bar('c', false, `✗ ${e.message}`);
@@ -1155,7 +1155,7 @@ async function startGeminiAll() {
   btns({ crawl:1, gemini:1, popup:1, export:1 });
   try {
     const res = await fetch(`${API}/analyze-gemini`, { method: 'POST' });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
+    if (!res.ok) throw new Error((await safeJson(res)).detail || 'Failed');
     startGeminiPolling();
   } catch (e) {
     bar('g', false, `✗ ${e.message}`);
@@ -1174,7 +1174,7 @@ async function startGeminiSelected() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ urls: [...selectedUrls] }),
     });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
+    if (!res.ok) throw new Error((await safeJson(res)).detail || 'Failed');
     startGeminiPolling();
   } catch (e) {
     bar('g', false, `✗ ${e.message}`);
@@ -1456,7 +1456,7 @@ async function analyzeThisPage() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ urls: [page.url] }),
     });
-    if (!res.ok) throw new Error((await res.json()).detail || 'AI failed');
+    if (!res.ok) throw new Error((await safeJson(res)).detail || 'AI failed');
     // Poll until done, then refresh popup
     const waitDone = setInterval(async () => {
       try {
@@ -1586,7 +1586,7 @@ async function startOptimizer() {
       body: JSON.stringify({ urls: null }),  // null = all pages
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await safeJson(res);
       throw new Error(err.detail || 'Optimizer failed to start');
     }
     startOptimizerPolling();
@@ -1600,7 +1600,7 @@ function startOptimizerPolling() {
   clearInterval(optTimer);
   optTimer = setInterval(async () => {
     try {
-      const s = await (await fetch(`${API}/optimize-status`)).json();
+      const s = await safeJson(await fetch(`${API}/optimize-status`));
       const prog = s.total ? ` (${s.processed}/${s.total})` : '';
       bar('o', true, `⚡ Optimizing…${prog}`);
 
@@ -1623,7 +1623,7 @@ function startOptimizerPolling() {
 
 async function loadOptimizerTable() {
   try {
-    const data = await (await fetch(`${API}/optimize-table`)).json();
+    const data = await safeJson(await fetch(`${API}/optimize-table`));
     optimizerRows = data.rows || [];
     renderOptimizerTable();
   } catch (e) {
@@ -1754,7 +1754,7 @@ async function openAiSetup() {
 
   // Load current config from server
   try {
-    const cfg = await (await fetch(`${API}/ai-config`)).json();
+    const cfg = await safeJson(await fetch(`${API}/ai-config`));
     _selectedProvider = cfg.provider || 'groq';
     highlightProviderCard(_selectedProvider);
     updateNoKeyNotice(_selectedProvider);
@@ -1866,7 +1866,7 @@ async function applyAiKey() {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ provider, api_key: key }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.detail || 'Failed');
 
     setAiFeedback(
@@ -1899,7 +1899,7 @@ async function testAiConnection() {
   setAiFeedback('', '');
 
   try {
-    const d = await (await fetch(`${API}/gemini-health`)).json();
+    const d = await safeJson(await fetch(`${API}/gemini-health`));
     if (d.configured) {
       const model = d.model ? ` · model: ${d.model}` : '';
       setAiFeedback(`✓ Connected to ${d.provider || 'AI'}${model}`, 'ok');
@@ -1983,18 +1983,18 @@ async function runTechSeo() {
     ]);
 
     if (!auditRes.ok) {
-      const err = await auditRes.json().catch(() => ({detail: auditRes.statusText}));
+      const err = await safeJson(auditRes).catch(() => ({detail: auditRes.statusText}));
       txt.textContent = '✕ ' + (err.detail || 'Audit failed');
       return;
     }
     if (!domainRes.ok) {
-      const err = await domainRes.json().catch(() => ({detail: domainRes.statusText}));
+      const err = await safeJson(domainRes).catch(() => ({detail: domainRes.statusText}));
       txt.textContent = '✕ ' + (err.detail || 'Site audit failed');
       return;
     }
 
-    const audit  = await auditRes.json();   // {pages: [...], summary: {...}}
-    const domain = await domainRes.json();  // {robots_txt, sitemap, https_summary, ...}
+    const audit  = await safeJson(auditRes);   // {pages: [...], summary: {...}}
+    const domain = await safeJson(domainRes);  // {robots_txt, sitemap, https_summary, ...}
 
     sbar.style.display = 'none';
     renderTechSeoDomain(domain);
