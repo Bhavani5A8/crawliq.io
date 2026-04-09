@@ -1022,7 +1022,7 @@ window.addEventListener('load', checkGemini);
 
 async function checkGemini() {
   try {
-    const d    = await (await fetch(`${API}/ai-config`)).json();
+    const d    = await safeJson(await fetch(`${API}/ai-config`));
     const pill = document.getElementById('gemini-pill');
     if (d.configured) {
       pill.textContent = `✨ ${d.label} · ready`;
@@ -1075,11 +1075,11 @@ async function startCrawl() {
 function startCrawlPolling() {
   crawlTimer = setInterval(async () => {
     try {
-      const s = await (await fetch(`${API}/crawl-status`)).json();
+      const s = await safeJson(await fetch(`${API}/crawl-status`));
       updateProgress(s);
 
       // Load live results while crawling
-      const live = await (await fetch(`${API}/results/live`)).json();
+      const live = await safeJson(await fetch(`${API}/results/live`));
       if (live.results && live.results.length > allResults.length) {
         allResults = live.results;
         applyFilters();
@@ -1185,7 +1185,7 @@ async function startGeminiSelected() {
 function startGeminiPolling() {
   geminiTimer = setInterval(async () => {
     try {
-      const s = await (await fetch(`${API}/gemini-status`)).json();
+      const s = await safeJson(await fetch(`${API}/gemini-status`));
       const prog = s.total ? ` (${s.processed}/${s.total})` : '';
       document.getElementById('gtxt').textContent = `✨ Gemini processing…${prog}`;
       if (s.error) { clearInterval(geminiTimer); bar('g', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0}); }
@@ -1201,7 +1201,7 @@ function startGeminiPolling() {
 
 // ── Load results ──────────────────────────────────────────────────────────────
 async function loadResults() {
-  const data = await (await fetch(`${API}/results`)).json();
+  const data = await safeJson(await fetch(`${API}/results`));
   allResults = data.results || [];
   updateSummary(allResults);
   applyFilters();
@@ -1341,7 +1341,7 @@ function hideSummary() {
 // ══════════════════════════════════════════════════════════════
 
 async function loadPopupData() {
-  const data = await (await fetch(`${API}/popup-data`)).json();
+  const data = await safeJson(await fetch(`${API}/popup-data`));
   popupPages = data.pages || [];
 }
 
@@ -1460,7 +1460,7 @@ async function analyzeThisPage() {
     // Poll until done, then refresh popup
     const waitDone = setInterval(async () => {
       try {
-        const s = await (await fetch(`${API}/gemini-status`)).json();
+        const s = await safeJson(await fetch(`${API}/gemini-status`));
         if (s.done || s.error) {
           clearInterval(waitDone);
           document.getElementById('pp-ai-status').style.display = 'none';
@@ -2135,18 +2135,38 @@ function addCompetitorRow() {
 
 // ── Safe JSON helper (handles HF Space cold-start HTML responses) ─────────────
 async function safeJson(res) {
+  // Clone before reading body so we can read it twice if needed
+  const clone = res.clone();
   const ct = res.headers.get('content-type') || '';
-  if (!ct.includes('application/json')) {
-    const txt = await res.text();
-    const lower = txt.toLowerCase();
-    if (lower.includes('space') || lower.includes('waking') || lower.includes('sleeping') || res.status >= 502) {
-      const err = new Error('HF Space is waking up — auto-retrying…');
-      err.isColdStart = true;
-      throw err;
+
+  // Fast path: looks like real JSON
+  if (ct.includes('application/json')) {
+    try {
+      return await res.json();
+    } catch (_) {
+      // content-type lied (HF sometimes sends "application/json" for HTML error pages)
+      // Fall through to text inspection below using the clone
     }
-    throw new Error(`Server error (HTTP ${res.status}). Please retry.`);
   }
-  return res.json();
+
+  const txt = await clone.text();
+  const lower = txt.toLowerCase();
+
+  // Detect HF cold-start / sleeping space (any wording)
+  const isColdStart = lower.includes('your space') ||
+                      lower.includes('space is') ||
+                      lower.includes('waking') ||
+                      lower.includes('sleeping') ||
+                      lower.includes('starting up') ||
+                      res.status >= 502;
+  if (isColdStart) {
+    const err = new Error('HF Space is waking up — auto-retrying…');
+    err.isColdStart = true;
+    throw err;
+  }
+
+  // Not cold-start but still not JSON — surface the real error text
+  throw new Error(`Server error (HTTP ${res.status}): ${txt.slice(0, 120)}`);
 }
 
 // ── Wait for HF Space to be ready (pings /health until 200 JSON) ─────────────
