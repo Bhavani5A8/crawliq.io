@@ -103,7 +103,7 @@ _comp_crawl_lock = asyncio.Lock()
 
 PSI_API_URL   = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 PSI_API_KEY   = os.getenv("PSI_API_KEY", "")          # optional; free without key
-PSI_TIMEOUT   = 30                                      # seconds per PSI call
+PSI_TIMEOUT   = 55   # seconds per PSI call — Lighthouse can take 40-50s on slow sites
 CRAWL_TIMEOUT = 60                                      # seconds per site crawl
 MAX_CRAWL_PAGES = int(os.getenv("COMP_MAX_PAGES", "15"))  # per competitor
 

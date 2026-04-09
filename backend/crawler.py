@@ -44,6 +44,20 @@ from urllib.parse import urljoin, urlparse
 import aiohttp
 from bs4 import BeautifulSoup
 
+# curl_cffi — Chrome TLS fingerprint impersonation.
+# Used as 5th fallback when aiohttp is blocked by Cloudflare/bot-protection.
+try:
+    from curl_cffi.requests import AsyncSession as _CffiSession
+    _CFFI = True
+    logger.info("curl_cffi available in crawler — Cloudflare bypass enabled")
+except Exception as _cffi_err:
+    _CffiSession = None  # type: ignore
+    _CFFI = False
+    logger.debug("curl_cffi unavailable in crawler (%s) — no Cloudflare bypass", _cffi_err)
+
+_CFFI_IMPERSONATE  = "chrome124"   # current Chrome TLS fingerprint
+_CFFI_FETCH_TIMEOUT = 25           # seconds — cffi per-request timeout
+
 from issues import detect_issues
 from keyword_extractor import extract_keywords_corpus
 from keyword_pipeline import run_keyword_pipeline
@@ -465,7 +479,8 @@ class SEOCrawler:
                 (http_url, ATTEMPT_TIMEOUTS[3], "http-long"),
             ]
 
-            last_error = ""
+            last_error   = ""
+            got_blocked  = False   # True when aiohttp gets 403/429/503 (bot-wall, not network error)
             for try_url, (connect_s, read_s, total_s, _), label in attempts:
                 t = aiohttp.ClientTimeout(
                     total=total_s,
@@ -504,6 +519,18 @@ class SEOCrawler:
                                 rec = _minimal_record(url, status, "Non-HTML")
                                 rec["_is_error"] = True
                                 return rec
+
+                            # Detect bot-wall responses before parsing:
+                            # 403/429/503 from real servers = bot-blocked, not network error.
+                            # Flag for cffi retry; still try to parse in case cffi unavailable.
+                            if status in (403, 429, 503):
+                                got_blocked = True
+                                last_error  = f"HTTP {status} (bot-protection wall)"
+                                logger.warning("BOT-BLOCKED [%s] %s → HTTP %s",
+                                               label, try_url, status)
+                                # Don't return yet — try remaining aiohttp attempts,
+                                # then cffi below if all aiohttp attempts are blocked.
+                                continue
 
                             html = await resp.text(errors="replace")
                             return _parse(url, status, html,
@@ -580,7 +607,34 @@ class SEOCrawler:
                     if not connector.closed:
                         await connector.close()
 
-            # All 4 attempts failed — record error, BFS continues
+            # ── Attempt 5: curl_cffi Chrome TLS impersonation ────────────────
+            # Only tried when ALL aiohttp attempts hit a bot-protection wall
+            # (403/429/503). cffi sends the exact TLS fingerprint of Chrome 124,
+            # bypassing Cloudflare JA3/JA4 checks. Network errors go straight to
+            # the error record below — no point retrying with a different TLS stack.
+            if _CFFI and got_blocked:
+                try:
+                    logger.info("cffi fallback attempt for %s", url)
+                    async with _CffiSession() as _cffi_sess:
+                        cffi_resp = await _cffi_sess.get(
+                            url,
+                            impersonate=_CFFI_IMPERSONATE,
+                            timeout=_CFFI_FETCH_TIMEOUT,
+                            allow_redirects=True,
+                        )
+                        if cffi_resp.status_code == 200:
+                            logger.info("cffi bypass SUCCESS for %s", url)
+                            crawl_status["ssl_fallbacks"] = crawl_status.get("ssl_fallbacks", 0) + 1
+                            return _parse(url, 200, cffi_resp.text,
+                                          self.domain, self._bare_domain)
+                        logger.warning("cffi bypass got HTTP %d for %s",
+                                       cffi_resp.status_code, url)
+                        last_error = f"cffi HTTP {cffi_resp.status_code}"
+                except Exception as _cffi_exc:
+                    logger.warning("cffi fallback failed for %s: %s", url, _cffi_exc)
+                    last_error = f"cffi error: {_cffi_exc}"
+
+            # All attempts failed — record error, BFS continues
             crawl_status["errors"] += 1
             logger.error("ALL ATTEMPTS FAILED for %s — last: %s", url, last_error)
             rec = _minimal_record(url, "Error", last_error)
@@ -615,19 +669,25 @@ def _parse(url: str, status: int, html: str,
         if img.get("alt", "").strip()
     ][:20]   # cap at 20 to keep payload manageable
 
+    # Mark 4xx/5xx pages as errors — they contain no crawlable content
+    # (403 = Cloudflare challenge, 404 = dead page, 5xx = server error).
+    # These still appear in the results table but don't consume crawl quota
+    # and don't enqueue links (CR-001 fix depends on this being correct).
+    is_error_status = status >= 400
+
     return {
         "url": url, "status_code": status,
         "title": title, "meta_description": meta_d, "meta_keywords": meta_k,
         "canonical": canon, "h1": h1s, "h2": h2s, "h3": h3s,
         "og_title": og_title, "og_description": og_desc, "body_text": body_txt,
         "img_alts": img_alts,   # image alt texts for SEO audit
-        "internal_links_count": 0, "_internal_links": links,
+        "internal_links_count": 0, "_internal_links": links if not is_error_status else [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
         "keywords_scored": [],   # filled by keyword_scorer.score_keywords()
         "competitor_gaps": None, # filled by competitor.run_competitor_analysis()
         "structured":      None, # filled by keyword_scorer.build_structured_page()
         "competition": "Medium", "priority": "", "gemini_fields": [],
-        "_is_error": False,
+        "_is_error": is_error_status,
     }
 
 

@@ -2458,7 +2458,10 @@ function renderCwvBars(r) {
   // score=0 only happens when both PSI and LCP/CLS fallback returned nothing.
   const barData = sites.map((s, i) => {
     const score = +(s.scores?.page_speed ?? 0).toFixed(1);
-    const noData = score === 0;           // truly no data
+    // noData = we have NO PSI data at all AND score is zero.
+    // If PSI returned data but perf_score=0 (legitimately terrible performance),
+    // that is NOT noData — show it as a red 0 bar so the user sees the real result.
+    const noData = score === 0 && !directPsi[i];
     const estimated = !directPsi[i] && !noData;  // fallback LCP/CLS score
     return {
       value: noData ? 0 : score,          // real height always
