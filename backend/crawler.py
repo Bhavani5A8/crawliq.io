@@ -174,6 +174,7 @@ class SEOCrawler:
         self._bare_domain = self.domain.lstrip("www.")
         self.visited:  set[str]  = set()
         self.queue:    list[str] = [self.root_url]
+        self._fetched_ok: int    = 0   # CR-001: count only non-error pages
 
     # ── SSL context (no cert verification, proper TLS negotiation) ────────────
     @staticmethod
@@ -220,8 +221,14 @@ class SEOCrawler:
             sem = asyncio.Semaphore(MAX_CONCURRENCY)
 
             # Step 2: BFS loop
-            while self.queue and len(self.visited) < self.max_pages:
-                remaining = self.max_pages - len(self.visited)
+            # CR-001: use _fetched_ok (non-error pages) for max_pages cap.
+            # Error pages still go into self.visited to avoid re-fetching, but
+            # they don't consume quota — all-error sites can't loop forever
+            # because the safety cap (visited < max_pages*3) prevents that.
+            while (self.queue
+                   and self._fetched_ok < self.max_pages
+                   and len(self.visited) < self.max_pages * 3):
+                remaining = self.max_pages - self._fetched_ok
 
                 wave: list[str] = []
                 while self.queue and len(wave) < min(MAX_CONCURRENCY, remaining):
@@ -265,6 +272,7 @@ class SEOCrawler:
 
                     # Only enqueue links from successfully loaded pages
                     if not is_error:
+                        self._fetched_ok += 1          # CR-001: count good pages only
                         for link in links:
                             if link not in self.visited and link not in self.queue:
                                 self.queue.append(link)
