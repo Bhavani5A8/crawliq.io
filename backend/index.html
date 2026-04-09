@@ -1058,15 +1058,34 @@ async function startCrawl() {
   document.getElementById('sel-toolbar').classList.remove('show');
 
   try {
+    // Wake up the HF Space if it's sleeping before sending the crawl request
+    const probe = await fetch(`${API}/healthz`, { cache: 'no-store' }).catch(() => null);
+    if (!probe || !probe.ok) {
+      bar('c', true, 'Space is waking up… please wait (up to 5 min)');
+      const woke = await waitForSpace(300000, (s, r) =>
+        bar('c', true, `Space is waking up… ${s}s elapsed (${r}s left)`));
+      if (!woke) {
+        bar('c', false, '✗ Space did not wake up in time — please try again');
+        btns({ crawl:0, gemini:1, popup:1, export:1 });
+        showProgress(false);
+        return;
+      }
+    }
+
     const res = await fetch(`${API}/crawl`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ url, max_pages: maxPages }),
     });
-    if (!res.ok) throw new Error((await safeJson(res)).detail || 'Failed');
+    const body = await safeJson(res);
+    if (!res.ok) throw new Error(body.detail || 'Failed');
     startCrawlPolling();
   } catch (e) {
-    bar('c', false, `✗ ${e.message}`);
+    if (e.isColdStart) {
+      bar('c', false, '✗ Space is still waking up — please wait a moment and try again');
+    } else {
+      bar('c', false, `✗ ${e.message}`);
+    }
     btns({ crawl:0, gemini:1, popup:1, export:1 });
     showProgress(false);
   }
@@ -2134,55 +2153,60 @@ function addCompetitorRow() {
 }
 
 // ── Safe JSON helper (handles HF Space cold-start HTML responses) ─────────────
+// Strategy: always read body as raw text FIRST — never trust Content-Type.
+// Check for cold-start keywords BEFORE attempting JSON.parse so the raw
+// SyntaxError ("Unexpected token 'Y'...") can never escape to the UI.
 async function safeJson(res) {
-  // Clone before reading body so we can read it twice if needed
-  const clone = res.clone();
-  const ct = res.headers.get('content-type') || '';
-
-  // Fast path: looks like real JSON
-  if (ct.includes('application/json')) {
-    try {
-      return await res.json();
-    } catch (_) {
-      // content-type lied (HF sometimes sends "application/json" for HTML error pages)
-      // Fall through to text inspection below using the clone
-    }
+  let txt = '';
+  try {
+    txt = await res.text();
+  } catch (netErr) {
+    throw new Error(`Network error reading response: ${netErr.message}`);
   }
 
-  const txt = await clone.text();
   const lower = txt.toLowerCase();
 
-  // Detect HF cold-start / sleeping space (any wording)
+  // Cold-start detection — checked before JSON.parse so it always wins
   const isColdStart = lower.includes('your space') ||
                       lower.includes('space is') ||
                       lower.includes('waking') ||
                       lower.includes('sleeping') ||
                       lower.includes('starting up') ||
+                      lower.includes('initializing') ||
                       res.status >= 502;
   if (isColdStart) {
-    const err = new Error('HF Space is waking up — auto-retrying…');
+    const err = new Error('HF Space is waking up — please wait…');
     err.isColdStart = true;
     throw err;
   }
 
-  // Not cold-start but still not JSON — surface the real error text
-  throw new Error(`Server error (HTTP ${res.status}): ${txt.slice(0, 120)}`);
+  // Now try to parse as JSON
+  try {
+    return JSON.parse(txt);
+  } catch (_) {
+    // Real server error (not cold-start) — surface a readable message
+    throw new Error(`Server error (HTTP ${res.status}): ${txt.slice(0, 150)}`);
+  }
 }
 
-// ── Wait for HF Space to be ready (pings /health until 200 JSON) ─────────────
-async function waitForSpace(maxWaitMs = 300000) {
+// ── Wait for HF Space to be ready (pings /healthz until 200 JSON) ───────────
+// onProgress(secs, remaining) — optional callback to update UI while waiting
+async function waitForSpace(maxWaitMs = 300000, onProgress) {
   const start = Date.now();
   let elapsed = 0;
   while (elapsed < maxWaitMs) {
     try {
       const r = await fetch(`${API}/healthz`, { cache: 'no-store' });
-      const ct = r.headers.get('content-type') || '';
-      if (r.ok && ct.includes('application/json')) return true;  // space is up
+      if (r.ok) {
+        const txt = await r.text().catch(() => '');
+        // Confirm it's real JSON (not another sleeping-page with status 200)
+        try { JSON.parse(txt); return true; } catch (_) { /* still sleeping */ }
+      }
     } catch (_) { /* network error — keep waiting */ }
     elapsed = Date.now() - start;
-    const remaining = Math.round((maxWaitMs - elapsed) / 1000);
     const secs = Math.round(elapsed / 1000);
-    compBar(true, `Space is waking up… ${secs}s elapsed (max 5 min, ${remaining}s left)`);
+    const remaining = Math.round((maxWaitMs - elapsed) / 1000);
+    if (onProgress) onProgress(secs, remaining);
     await new Promise(r => setTimeout(r, 5000));
     elapsed = Date.now() - start;
   }
@@ -2210,9 +2234,12 @@ async function startCompAnalysis() {
   try {
     const probe = await fetch(`${API}/healthz`, { cache: 'no-store' });
     const ct = probe.headers.get('content-type') || '';
-    if (!probe.ok || !ct.includes('application/json')) {
+    const probeTxt = await probe.text().catch(() => '');
+    const probeOk  = probe.ok && (() => { try { JSON.parse(probeTxt); return true; } catch(_){return false;} })();
+    if (!probeOk) {
       compBar(true, 'Space is waking up… 0s elapsed (max 5 min)');
-      const ready = await waitForSpace();
+      const ready = await waitForSpace(300000, (s, r) =>
+        compBar(true, `Space is waking up… ${s}s elapsed (max 5 min, ${r}s left)`));
       if (!ready) {
         compBar(false);
         alert('Space did not wake up within 5 minutes. Please try again later.');
@@ -2222,7 +2249,8 @@ async function startCompAnalysis() {
     }
   } catch (_) {
     compBar(true, 'Space is waking up… 0s elapsed (max 5 min)');
-    const ready = await waitForSpace();
+    const ready = await waitForSpace(300000, (s, r) =>
+      compBar(true, `Space is waking up… ${s}s elapsed (max 5 min, ${r}s left)`));
     if (!ready) {
       compBar(false);
       alert('Space did not wake up within 5 minutes. Please try again later.');
