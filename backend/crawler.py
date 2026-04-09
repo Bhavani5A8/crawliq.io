@@ -190,6 +190,7 @@ class SEOCrawler:
         self.visited:  set[str]  = set()
         self.queue:    list[str] = [self.root_url]
         self._fetched_ok: int    = 0   # CR-001: count only non-error pages
+        self._use_cffi:   bool   = False  # True after cffi bypass succeeds once
 
     # ── SSL context (no cert verification, proper TLS negotiation) ────────────
     @staticmethod
@@ -417,6 +418,57 @@ class SEOCrawler:
 
             await asyncio.sleep(_jitter())  # brief pause before next attempt
 
+        # ── cffi probe fallback: try Chrome TLS impersonation when aiohttp is blocked ──
+        # Cloudflare and similar bot-walls check the TLS fingerprint (JA3/JA4).
+        # aiohttp's TLS stack does not match Chrome — cffi does.
+        # If cffi resolves the homepage, set _use_cffi=True so all BFS fetches
+        # skip aiohttp entirely (faster, avoids 4 wasted blocked attempts per URL).
+        if _CFFI:
+            logger.info("All aiohttp probes failed — trying cffi Chrome TLS probe for %s",
+                        self.root_url)
+            try:
+                async with _CffiSession() as _cffi_sess:
+                    cffi_resp = await _cffi_sess.get(
+                        self.root_url,
+                        impersonate=_CFFI_IMPERSONATE,
+                        timeout=_CFFI_FETCH_TIMEOUT,
+                        allow_redirects=True,
+                    )
+                    if cffi_resp.status_code == 200:
+                        final             = str(cffi_resp.url)
+                        parsed            = urlparse(final)
+                        self.domain       = parsed.netloc
+                        self._bare_domain = self.domain.lstrip("www.")
+                        self.root_url     = final.rstrip("/")
+                        self._use_cffi    = True   # all BFS fetches go cffi-first
+                        logger.info("cffi probe SUCCESS — domain: %s  (cffi-mode ON)",
+                                    self.domain)
+                        # Cache homepage exactly like the aiohttp path
+                        ctype = cffi_resp.headers.get("content-type", "")
+                        if "text/html" in ctype:
+                            result = _parse(
+                                self.root_url, 200, cffi_resp.text,
+                                self.domain, self._bare_domain
+                            )
+                            links = result.pop("_internal_links", [])
+                            result["internal_links_count"] = len(links)
+                            crawl_results.append(result)
+                            self.visited.add(self.root_url)
+                            self.queue = []
+                            for link in links:
+                                if link not in self.visited:
+                                    self.queue.append(link)
+                            crawl_status.update({
+                                "pages_crawled": 1,
+                                "pages_queued":  len(self.queue),
+                            })
+                        return
+                    logger.warning("cffi probe got HTTP %d for %s",
+                                   cffi_resp.status_code, self.root_url)
+            except Exception as _cffi_probe_exc:
+                logger.warning("cffi probe failed for %s: %s",
+                               self.root_url, _cffi_probe_exc)
+
         # All probes failed — _fetch cascade handles it from the BFS queue
         logger.warning(
             "All probes failed for %s — _fetch will retry with 4-attempt cascade",
@@ -463,6 +515,35 @@ class SEOCrawler:
         # creates its own session (eliminates shared TLS state issues)
         _ = session  # noqa
         async with sem:
+            # ── cffi-first mode: domain was already confirmed blocked by Cloudflare ──
+            # _use_cffi is set True by _resolve_domain when cffi probe succeeds.
+            # Skip all aiohttp attempts — they will only get 403/429 again.
+            if self._use_cffi and _CFFI:
+                try:
+                    async with _CffiSession() as _cffi_sess:
+                        cffi_resp = await _cffi_sess.get(
+                            url,
+                            impersonate=_CFFI_IMPERSONATE,
+                            timeout=_CFFI_FETCH_TIMEOUT,
+                            allow_redirects=True,
+                        )
+                        if cffi_resp.status_code == 200:
+                            logger.info("cffi-mode OK %s", url)
+                            return _parse(url, 200, cffi_resp.text,
+                                          self.domain, self._bare_domain)
+                        logger.warning("cffi-mode got HTTP %d for %s",
+                                       cffi_resp.status_code, url)
+                        crawl_status["errors"] += 1
+                        rec = _minimal_record(url, cffi_resp.status_code,
+                                              f"HTTP {cffi_resp.status_code}")
+                        rec["_is_error"] = True
+                        return rec
+                except Exception as _cffi_exc:
+                    logger.warning("cffi-mode failed for %s: %s", url, _cffi_exc)
+                    crawl_status["errors"] += 1
+                    rec = _minimal_record(url, "Error", f"cffi error: {_cffi_exc}")
+                    rec["_is_error"] = True
+                    return rec
             # Build the 4-attempt cascade
             # Each entry: (url_to_try, ssl_setting, timeout_s, label)
             http_url = url.replace("https://", "http://", 1) if url.startswith("https://") else url
@@ -624,8 +705,9 @@ class SEOCrawler:
                             allow_redirects=True,
                         )
                         if cffi_resp.status_code == 200:
-                            logger.info("cffi bypass SUCCESS for %s", url)
+                            logger.info("cffi bypass SUCCESS for %s — enabling cffi-mode", url)
                             crawl_status["ssl_fallbacks"] = crawl_status.get("ssl_fallbacks", 0) + 1
+                            self._use_cffi = True   # all future BFS fetches skip aiohttp
                             return _parse(url, 200, cffi_resp.text,
                                           self.domain, self._bare_domain)
                         logger.warning("cffi bypass got HTTP %d for %s",
