@@ -114,10 +114,36 @@ def init_db() -> None:
     try:
         with _connect() as conn:
             conn.executescript(_DDL)
+        _run_migrations()
         logger.info("Competitor DB initialised: %s", DB_PATH)
     except Exception as exc:
         logger.error("Competitor DB init failed: %s", exc)
         raise
+
+
+def _run_migrations() -> None:
+    """
+    Apply forward-only schema migrations on existing databases.
+    Each migration is wrapped in its own try/except so one failure
+    doesn't block startup — new columns added here appear automatically
+    on the next deploy without manual intervention.
+
+    Pattern: ALTER TABLE ... ADD COLUMN — SQLite ignores duplicate-column
+    errors (OperationalError: duplicate column name), so we swallow those.
+    """
+    migrations = [
+        # Example future migration (add column that didn't exist in v1):
+        # "ALTER TABLE competitor_snapshots ADD COLUMN phase INTEGER DEFAULT 1",
+    ]
+    if not migrations:
+        return
+    with _connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(sql)
+            except Exception as exc:
+                # "duplicate column name" is expected on re-run — log and continue
+                logger.debug("Migration skipped (already applied?): %s — %s", sql, exc)
 
 
 # ── Snapshot CRUD ─────────────────────────────────────────────────────────────

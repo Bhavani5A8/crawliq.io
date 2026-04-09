@@ -1933,14 +1933,24 @@ async def start_competitor_analysis(request: CompetitorRequest):
     if _host in _SSRF_BLOCKED or _host.startswith(("192.168.", "10.", "172.16.")):
         raise HTTPException(status_code=400, detail="Private IPs not allowed.")
 
-    # Normalise competitor URLs
+    # Normalise and validate competitor URLs
     competitors = []
-    for u in request.competitor_urls:
-        u = u.strip()
-        if u:
-            if not u.startswith(("http://", "https://")):
-                u = "https://" + u
-            competitors.append(u)
+    for raw in request.competitor_urls:
+        u = raw.strip()
+        if not u:
+            continue
+        if not u.startswith(("http://", "https://")):
+            u = "https://" + u
+        parsed_comp = _urlparse(u)
+        if not parsed_comp.netloc or "." not in parsed_comp.netloc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid competitor URL (no valid domain): {raw!r}",
+            )
+        comp_host = parsed_comp.hostname or ""
+        if comp_host in _SSRF_BLOCKED or comp_host.startswith(("192.168.", "10.", "172.16.")):
+            raise HTTPException(status_code=400, detail=f"Private/blocked host not allowed: {raw!r}")
+        competitors.append(u)
 
     if not competitors:
         raise HTTPException(status_code=400, detail="At least one competitor URL required.")
@@ -1996,8 +2006,12 @@ def get_competitor_results(task_id: str):
     if snap is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
     if snap["status"] == "running":
+        import json as _json
         return Response(
-            content='{"status":"running","message":"Analysis still in progress. Poll /competitor/status/' + task_id + '"}',
+            content=_json.dumps({
+                "status":  "running",
+                "message": f"Analysis still in progress. Poll /competitor/status/{task_id}",
+            }),
             status_code=202,
             media_type="application/json",
         )
@@ -2052,7 +2066,7 @@ def delete_competitor_snapshot(task_id: str):
 
 
 @app.get("/competitor/export/{task_id}")
-def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
+def export_competitor_excel(task_id: str):
     """
     Download competitor analysis as a styled multi-sheet Excel file.
     Sheets: Summary Scores | Keyword Gaps | E-E-A-T | Core Web Vitals | Actions
@@ -2063,8 +2077,14 @@ def export_competitor_excel(task_id: str, background_tasks: BackgroundTasks):
     if snap["status"] != "done":
         raise HTTPException(status_code=400, detail="Analysis not yet complete.")
 
-    metrics       = snap.get("metrics", {})
+    metrics       = snap.get("metrics") or {}
     sites         = metrics.get("sites", [])
+    if not sites:
+        raise HTTPException(
+            status_code=422,
+            detail="Analysis metrics are incomplete — no site data to export. "
+                   "The analysis may have failed silently; please re-run it.",
+        )
     gaps          = metrics.get("keyword_gaps", [])
     actions       = metrics.get("actions", [])
     target        = metrics.get("target_url", "")

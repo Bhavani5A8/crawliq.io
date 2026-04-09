@@ -978,6 +978,9 @@ def compute_semantic_similarity(
             ])
         return " ".join(parts)
 
+    if not competitor_pages_map:
+        return {}
+
     target_text = _site_text(target_pages)
     if not target_text.strip():
         return {}
@@ -986,6 +989,10 @@ def compute_semantic_similarity(
         _site_text(pages) for pages in competitor_pages_map.values()
     ]
     domains = ["__target__"] + list(competitor_pages_map.keys())
+
+    if len(docs) < 2:
+        # No competitor documents to compare against
+        return {}
 
     try:
         vec = TfidfVectorizer(
@@ -996,13 +1003,16 @@ def compute_semantic_similarity(
         )
         matrix = vec.fit_transform(docs)
         target_vec = matrix[0]
-        similarities = cosine_similarity(target_vec, matrix[1:])[0]
+        comp_matrix = matrix[1:]
+        if comp_matrix.shape[0] == 0:
+            return {}
+        similarities = cosine_similarity(target_vec, comp_matrix)[0]
         return {
             domain: round(float(sim) * 100, 1)
             for domain, sim in zip(domains[1:], similarities)
         }
     except Exception as exc:
-        logger.debug("Cosine similarity failed: %s", exc)
+        logger.warning("Cosine similarity failed: %s", exc)
         return {}
 
 
