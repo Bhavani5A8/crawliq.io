@@ -830,16 +830,22 @@ def score_page_speed(cwv: dict) -> float:
     Page speed score (0–100) from PSI data.
     Uses Lighthouse performance score as primary signal.
     Supplements with LCP and CLS if performance score is missing.
+
+    NOTE: cwv={} (PSI failed / rate-limited) must NOT return 0 — that would
+    falsely label the site as having terrible performance.  We fall through to
+    the LCP/CLS fallback which returns 50 (neutral/unknown) so the composite
+    score and chart are not corrupted by a missing API response.
+    Only a hard None (caller passed no dict at all) returns 0.
     """
-    if not cwv:
+    if cwv is None:
         return 0.0
 
     perf = cwv.get("perf_score")
     if perf is not None:
         return float(perf)
 
-    # Fallback: derive from LCP + CLS
-    s = 50.0  # neutral baseline without data
+    # Fallback: derive from LCP + CLS (also covers PSI-failed empty-dict case)
+    s = 50.0  # neutral baseline — we don't know speed, so don't penalise
     lcp = cwv.get("lcp_ms")
     if lcp is not None:
         if lcp < 2500:    s += 20

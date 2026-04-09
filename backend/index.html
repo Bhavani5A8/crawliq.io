@@ -2221,23 +2221,36 @@ function renderCwvBars(r) {
   const sites = r.sites || [];
   const domains = sites.map(s => s.domain || s.url);
 
-  // Use scores.page_speed (always populated — has LCP/CLS fallback even when
-  // PSI times out) instead of cwv.perf_score (missing when PSI fails).
-  const perfScores = sites.map(s => +(s.scores?.page_speed ?? s.cwv?.perf_score ?? 0).toFixed(1));
+  // hasPsi[i] = true if PSI actually returned data for this site.
+  // cwv is {} (empty object) when PSI failed — check for at least one key.
+  const hasPsi = sites.map(s => s.cwv && Object.keys(s.cwv).length > 0);
 
-  const allZero = perfScores.every(v => v === 0);
+  // Use scores.page_speed — backend now returns 50 (neutral) instead of 0
+  // when PSI failed, so a real value is always present.
+  // For sites with no PSI data at all, bar is shown at a placeholder height
+  // of 5 with a gray "N/A" label so the chart is never blank.
+  const barData = sites.map((s, i) => {
+    const score = +(s.scores?.page_speed ?? 0).toFixed(1);
+    return {
+      value: hasPsi[i] ? score : 5,   // placeholder height so bar is visible
+      psiMissing: !hasPsi[i],
+      realScore: score,
+    };
+  });
 
-  // Show a notice when PSI data is unavailable instead of a blank chart
-  const notice = el.parentElement.querySelector('.cwv-notice') || (() => {
-    const d = document.createElement('div');
-    d.className = 'cwv-notice';
-    d.style.cssText = 'font-size:10px;color:var(--muted);text-align:center;padding:6px 0 2px';
-    el.parentElement.insertBefore(d, el);
-    return d;
-  })();
-  notice.textContent = allZero
-    ? 'PSI data unavailable (rate-limited or timeout) — add a PSI_API_KEY env var for reliable data.'
-    : '';
+  const anyPsi = hasPsi.some(Boolean);
+
+  // Update/create the PSI notice above the chart
+  let notice = el.parentElement.querySelector('.cwv-notice');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.className = 'cwv-notice';
+    notice.style.cssText = 'font-size:10px;color:var(--muted);text-align:center;padding:4px 0 4px';
+    el.parentElement.insertBefore(notice, el);
+  }
+  notice.textContent = anyPsi
+    ? ''
+    : 'PSI data unavailable — bars show fallback score (LCP/CLS based). Add PSI_API_KEY for real scores.';
 
   cwvChart = echarts.init(el, 'dark');
   cwvChart.setOption({
@@ -2245,20 +2258,25 @@ function renderCwvBars(r) {
     tooltip: {
       trigger: 'axis',
       formatter: params => {
-        const s = sites[params[0].dataIndex] || {};
-        const cwv = s.cwv || {};
-        const lcp  = cwv.lcp_ms  != null ? `LCP: ${cwv.lcp_ms}ms` : '';
-        const fcp  = cwv.fcp_ms  != null ? `FCP: ${cwv.fcp_ms}ms` : '';
-        const cls  = cwv.cls     != null ? `CLS: ${cwv.cls}`      : '';
+        const idx = params[0].dataIndex;
+        const site = sites[idx] || {};
+        const cwv  = site.cwv || {};
+        const item = barData[idx];
+        const scoreStr = item.psiMissing
+          ? 'N/A (PSI unavailable)'
+          : `<b>${item.realScore}</b>/100`;
+        const lcp  = cwv.lcp_ms  != null ? `LCP: ${cwv.lcp_ms}ms`   : '';
+        const fcp  = cwv.fcp_ms  != null ? `FCP: ${cwv.fcp_ms}ms`   : '';
+        const cls  = cwv.cls     != null ? `CLS: ${cwv.cls}`         : '';
         const ttfb = cwv.ttfb_ms != null ? `TTFB: ${cwv.ttfb_ms}ms` : '';
-        const extras = [lcp, fcp, cls, ttfb].filter(Boolean).join(' &nbsp;·&nbsp; ');
-        return `<b>${params[0].name}</b><br/>
-          Perf Score: <b>${params[0].value}</b>/100
+        const extras = [lcp, fcp, cls, ttfb].filter(Boolean).join(' · ');
+        return `<b>${esc(params[0].name)}</b><br/>
+          Perf Score: ${scoreStr}
           ${extras ? `<br/><span style="font-size:10px;color:#a0aec0">${extras}</span>` : ''}`;
       },
     },
     xAxis: {
-      type: 'category', data: domains,
+      type: 'category', data: domains.map(esc),
       axisLabel: { color: '#718096', fontSize: 9, rotate: 15, overflow: 'break', width: 80 },
       axisLine: { lineStyle: { color: '#1e2530' } },
     },
@@ -2268,17 +2286,19 @@ function renderCwvBars(r) {
       splitLine: { lineStyle: { color: '#1e2530' } },
     },
     series: [{
-      type: 'bar', data: perfScores,
+      type: 'bar',
+      data: barData,
       itemStyle: {
         color: params => {
-          const v = params.value;
+          if (params.data.psiMissing) return '#4a5568';  // gray = no PSI data
+          const v = params.data.realScore;
           return v >= 70 ? '#06d6a0' : v >= 50 ? '#ffd166' : '#ff4d6a';
         },
         borderRadius: [4, 4, 0, 0],
       },
       label: {
         show: true, position: 'top', fontSize: 10, color: '#e2e8f0',
-        formatter: p => p.value > 0 ? p.value : '',
+        formatter: p => p.data.psiMissing ? 'N/A' : (p.data.realScore > 0 ? p.data.realScore : ''),
       },
     }],
   });
