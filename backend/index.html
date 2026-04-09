@@ -2217,17 +2217,45 @@ function renderCwvBars(r) {
   const el = document.getElementById('cwv-chart');
   if (!el || typeof echarts === 'undefined') return;
   if (cwvChart) { cwvChart.dispose(); cwvChart = null; }
-  cwvChart = echarts.init(el, 'dark');
 
   const sites = r.sites || [];
   const domains = sites.map(s => s.domain || s.url);
-  const perfScores = sites.map(s => +(s.cwv?.perf_score ?? 0).toFixed(1));
 
+  // Use scores.page_speed (always populated — has LCP/CLS fallback even when
+  // PSI times out) instead of cwv.perf_score (missing when PSI fails).
+  const perfScores = sites.map(s => +(s.scores?.page_speed ?? s.cwv?.perf_score ?? 0).toFixed(1));
+
+  const allZero = perfScores.every(v => v === 0);
+
+  // Show a notice when PSI data is unavailable instead of a blank chart
+  const notice = el.parentElement.querySelector('.cwv-notice') || (() => {
+    const d = document.createElement('div');
+    d.className = 'cwv-notice';
+    d.style.cssText = 'font-size:10px;color:var(--muted);text-align:center;padding:6px 0 2px';
+    el.parentElement.insertBefore(d, el);
+    return d;
+  })();
+  notice.textContent = allZero
+    ? 'PSI data unavailable (rate-limited or timeout) — add a PSI_API_KEY env var for reliable data.'
+    : '';
+
+  cwvChart = echarts.init(el, 'dark');
   cwvChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      formatter: params => `${params[0].name}<br/>Perf: <b>${params[0].value}</b>/100`,
+      formatter: params => {
+        const s = sites[params[0].dataIndex] || {};
+        const cwv = s.cwv || {};
+        const lcp  = cwv.lcp_ms  != null ? `LCP: ${cwv.lcp_ms}ms` : '';
+        const fcp  = cwv.fcp_ms  != null ? `FCP: ${cwv.fcp_ms}ms` : '';
+        const cls  = cwv.cls     != null ? `CLS: ${cwv.cls}`      : '';
+        const ttfb = cwv.ttfb_ms != null ? `TTFB: ${cwv.ttfb_ms}ms` : '';
+        const extras = [lcp, fcp, cls, ttfb].filter(Boolean).join(' &nbsp;·&nbsp; ');
+        return `<b>${params[0].name}</b><br/>
+          Perf Score: <b>${params[0].value}</b>/100
+          ${extras ? `<br/><span style="font-size:10px;color:#a0aec0">${extras}</span>` : ''}`;
+      },
     },
     xAxis: {
       type: 'category', data: domains,
@@ -2248,7 +2276,10 @@ function renderCwvBars(r) {
         },
         borderRadius: [4, 4, 0, 0],
       },
-      label: { show: true, position: 'top', fontSize: 10, color: '#e2e8f0' },
+      label: {
+        show: true, position: 'top', fontSize: 10, color: '#e2e8f0',
+        formatter: p => p.value > 0 ? p.value : '',
+      },
     }],
   });
 }
