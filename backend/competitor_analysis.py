@@ -77,10 +77,11 @@ try:
     from curl_cffi.requests import AsyncSession as _CffiSession
     _CFFI = True
     logger.info("curl_cffi available — Cloudflare bypass enabled")
-except ImportError:
+except Exception as _cffi_err:
     _CffiSession = None  # type: ignore
     _CFFI = False
-    logger.info("curl_cffi not installed — Cloudflare bypass disabled")
+    logger.warning("curl_cffi unavailable — Cloudflare bypass disabled (%s: %s)",
+                   type(_cffi_err).__name__, _cffi_err)
 
 # ── Internal project imports ──────────────────────────────────────────────────
 from competitor_db import (
@@ -926,14 +927,21 @@ def compute_keyword_gap(
                 kw_domain_count.setdefault(kw, []).append(domain)
 
     # Score by how many competitors have it + keyword quality
+    # Only include keywords found in 2+ competitors (as stated in docstring).
+    # With 1 competitor submitted, lower threshold to 1 so the report isn't empty.
+    _min_comp = 2 if len(comp_kw_map) >= 2 else 1
     gaps = []
     for kw, domains in kw_domain_count.items():
-        if len(domains) < 1:
+        if len(domains) < _min_comp:
             continue
-        # Longer multi-word phrases = higher opportunity (more specific)
+        # Longer multi-word phrases = higher opportunity (more specific).
+        # Coverage = fraction of competitors that have this keyword (0-1).
+        # Normalise relative to the minimum required so a keyword in all
+        # competitors always scores the full 70 base regardless of pool size.
         words = kw.split()
         length_bonus = min(len(words) * 10, 30)
-        opp_score = min((len(domains) / len(comp_kw_map)) * 70 + length_bonus, 100)
+        coverage = len(domains) / max(len(comp_kw_map), 1)
+        opp_score = min(coverage * 70 + length_bonus, 100)
         gaps.append({
             "keyword":          kw,
             "found_in":         domains,
@@ -1251,8 +1259,17 @@ async def run_competitor_analysis(
     """
     # Normalize all URLs to root domains before anything else.
     # Strips subpaths like /mock-test-series-online so we crawl the homepage.
-    target_url      = _normalize_url(target_url)
-    competitor_urls = [_normalize_url(u) for u in competitor_urls]
+    target_url = _normalize_url(target_url)
+
+    # Deduplicate competitors after normalization; also drop any that match target.
+    _seen: set[str] = set()
+    _deduped: list[str] = []
+    for _u in competitor_urls:
+        _n = _normalize_url(_u)
+        if _n not in _seen and _n != target_url:
+            _seen.add(_n)
+            _deduped.append(_n)
+    competitor_urls = _deduped
 
     update_snapshot(task_id, status="running")
     logger.info("[%s] Competitor analysis started: %s vs %d competitors",
@@ -1323,8 +1340,12 @@ async def run_competitor_analysis(
                     detect_issues(real)
                     extract_keywords_corpus(real, top_n=10)
                 except Exception as exc:
-                    logger.debug("[%s] Keyword extraction failed for %s: %s",
-                                 task_id, url, exc)
+                    logger.warning("[%s] Keyword extraction failed for %s: %s",
+                                   task_id, url, exc)
+                    crawl_errors[url] = (
+                        crawl_errors.get(url, "") +
+                        f"; keyword extraction error: {exc}"
+                    ).lstrip("; ")
 
         # ── Step 3: PSI API for all homepages ─────────────────────────────
         # Use the first 200-status page per site as the measured URL
@@ -1374,6 +1395,11 @@ async def run_competitor_analysis(
                 dims = {k: 0.0 for k in _WEIGHTS}
                 source = "no_data"
                 logger.warning("[%s] No data at all for %s (crawl + PSI both failed)", task_id, url)
+                psi_fail_msg = "PSI API returned no data (rate-limited or timeout)"
+                if url in crawl_errors:
+                    crawl_errors[url] += f"; {psi_fail_msg}"
+                else:
+                    crawl_errors[url] = psi_fail_msg
 
             site_scores[url] = dims
             site_scores[url]["composite"] = compute_composite(dims)

@@ -2109,11 +2109,17 @@ function renderDimTable(r) {
 }
 
 function renderGapTable(r) {
-  const gaps  = r.keyword_gaps || [];
+  const compCount = (r.competitor_urls || []).length;
+  // Client-side safety: only show gaps found in 2+ competitors (or 1 if only 1 was submitted).
+  const minComp = compCount >= 2 ? 2 : 1;
+  const gaps = (r.keyword_gaps || []).filter(g => g.competitor_count >= minComp);
   const tbody = document.getElementById('comp-gap-tbody');
   document.getElementById('comp-gap-count').textContent = `(${gaps.length} found)`;
   if (!gaps.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">No keyword gaps detected.</td></tr>';
+    const msg = compCount < 2
+      ? 'Add at least 2 competitor URLs for a reliable gap analysis.'
+      : 'No keyword gaps detected — your site covers the same keywords as competitors.';
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">${msg}</td></tr>`;
     return;
   }
   tbody.innerHTML = gaps.slice(0, 30).map(g => {
