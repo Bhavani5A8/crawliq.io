@@ -44,8 +44,15 @@ from urllib.parse import urljoin, urlparse
 import aiohttp
 from bs4 import BeautifulSoup
 
+from issues import detect_issues
+from keyword_extractor import extract_keywords_corpus
+from keyword_pipeline import run_keyword_pipeline
+
+logger = logging.getLogger(__name__)
+
 # curl_cffi — Chrome TLS fingerprint impersonation.
 # Used as 5th fallback when aiohttp is blocked by Cloudflare/bot-protection.
+# Must be imported AFTER logger is defined.
 try:
     from curl_cffi.requests import AsyncSession as _CffiSession
     _CFFI = True
@@ -55,14 +62,8 @@ except Exception as _cffi_err:
     _CFFI = False
     logger.debug("curl_cffi unavailable in crawler (%s) — no Cloudflare bypass", _cffi_err)
 
-_CFFI_IMPERSONATE  = "chrome124"   # current Chrome TLS fingerprint
+_CFFI_IMPERSONATE   = "chrome124"  # current Chrome TLS fingerprint
 _CFFI_FETCH_TIMEOUT = 25           # seconds — cffi per-request timeout
-
-from issues import detect_issues
-from keyword_extractor import extract_keywords_corpus
-from keyword_pipeline import run_keyword_pipeline
-
-logger = logging.getLogger(__name__)
 
 
 # BUG-N33: removed _ssl_ctx_permissive() dead-code stub.
