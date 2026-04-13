@@ -177,6 +177,17 @@ try:
 except ImportError:
     _SITE_AUDITOR_MODULE = False
 
+try:
+    from serp_scraper import (
+        get_serp_position    as _get_serp_position,
+        get_keyword_difficulty as _get_keyword_difficulty,
+        bulk_serp_check      as _bulk_serp_check,
+        bulk_difficulty      as _bulk_difficulty,
+    )
+    _SERP_SCRAPER_MODULE = True
+except ImportError:
+    _SERP_SCRAPER_MODULE = False
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -1638,8 +1649,12 @@ def get_technical_seo():
 
 @app.get("/technical-seo/{page_url:path}")
 def get_technical_seo_page(page_url: str):
-    """Return technical SEO audit for a single crawled page."""
-    page = next((p for p in crawl_results if p.get("url") == page_url), None)
+    """Return technical SEO audit for a single crawled page.
+    BUG-011: unquote() normalises percent-encoded URLs so paths containing
+    %2F, %3F, %23 etc. match the stored URL string correctly.
+    """
+    decoded = unquote(page_url)
+    page = next((p for p in crawl_results if p.get("url") == decoded), None)
     if not page:
         raise HTTPException(status_code=404, detail="URL not found in crawl results.")
     return _tseo_page(page)
@@ -2071,10 +2086,9 @@ def get_competitor_results(task_id: str):
             media_type="application/json",
         )
     if snap["status"] == "error":
-        raise HTTPException(
-            status_code=500,
-            detail=f"Analysis failed: {snap.get('error_msg', 'unknown error')}",
-        )
+        # BUG-009: log full error server-side; never return raw internal state to client.
+        logger.error("Competitor task %s failed: %s", task_id, snap.get("error_msg", ""))
+        raise HTTPException(status_code=500, detail="Analysis failed — see server logs.")
     return {
         "task_id":   snap["task_id"],
         "status":    snap["status"],
@@ -2666,6 +2680,105 @@ def get_hsts_audit():
     # Use stored response_headers if available
     headers = pages[0].get("response_headers", {}) or {}
     return _check_hsts(headers)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 7d: SERP POSITION + KEYWORD DIFFICULTY ENDPOINTS ────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+class SerpPositionRequest(BaseModel):
+    keyword: str = Field(..., min_length=2, max_length=200)
+    domain:  str = Field(..., min_length=4, max_length=2048)
+    lang:    str = Field(default="en", min_length=2, max_length=5)
+    num:     int = Field(default=30, ge=10, le=100)
+
+
+class BulkSerpRequest(BaseModel):
+    keywords: list[str] = Field(..., min_length=1, max_length=20)
+    domain:   str       = Field(..., min_length=4, max_length=2048)
+
+
+class DifficultyRequest(BaseModel):
+    keywords: list[str] = Field(..., min_length=1, max_length=20)
+    lang:     str       = Field(default="en", min_length=2, max_length=5)
+
+
+@app.post("/serp/position")
+async def check_serp_position(request: SerpPositionRequest):
+    """
+    Check where `domain` ranks for `keyword` on Google (top 30 results).
+
+    Returns:
+        {keyword, domain, position (1-30 or null), in_top_10, in_top_30}
+
+    Note: scrapes Google HTML — use sparingly (1 req/call, ~2s delay built in).
+    Returns 503 if serp_scraper module is unavailable.
+    """
+    if not _SERP_SCRAPER_MODULE:
+        raise HTTPException(status_code=503, detail="serp_scraper module not available.")
+
+    try:
+        position = await _get_serp_position(
+            request.keyword, request.domain,
+            lang=request.lang, num=request.num,
+        )
+    except Exception as exc:
+        logger.error("SERP position check failed for %r: %s", request.keyword, exc)
+        raise HTTPException(status_code=500, detail="SERP check failed — see server logs.")
+
+    return {
+        "keyword":   request.keyword,
+        "domain":    request.domain,
+        "position":  position,
+        "in_top_10": position is not None and position <= 10,
+        "in_top_30": position is not None and position <= 30,
+    }
+
+
+@app.post("/serp/bulk-position")
+async def bulk_serp_position(request: BulkSerpRequest):
+    """
+    Check SERP positions for multiple keywords for one domain (max 20).
+    Requests are rate-limited (max 3 parallel) to avoid Google rate-limit.
+    Returns [{keyword, position, in_top_10, in_top_30}]
+    """
+    if not _SERP_SCRAPER_MODULE:
+        raise HTTPException(status_code=503, detail="serp_scraper module not available.")
+    if len(request.keywords) > 20:
+        raise HTTPException(status_code=400, detail="Maximum 20 keywords per request.")
+
+    try:
+        results = await _bulk_serp_check(request.keywords, request.domain)
+    except Exception as exc:
+        logger.error("Bulk SERP check failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Bulk SERP check failed — see server logs.")
+
+    return {"domain": request.domain, "total": len(results), "results": results}
+
+
+@app.post("/serp/difficulty")
+async def keyword_difficulty(request: DifficultyRequest):
+    """
+    Estimate keyword difficulty for up to 20 keywords.
+
+    Scrapes top-10 Google results per keyword, then fetches OPR scores
+    for those domains (requires OPR_API_KEY env var for precise scores;
+    falls back to result-count heuristic without it).
+
+    Returns [{keyword, difficulty_score (0-100), difficulty_label, top_domains, avg_opr}]
+    """
+    if not _SERP_SCRAPER_MODULE:
+        raise HTTPException(status_code=503, detail="serp_scraper module not available.")
+    if len(request.keywords) > 20:
+        raise HTTPException(status_code=400, detail="Maximum 20 keywords per request.")
+
+    try:
+        results = await _bulk_difficulty(request.keywords, concurrency=2)
+    except Exception as exc:
+        logger.error("Keyword difficulty check failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Difficulty check failed — see server logs.")
+
+    return {"total": len(results), "results": results}
 
 
 def _handle_sigterm(sig, frame):

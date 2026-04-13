@@ -189,7 +189,11 @@ class SEOCrawler:
         self.domain       = urlparse(root_url).netloc   # refined after probe
         self._bare_domain = self.domain.lstrip("www.")
         self.visited:  set[str]  = set()
-        self.queue:    list[str] = [self.root_url]
+        # BFS depth tracking: queue holds (url, depth) tuples so each page
+        # knows exactly how many hops it is from the root. _queued is an O(1)
+        # membership set — replaces the O(n) "link not in self.queue" list scan.
+        self.queue:    list[tuple[str, int]] = [(self.root_url, 0)]
+        self._queued:  set[str]              = {self.root_url}
         self._fetched_ok: int    = 0   # CR-001: count only non-error pages
         self._use_cffi:   bool   = False  # True after cffi bypass succeeds once
 
@@ -247,18 +251,20 @@ class SEOCrawler:
                    and len(self.visited) < self.max_pages * 3):
                 remaining = self.max_pages - self._fetched_ok
 
-                wave: list[str] = []
+                # Dequeue a wave: each item is (url, depth)
+                wave: list[tuple[str, int]] = []
                 while self.queue and len(wave) < min(MAX_CONCURRENCY, remaining):
-                    url = self.queue.pop(0)
+                    url, depth = self.queue.pop(0)
+                    self._queued.discard(url)
                     if url not in self.visited:
-                        wave.append(url)
+                        wave.append((url, depth))
                         self.visited.add(url)
 
                 if not wave:
                     break
 
                 crawl_status.update({
-                    "current_url":  wave[0],
+                    "current_url":  wave[0][0],
                     "pages_queued": len(self.queue),
                     "elapsed_s":    round(time.time() - crawl_status["started_at"], 1),
                 })
@@ -267,14 +273,15 @@ class SEOCrawler:
                 # and avoids triggering rate-limit rules on protected sites
                 await asyncio.sleep(_jitter())
 
-                tasks   = [self._fetch(session, sem, url) for url in wave]
+                tasks   = [self._fetch(session, sem, url) for url, _depth in wave]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                for url, result in zip(wave, results):
+                for (url, depth), result in zip(wave, results):
                     if isinstance(result, Exception):
                         # Store error record but DO NOT add to queue
                         rec = _minimal_record(url, "Error", str(result))
-                        rec["_is_error"] = True
+                        rec["_is_error"]   = True
+                        rec["crawl_depth"] = depth
                         crawl_results.append(rec)
                         crawl_status["errors"] += 1
                         continue
@@ -284,15 +291,18 @@ class SEOCrawler:
                     is_error = result.pop("_is_error", False)
                     links    = result.pop("_internal_links", [])
                     result["internal_links_count"] = len(links)
+                    result["crawl_depth"]          = depth   # ← BFS depth stored here
                     result["_is_error"] = is_error   # restore flag so issues.py + Gemini can read it
                     crawl_results.append(result)
 
                     # Only enqueue links from successfully loaded pages
                     if not is_error:
                         self._fetched_ok += 1          # CR-001: count good pages only
+                        child_depth = depth + 1
                         for link in links:
-                            if link not in self.visited and link not in self.queue:
-                                self.queue.append(link)
+                            if link not in self.visited and link not in self._queued:
+                                self.queue.append((link, child_depth))
+                                self._queued.add(link)
 
                 crawl_status.update({
                     "pages_crawled": len(self.visited),

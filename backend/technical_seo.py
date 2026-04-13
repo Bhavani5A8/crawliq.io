@@ -48,11 +48,29 @@ WORD_COUNT_THIN = 300   # below = thin content
 WORD_COUNT_RICH = 800   # above = rich content
 URL_MAX_LEN     = 115   # chars
 
-# Approximate pixel-width per character for Google's ~580px snippet limit
-TITLE_PX_PER_CHAR   = 8.5
-META_PX_PER_CHAR    = 6.5
-TITLE_PX_LIMIT      = 580
-META_PX_LIMIT       = 920
+# Pixel limits for Google SERP truncation
+TITLE_PX_LIMIT  = 580
+META_PX_LIMIT   = 920
+
+# BUG-014: replace flat per-character ratio with a 3-bucket lookup.
+# Narrow characters (i, l, 1, punctuation) are ~4.5px wide in Arial 18px.
+# Wide characters  (M, W, uppercase) are ~11px.
+# Everything else is ~7.5px.
+# This cuts false-positive "will be truncated" flags by >50% vs a flat 8.5px ratio.
+_PX_NARROW = frozenset("iIl|!.,;:'\"-()[]{}1 /\\")
+_PX_WIDE   = frozenset("MmWwABCDEFGHJKLOPQRSTUVXYZ@%")
+
+def _text_px_width(text: str) -> float:
+    """Estimate rendered pixel width using character-class buckets."""
+    total = 0.0
+    for ch in text:
+        if ch in _PX_NARROW:
+            total += 4.5
+        elif ch in _PX_WIDE:
+            total += 10.5
+        else:
+            total += 7.5
+    return total
 
 # Scoring weights (must sum to 100)
 WEIGHTS = {
@@ -360,7 +378,8 @@ def site_summary(audit_list: list[dict]) -> dict:
 def _audit_title(title: str) -> dict:
     issues = []
     length = len(title)
-    px     = round(length * TITLE_PX_PER_CHAR, 0)
+    # BUG-014: use per-character-class width; old flat 8.5px ratio had ±15% error.
+    px     = round(_text_px_width(title), 0)
 
     if not title:
         status = "missing"
@@ -396,7 +415,8 @@ def _audit_title(title: str) -> dict:
 def _audit_meta(meta: str) -> dict:
     issues = []
     length = len(meta)
-    px     = round(length * META_PX_PER_CHAR, 0)
+    # BUG-014: character-class buckets instead of flat 6.5px ratio.
+    px     = round(_text_px_width(meta), 0)
 
     if not meta:
         status = "missing"

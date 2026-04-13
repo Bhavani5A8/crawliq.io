@@ -69,7 +69,20 @@ try:
     nltk.download("stopwords", quiet=True)
     nltk.download("punkt",     quiet=True)
     from nltk.corpus import stopwords as _nltk_sw
-    _NLTK_STOPS = set(_nltk_sw.words("english"))
+    # BUG-015: load stopwords for all languages that NLTK supports.
+    # This prevents single-letter tokens and prepositions from non-English
+    # sites (FR, DE, ES, IT, PT, NL) surfacing as "top keywords".
+    _NLTK_ALL_LANGS = [
+        "english", "french", "german", "spanish", "italian",
+        "portuguese", "dutch", "finnish", "swedish", "norwegian",
+        "danish", "hungarian", "romanian", "arabic", "turkish",
+    ]
+    _NLTK_STOPS: set[str] = set()
+    for _lang in _NLTK_ALL_LANGS:
+        try:
+            _NLTK_STOPS.update(_nltk_sw.words(_lang))
+        except Exception:
+            pass
     _STOPWORDS.update(_NLTK_STOPS)
     _NLTK = True
 except Exception:

@@ -179,10 +179,12 @@ def _call_with_timeout(fn, *args, timeout: int = _AI_TIMEOUT):
         try:
             return fut.result(timeout=timeout)
         except FuturesTimeout:
-            logger.warning("AI call timed out after %ss", timeout)
+            # BUG-018: timeout is an actionable error, not just a warning.
+            logger.error("AI call timed out after %ss — falling back to rules", timeout)
             return None
         except Exception as exc:
-            logger.warning("AI call failed: %s", exc)
+            # BUG-018: AI call failures affect page quality; use error level.
+            logger.error("AI call failed: %s", exc)
             return None
 
 
@@ -582,7 +584,8 @@ def _parse_response(batch: list[dict], raw: str) -> list[dict]:
             if url in result_map:
                 results.append(result_map[url])
             else:
-                logger.debug("AI response missing page %s — using rule-based fallback", url)
+                # BUG-018: info level — important milestone, not noisy noise.
+                logger.info("AI response missing page %s — using rule-based fallback", url)
                 results.append(_rule_based_fallback(p))
         return results
     except (json.JSONDecodeError, KeyError) as e:

@@ -29,6 +29,7 @@ COPY backend/main.py \
      backend/crawler_fetch_patch.py \
      backend/intent_classifier.py \
      backend/serp_engine.py \
+     backend/serp_scraper.py \
      backend/link_graph.py \
      backend/content_dedup.py \
      backend/site_auditor.py \

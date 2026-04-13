@@ -32,7 +32,11 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-MAX_COMPETITORS   = 2      # max competitor pages to fetch per source page
+# BUG-016: raised from 2 → 3 for richer competitive signal without excessive
+# load. Full competitor analysis (competitor_analysis.py) already accepts up
+# to 5 URLs entered by the user; this setting governs the lightweight
+# per-page BFS analysis only.
+MAX_COMPETITORS   = 3      # max competitor pages to fetch per source page
 FETCH_TIMEOUT     = 8      # seconds per competitor fetch
 SEARCH_TIMEOUT    = 6      # seconds for Google Search scrape
 CONCURRENCY_COMP  = 3      # parallel competitor fetches across all pages

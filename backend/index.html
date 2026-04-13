@@ -1118,14 +1118,37 @@ async function checkGemini() {
   }
 }
 
+// ── BUG-021: client-side URL validation ─────────────────────────────────────
+function _validateUrl(raw) {
+  if (!raw) return 'Please enter a URL.';
+  // Reject dangerous schemes before anything else
+  if (/^javascript:/i.test(raw) || /^data:/i.test(raw) || /^vbscript:/i.test(raw))
+    return 'Invalid URL scheme — only http:// and https:// are allowed.';
+  // Prepend https:// for bare hostnames so URL parsing works
+  const candidate = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+  try {
+    const u = new URL(candidate);
+    if (!['http:', 'https:'].includes(u.protocol))
+      return 'Only http:// and https:// URLs are supported.';
+    // Must have a real hostname (at least one dot)
+    if (!u.hostname.includes('.'))
+      return 'Please enter a full domain name, e.g. example.com';
+    return null; // valid
+  } catch {
+    return 'That doesn\'t look like a valid URL. Try: https://example.com';
+  }
+}
+
 // ── Crawl ─────────────────────────────────────────────────────────────────────
 async function startCrawl() {
   const url = document.getElementById('url-input').value.trim();
   maxPages  = parseInt(document.getElementById('max-pages').value) || 50;
-  if (!url) { alert('Please enter a URL.'); return; }
+  const urlErr = _validateUrl(url);
+  if (urlErr) { alert(urlErr); return; }
 
   allResults = []; selectedUrls = new Set();
   optimizerRows = [];
+  _lastProgressPct = 0;  // BUG-022: reset progress on each new crawl
   document.getElementById('opt-panel').classList.remove('show');
   document.getElementById('opt-tbody').innerHTML = '<tr><td colspan="6"><div class="opt-empty">Run ⚡ Optimize after crawl to generate the Live Optimization Table.</div></td></tr>';
   document.getElementById('opt-row-count').textContent = '';
@@ -1180,9 +1203,12 @@ function startCrawlPolling() {
       // Load live results while crawling
       const live = await safeJson(await fetch(`${API}/results/live`));
       if (live.results && live.results.length > allResults.length) {
+        const prevLen = allResults.length;
         allResults = live.results;
-        applyFilters();
         updateSummary(allResults);
+        document.getElementById('page-count').textContent = allResults.length;
+        // BUG-024: only append new rows; don't replace the whole table.
+        _renderTableIncremental(allResults);
       }
 
       if (s.error) {
@@ -1233,12 +1259,20 @@ function startCrawlPolling() {
   }, 2000);
 }
 
+// BUG-022: track last rendered % so the bar never goes backwards.
+let _lastProgressPct = 0;
+
 function updateProgress(s) {
   const crawled = s.pages_crawled || 0;
   const queued  = s.pages_queued  || 0;
   const total   = Math.max(crawled + queued, crawled, 1);
-  const pct     = Math.round((crawled / total) * 100);
   const elapsed = s.elapsed_s || 0;
+
+  // Show a non-zero minimum from the first tick so the bar doesn't appear stuck.
+  // Always move forward — never render a lower % than previously shown.
+  let rawPct = crawled === 0 ? 3 : Math.round((crawled / total) * 100);
+  const pct  = Math.max(rawPct, _lastProgressPct);
+  _lastProgressPct = pct;
 
   document.getElementById('prog-text').textContent    = `${crawled} / ${total} pages crawled`;
   document.getElementById('prog-elapsed').textContent = `${elapsed}s`;
@@ -1319,34 +1353,71 @@ function applyFilters() {
 }
 
 // ── Table ─────────────────────────────────────────────────────────────────────
+
+// BUG-024: build one row's HTML without touching the DOM — used by both
+// full-render and incremental-append paths to avoid duplication.
+function _buildRowHtml(r) {
+  const h1    = Array.isArray(r.h1) ? r.h1[0] || '—' : r.h1 || '—';
+  const aiFix = (r.gemini_fields || [])
+    .filter(f => f.issue !== 'OK' && (f.fix || f.suggestion))
+    .map(f => f.fix || f.suggestion).join(' · ');
+  const hasIss = r.issues && r.issues.length > 0;
+  const sel    = selectedUrls.has(r.url);
+  const score  = r.ranking
+    ? `<span class="score-pill score-${r.ranking.grade.toLowerCase()}">${r.ranking.score} ${r.ranking.grade}</span>`
+    : '—';
+  return `<tr class="${sel ? 'selected-row' : ''}" id="row-${encodeRowId(r.url)}">
+    <td class="check-cell"><input type="checkbox" ${sel?'checked':''} onchange="toggleSelect('${escJ(r.url)}',this)"/></td>
+    <td class="url-cell"><a href="${esc(r.url)}" target="_blank">${esc(r.url)}</a></td>
+    <td>${statusBadge(r.status_code)}</td>
+    <td class="wrap">${esc(r.title||'—')}</td>
+    <td class="wrap">${esc(r.meta_description||'—')}</td>
+    <td class="wrap">${esc(h1)}</td>
+    <td class="wrap">${issuesTags(r.issues)}</td>
+    <td>${priorityBadge(r.priority)}</td>
+    <td>${score}</td>
+    <td class="wrap">${renderKeywords(r.keywords)}</td>
+    <td>${competitionBadge(r.competition)}</td>
+    <td class="wrap" style="font-size:10px;color:var(--purple)">${esc(aiFix||'—')}</td>
+    <td>${hasIss ? `<button class="popup-btn" onclick="openPopupForUrl('${escJ(r.url)}')">View →</button>` : '<span style="color:var(--muted);font-size:10px">—</span>'}</td>
+  </tr>`;
+}
+
+// Full table replace — used after crawl completes or when filters change.
 function renderTable(rows) {
   const tb = document.getElementById('results-body');
   if (!rows.length) {
     tb.innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="icon">🔍</div><p>No results yet.</p></div></td></tr>`;
     return;
   }
-  tb.innerHTML = rows.map(r => {
-    const h1     = Array.isArray(r.h1) ? r.h1[0] || '—' : r.h1 || '—';
-    const aiFix  = (r.gemini_fields || []).filter(f => f.issue !== 'OK' && (f.fix || f.suggestion)).map(f => f.fix || f.suggestion).join(' · ');
-    const hasIss = r.issues && r.issues.length > 0;
-    const sel    = selectedUrls.has(r.url);
-    const score  = r.ranking ? `<span class="score-pill score-${r.ranking.grade.toLowerCase()}">${r.ranking.score} ${r.ranking.grade}</span>` : '—';
-    return `<tr class="${sel ? 'selected-row' : ''}" id="row-${encodeRowId(r.url)}">
-      <td class="check-cell"><input type="checkbox" ${sel?'checked':''} onchange="toggleSelect('${escJ(r.url)}',this)"/></td>
-      <td class="url-cell"><a href="${esc(r.url)}" target="_blank">${esc(r.url)}</a></td>
-      <td>${statusBadge(r.status_code)}</td>
-      <td class="wrap">${esc(r.title||'—')}</td>
-      <td class="wrap">${esc(r.meta_description||'—')}</td>
-      <td class="wrap">${esc(h1)}</td>
-      <td class="wrap">${issuesTags(r.issues)}</td>
-      <td>${priorityBadge(r.priority)}</td>
-      <td>${score}</td>
-      <td class="wrap">${renderKeywords(r.keywords)}</td>
-      <td>${competitionBadge(r.competition)}</td>
-      <td class="wrap" style="font-size:10px;color:var(--purple)">${esc(aiFix||'—')}</td>
-      <td>${hasIss ? `<button class="popup-btn" onclick="openPopupForUrl('${escJ(r.url)}')">View →</button>` : '<span style="color:var(--muted);font-size:10px">—</span>'}</td>
-    </tr>`;
-  }).join('');
+  tb.innerHTML = rows.map(_buildRowHtml).join('');
+}
+
+// BUG-024: incremental append — only adds rows not already in the DOM.
+// Avoids layout thrash + flicker on each live poll tick during crawl.
+// Falls back to full re-render when filters are active (correct behaviour).
+function _renderTableIncremental(newRows) {
+  const issuesOnly = document.getElementById('f-issues').checked;
+  const priority   = document.getElementById('f-priority').value;
+  const selOnly    = document.getElementById('f-selected').checked;
+  // Filters change which rows are visible — full re-render is necessary then.
+  if (issuesOnly || priority || selOnly) { renderTable(newRows); return; }
+
+  const tb = document.getElementById('results-body');
+  // Remove the "no results" placeholder if it's there
+  if (tb.querySelector('.empty-state')) tb.innerHTML = '';
+
+  const rendered = new Set([...tb.querySelectorAll('tr[id]')].map(n => n.id));
+  const toAdd = newRows.filter(r => !rendered.has('row-' + encodeRowId(r.url)));
+  if (!toAdd.length) return;
+
+  const frag = document.createDocumentFragment();
+  toAdd.forEach(r => {
+    const tmp = document.createElement('tbody');
+    tmp.innerHTML = _buildRowHtml(r);
+    frag.appendChild(tmp.firstElementChild);
+  });
+  tb.appendChild(frag);
 }
 
 // ── Selection ─────────────────────────────────────────────────────────────────
@@ -1444,12 +1515,35 @@ async function loadPopupData() {
   popupPages = data.pages || [];
 }
 
+// BUG-023: focus-trap helper — keeps Tab cycling inside the active modal.
+function _trapFocus(overlayEl) {
+  const focusable = 'a[href],button:not([disabled]),input,[tabindex]:not([tabindex="-1"])';
+  const nodes = [...overlayEl.querySelectorAll(focusable)].filter(n => n.offsetParent !== null);
+  if (!nodes.length) return;
+  nodes[0].focus();
+  overlayEl._trapHandler = function(e) {
+    if (e.key !== 'Tab') return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
+  };
+  overlayEl.addEventListener('keydown', overlayEl._trapHandler);
+}
+function _releaseFocus(overlayEl) {
+  if (overlayEl._trapHandler) {
+    overlayEl.removeEventListener('keydown', overlayEl._trapHandler);
+    delete overlayEl._trapHandler;
+  }
+}
+
 async function openPopup() {
   await loadPopupData();
   if (!popupPages.length) { alert('No pages with issues found.'); return; }
   popupIndex = 0;
   renderPopupPage();
-  document.getElementById('popup-overlay').classList.add('open');
+  const overlay = document.getElementById('popup-overlay');
+  overlay.classList.add('open');
+  _trapFocus(overlay);
 }
 
 async function openPopupForUrl(url) {
@@ -1459,7 +1553,9 @@ async function openPopupForUrl(url) {
   if (idx === -1) { alert('No issues found for this page.'); return; }  // CR-002
   popupIndex = idx;
   renderPopupPage();
-  document.getElementById('popup-overlay').classList.add('open');
+  const overlay = document.getElementById('popup-overlay');
+  overlay.classList.add('open');
+  _trapFocus(overlay);
 }
 
 function renderPopupPage() {
@@ -1575,7 +1671,11 @@ async function analyzeThisPage() {
   }
 }
 
-function closePopup() { document.getElementById('popup-overlay').classList.remove('open'); }
+function closePopup() {
+  const overlay = document.getElementById('popup-overlay');
+  _releaseFocus(overlay);  // BUG-023: release Tab trap before hiding
+  overlay.classList.remove('open');
+}
 function overlayClick(e) { if (e.target === document.getElementById('popup-overlay')) closePopup(); }
 
 // ── Export ────────────────────────────────────────────────────────────────────
