@@ -2809,6 +2809,76 @@ async def keyword_difficulty(request: DifficultyRequest):
     return {"total": len(results), "results": results}
 
 
+@app.get("/serp/visibility")
+def serp_visibility():
+    """
+    Compute Visibility Score — % of crawled keywords ranked in top 10.
+
+    Uses SERP positions stored by /serp/bulk-position calls.
+    Returns per-keyword position data + aggregate visibility metrics.
+
+    Response:
+      {
+        "total_keywords":   int,
+        "in_top_3":         int,
+        "in_top_10":        int,
+        "in_top_30":        int,
+        "not_ranked":       int,
+        "visibility_score": float,  # weighted score 0-100
+        "keywords":         [{"keyword", "position", "page_url", "expected_ctr"}]
+      }
+    """
+    from serp_engine import expected_ctr as _ectr
+    all_positions: list[dict] = []
+    for page in crawl_results:
+        pos_map  = page.get("serp_positions") or {}
+        page_url = page.get("url", "")
+        for kw, pos in pos_map.items():
+            if isinstance(pos, int) and pos > 0:
+                all_positions.append({
+                    "keyword":      kw,
+                    "position":     pos,
+                    "page_url":     page_url,
+                    "expected_ctr": _ectr(pos),
+                })
+
+    if not all_positions:
+        return {
+            "total_keywords":   0,
+            "in_top_3":         0,
+            "in_top_10":        0,
+            "in_top_30":        0,
+            "not_ranked":       0,
+            "visibility_score": 0.0,
+            "keywords":         [],
+            "note": "Run POST /serp/bulk-position first to populate ranking data.",
+        }
+
+    total      = len(all_positions)
+    top3       = sum(1 for k in all_positions if k["position"] <= 3)
+    top10      = sum(1 for k in all_positions if k["position"] <= 10)
+    top30      = sum(1 for k in all_positions if k["position"] <= 30)
+    not_ranked = total - top30
+
+    # Weighted visibility: top-3 worth 28.5%, top-10 avg 7.2%, top-30 avg 1.5%
+    vis_score = round(
+        (top3 * 28.5 + (top10 - top3) * 7.2 + (top30 - top10) * 1.5)
+        / (total * 28.5) * 100,
+        1,
+    ) if total > 0 else 0.0
+
+    all_positions.sort(key=lambda x: x["position"])
+    return {
+        "total_keywords":   total,
+        "in_top_3":         top3,
+        "in_top_10":        top10,
+        "in_top_30":        top30,
+        "not_ranked":       not_ranked,
+        "visibility_score": min(vis_score, 100.0),
+        "keywords":         all_positions,
+    }
+
+
 # ── CTR Opportunity endpoint ──────────────────────────────────────────────────
 
 class CtrOpportunityRequest(BaseModel):

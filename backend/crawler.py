@@ -790,19 +790,94 @@ def _parse(url: str, status: int, html: str,
         if img.get("src", "").strip()
     ][:20]
 
-    # ── NEW: Schema @type list from JSON-LD (Article, FAQ, HowTo, Product…) ──
+    # ── NEW: Schema @type list + structured data fields from JSON-LD ───────────
+    # Parses: @type, aggregateRating (ratingValue, reviewCount), author name.
+    # These fields are in <script> tags and are NOT in body_text, so they
+    # must be extracted here from raw HTML — not from visible text.
     import json as _json
     schema_types: list[str] = []
+    schema_rating: float | None  = None   # aggregateRating.ratingValue
+    schema_review_count: int | None = None  # aggregateRating.reviewCount
+    schema_author: str = ""              # author.name (first found)
+
     for script in soup.find_all("script", type="application/ld+json"):
         try:
-            obj = _json.loads(script.string or "{}")
-            t = obj.get("@type")
-            if isinstance(t, str):
-                schema_types.append(t)
-            elif isinstance(t, list):
-                schema_types.extend(str(x) for x in t if x)
+            raw = (script.string or "").strip()
+            if not raw:
+                continue
+            obj = _json.loads(raw)
+            # Handle both single object and @graph arrays
+            objs = obj.get("@graph", [obj]) if isinstance(obj, dict) else [obj]
+            for o in objs:
+                if not isinstance(o, dict):
+                    continue
+                # @type
+                t = o.get("@type")
+                if isinstance(t, str):
+                    schema_types.append(t)
+                elif isinstance(t, list):
+                    schema_types.extend(str(x) for x in t if x)
+                # aggregateRating
+                ar = o.get("aggregateRating")
+                if isinstance(ar, dict):
+                    try:
+                        rv = ar.get("ratingValue")
+                        if rv is not None and schema_rating is None:
+                            schema_rating = float(rv)
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        rc = ar.get("reviewCount") or ar.get("ratingCount")
+                        if rc is not None and schema_review_count is None:
+                            schema_review_count = int(rc)
+                    except (ValueError, TypeError):
+                        pass
+                # author
+                if not schema_author:
+                    auth = o.get("author")
+                    if isinstance(auth, dict):
+                        schema_author = auth.get("name", "")
+                    elif isinstance(auth, list) and auth:
+                        a0 = auth[0]
+                        if isinstance(a0, dict):
+                            schema_author = a0.get("name", "")
+                        elif isinstance(a0, str):
+                            schema_author = a0
+                    elif isinstance(auth, str):
+                        schema_author = auth
         except Exception:
             pass
+
+    # ── External links (for .edu/.gov/.org citation signal in E-E-A-T) ─────────
+    # Extracted from actual href attributes — more reliable than body-text search.
+    _ext_links: list[str] = []
+    _page_bare = urlparse(url).netloc.lstrip("www.")
+    for _a in soup.find_all("a", href=True):
+        _href = _a["href"].strip()
+        if not _href or _href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        try:
+            _full = urljoin(url, _href)
+            _p = urlparse(_full)
+            if _p.scheme not in ("http", "https"):
+                continue
+            _link_bare = _p.netloc.lstrip("www.")
+            if _link_bare and _link_bare != _page_bare:
+                _ext_links.append(_full)
+        except Exception:
+            pass
+    external_links: list[str] = _ext_links[:50]   # cap to keep payload small
+
+    # ── Hreflang tags (international SEO) ───────────────────────────────────────
+    # Collects all <link rel="alternate" hreflang="xx"> declarations on the page.
+    hreflang_tags: list[dict] = []
+    for _hl in soup.find_all("link", rel=True):
+        _rel = _hl.get("rel") or []
+        if "alternate" in (r.lower() if isinstance(r, str) else r for r in _rel):
+            _lang = _hl.get("hreflang", "").strip()
+            _href_val = _hl.get("href", "").strip()
+            if _lang and _href_val:
+                hreflang_tags.append({"lang": _lang, "href": _href_val})
 
     # ── NEW: Mixed content detection (HTTP resources on HTTPS page) ──────────
     # Scanned here — raw HTML is available; avoids storing full HTML in memory.
@@ -839,14 +914,19 @@ def _parse(url: str, status: int, html: str,
         "og_title": og_title, "og_description": og_desc, "body_text": body_txt,
         "img_alts": img_alts,   # image alt texts for SEO audit
         # ── NEW fields (additive — no existing field changed) ─────────────────
-        "last_modified":    last_modified,    # HTTP Last-Modified header value
-        "viewport":         viewport,         # <meta name="viewport"> content
-        "img_srcs":         img_srcs,         # image src list for format detection
-        "schema_types":     schema_types,     # JSON-LD @type values on this page
-        "redirect_hops":    redirect_hops,    # number of redirects followed to reach this page
-        "response_headers": _stored_headers,  # SEO-relevant HTTP response headers
-        "mixed_resources":  mixed_resources,  # HTTP resources on HTTPS page (mixed content)
-        "links":            links if not is_error_status else [],  # internal link URLs for link graph
+        "last_modified":       last_modified,      # HTTP Last-Modified header value
+        "viewport":            viewport,           # <meta name="viewport"> content
+        "img_srcs":            img_srcs,           # image src list for format detection
+        "schema_types":        schema_types,       # JSON-LD @type values on this page
+        "schema_rating":       schema_rating,      # aggregateRating.ratingValue (float|None)
+        "schema_review_count": schema_review_count,# aggregateRating.reviewCount (int|None)
+        "schema_author":       schema_author,      # author.name from JSON-LD (str)
+        "external_links":      external_links,     # external href URLs (for citation signal)
+        "hreflang_tags":       hreflang_tags,      # [{lang, href}] from <link rel=alternate>
+        "redirect_hops":       redirect_hops,      # number of redirects followed to reach this page
+        "response_headers":    _stored_headers,    # SEO-relevant HTTP response headers
+        "mixed_resources":     mixed_resources,    # HTTP resources on HTTPS page (mixed content)
+        "links":               links if not is_error_status else [],  # internal link URLs for link graph
         # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": links if not is_error_status else [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
@@ -914,7 +994,9 @@ def _minimal_record(url: str, status, note: str = "") -> dict:
         "img_alts": [],
         # ── new fields (must match _parse() return keys) ──────────────────────
         "last_modified": "", "viewport": "", "img_srcs": [],
-        "schema_types": [], "redirect_hops": 0, "response_headers": {},
+        "schema_types": [], "schema_rating": None, "schema_review_count": None,
+        "schema_author": "", "external_links": [], "hreflang_tags": [],
+        "redirect_hops": 0, "response_headers": {},
         "mixed_resources": [], "links": [],
         # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": [],

@@ -205,9 +205,10 @@ def analyze_page(page: dict) -> dict:
     int_links    = int(page.get("internal_links_count") or 0)
     is_error     = bool(page.get("_is_error"))
     last_modified = (page.get("last_modified") or "")
-    viewport     = (page.get("viewport") or "")
-    schema_types = page.get("schema_types") or []
-    indexability = assess_indexability(url, status_code, canonical, is_error)
+    viewport      = (page.get("viewport") or "")
+    schema_types  = page.get("schema_types") or []
+    hreflang_tags = page.get("hreflang_tags") or []
+    indexability  = assess_indexability(url, status_code, canonical, is_error)
 
     # ── Component audits ──────────────────────────────────────────────────────
     title_audit       = _audit_title(title)
@@ -221,10 +222,11 @@ def analyze_page(page: dict) -> dict:
     image_fmt_audit   = _audit_image_formats(img_srcs)
     status_audit      = _audit_status(status_code, is_error)
     # ── NEW supplementary audits (informational — do not change existing score) ──
-    readability_audit = _audit_readability(body_text)
-    freshness_audit   = _audit_freshness(last_modified)
-    viewport_audit    = _audit_viewport(viewport)
-    schema_type_audit = _audit_schema_types(schema_types)
+    readability_audit  = _audit_readability(body_text)
+    freshness_audit    = _audit_freshness(last_modified)
+    viewport_audit     = _audit_viewport(viewport)
+    schema_type_audit  = _audit_schema_types(schema_types)
+    hreflang_audit     = _audit_hreflang(hreflang_tags)
 
     # ── Compound technical score (0 – 100) ────────────────────────────────────
     # Score uses only the original 9 components — new audits are additive/informational.
@@ -274,6 +276,7 @@ def analyze_page(page: dict) -> dict:
         "viewport":       viewport_audit,      # mobile viewport presence
         "schema_types":   schema_type_audit,   # JSON-LD @type detection
         "image_formats":  image_fmt_audit,     # WebP/AVIF vs legacy format ratio
+        "hreflang":       hreflang_audit,      # international SEO hreflang tags
     }
 
 
@@ -1044,6 +1047,62 @@ def _audit_image_formats(img_srcs: list) -> dict:
         "next_gen_pct": pct,
         "status":       status,
         "issues":       issues,
+    }
+
+
+def _audit_hreflang(hreflang_tags: list) -> dict:
+    """
+    Audit international SEO hreflang tag implementation.
+
+    Checks for:
+      - Presence of any hreflang declarations
+      - x-default fallback tag
+      - Duplicate language codes (configuration error)
+      - Self-referencing hreflang (best practice)
+
+    Returns:
+      {
+        "present":       bool,
+        "count":         int,
+        "langs":         list[str],   # language codes declared
+        "has_x_default": bool,
+        "issues":        list[str],
+      }
+    """
+    issues = []
+    if not hreflang_tags:
+        return {
+            "present":       False,
+            "count":         0,
+            "langs":         [],
+            "has_x_default": False,
+            "status":        "not_implemented",
+            "issues":        [],   # informational only — not every site needs hreflang
+        }
+
+    langs = [tag.get("lang", "").lower() for tag in hreflang_tags if tag.get("lang")]
+    has_x_default = "x-default" in langs
+
+    # Duplicate language codes are a misconfiguration
+    seen: set[str] = set()
+    dupes: set[str] = set()
+    for lang in langs:
+        if lang in seen:
+            dupes.add(lang)
+        seen.add(lang)
+    if dupes:
+        issues.append(f"Duplicate hreflang codes detected: {sorted(dupes)} — each language must appear once")
+
+    if not has_x_default:
+        issues.append("Missing hreflang x-default — add <link rel='alternate' hreflang='x-default'> for unmatched locales")
+
+    return {
+        "present":       True,
+        "count":         len(hreflang_tags),
+        "langs":         sorted(set(langs)),
+        "has_x_default": has_x_default,
+        "status":        "ok" if not issues else "issues",
+        "issues":        issues,
     }
 
 

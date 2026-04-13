@@ -690,30 +690,56 @@ def score_eeat(pages: list[dict], site_url: str,
         (p.get("body_text") or p.get("title") or "") for p in real[:5]
     ).lower()
 
-    # Author bio signals
+    # Author bio signals — check visible text keywords
     if any(kw in body_all for kw in ["author", "written by", "contributor", "byline"]):
         score += 10
 
-    # Schema: author (look in body_text for JSON-LD markers)
-    if '"author"' in body_all or 'itemprop="author"' in body_all:
+    # Schema: author — use structured field from JSON-LD (reliable) first,
+    # fall back to itemprop in body text for Microdata pages.
+    has_schema_author = any(
+        bool(p.get("schema_author"))
+        or 'itemprop="author"' in (p.get("body_text") or "").lower()
+        for p in real[:5]
+    )
+    if has_schema_author:
         score += 10
 
-    # Review schema
+    # Review schema — use structured fields extracted from JSON-LD in crawler.py.
+    # Old approach searched raw body_text for '"ratingvalue"' which never matched
+    # because body_text excludes <script> tag content.
     has_review = any(
-        '"ratingvalue"' in (p.get("body_text") or "").lower() or
+        p.get("schema_rating") is not None or
+        p.get("schema_review_count") is not None or
         'itemprop="ratingvalue"' in (p.get("body_text") or "").lower()
         for p in real[:5]
     )
     if has_review:
         score += 8
+    # Bonus for high average rating (≥ 4.0)
+    ratings = [p["schema_rating"] for p in real[:5] if p.get("schema_rating") is not None]
+    if ratings and sum(ratings) / len(ratings) >= 4.0:
+        score += 5
 
-    # Citation links to authoritative sources
-    # (heuristic: look for known authority domain mentions in body)
-    if any(d in body_all for d in _AUTHORITY_DOMAINS):
+    # Citation links to authoritative sources — check actual external link hrefs.
+    # Old approach searched body_text which is unreliable (script content excluded).
+    all_ext = []
+    for p in real[:5]:
+        all_ext.extend(p.get("external_links") or [])
+    all_ext_lower = " ".join(all_ext).lower()
+
+    if any(d in all_ext_lower for d in _AUTHORITY_DOMAINS):
         score += 7
 
-    # External edu/gov links (heuristic: look for .edu/.gov in body text)
-    if any(tld in body_all for tld in _AUTHORITY_TLDS):
+    # External edu/gov links — check actual href TLDs, not body text.
+    _AUTH_TLD_CHECK = tuple(t.lstrip(".") + "/" for t in _AUTHORITY_TLDS) + \
+                      tuple(t.lstrip(".") + "\"" for t in _AUTHORITY_TLDS)
+    if any(
+        any(
+            ("." + tld.lstrip(".")) in link.lower()
+            for tld in _AUTHORITY_TLDS
+        )
+        for link in all_ext
+    ):
         score += 8
 
     # Average word count ≥ 1000
