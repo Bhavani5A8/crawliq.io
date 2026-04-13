@@ -712,16 +712,26 @@ td.check-cell{width:28px;padding:7px 6px;}
       </div>
     </div>
 
+    <!-- CTR Benchmark Curve (new) -->
+    <div class="comp-gap-panel" id="ctr-curve-panel" style="display:none">
+      <div class="comp-gap-head">
+        <h4>CTR Benchmark Curve <span style="font-size:10px;color:var(--dim)">Sistrix 2024 — Organic Desktop</span></h4>
+        <span style="font-size:10px;color:var(--dim)">Expected click-through rate by SERP position</span>
+      </div>
+      <div id="ctr-curve-chart" style="height:180px;width:100%"></div>
+    </div>
+
     <!-- Keyword gaps -->
     <div class="comp-gap-panel">
       <div class="comp-gap-head">
         <h4>⬆ Keyword Gaps <span id="comp-gap-count" style="font-size:10px;color:var(--dim)"></span></h4>
-        <span style="font-size:10px;color:var(--dim)">Keywords competitors rank for that you don't</span>
+        <span style="font-size:10px;color:var(--dim)">Keywords competitors rank for that you don't — with intent classification</span>
       </div>
       <div class="comp-gap-wrap">
         <table class="gtable">
           <thead><tr>
             <th>Keyword</th>
+            <th>Intent</th>
             <th>Opportunity</th>
             <th>Competitors</th>
             <th>Found In</th>
@@ -729,6 +739,73 @@ td.check-cell{width:28px;padding:7px 6px;}
           <tbody id="comp-gap-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Cannibalization panel (new) -->
+    <div class="comp-gap-panel" id="cannibal-panel" style="display:none">
+      <div class="comp-gap-head">
+        <h4>Keyword Cannibalization Risk <span id="cannibal-count" style="font-size:10px;color:var(--dim)"></span></h4>
+        <span style="font-size:10px;color:var(--dim)">Multiple pages competing for the same keyword on your site</span>
+      </div>
+      <div class="comp-gap-wrap">
+        <table class="gtable">
+          <thead><tr>
+            <th>Keyword</th>
+            <th>Risk</th>
+            <th>Competing Pages</th>
+            <th>Fix</th>
+          </tr></thead>
+          <tbody id="cannibal-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Orphan Pages panel -->
+    <div class="comp-gap-panel" id="orphan-panel" style="display:none">
+      <div class="comp-gap-head">
+        <h4>Orphan Pages <span id="orphan-count" style="font-size:10px;color:var(--dim)"></span></h4>
+        <span style="font-size:10px;color:var(--dim)">Pages with 0 incoming internal links — invisible to link equity flow</span>
+      </div>
+      <div class="comp-gap-wrap">
+        <table class="gtable">
+          <thead><tr>
+            <th>Page URL</th>
+            <th>Silo</th>
+            <th>Depth</th>
+            <th>Out Links</th>
+          </tr></thead>
+          <tbody id="orphan-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Near-Duplicate Content panel -->
+    <div class="comp-gap-panel" id="dedup-panel" style="display:none">
+      <div class="comp-gap-head">
+        <h4>Near-Duplicate Content <span id="dedup-count" style="font-size:10px;color:var(--dim)"></span></h4>
+        <span style="font-size:10px;color:var(--dim)">Pages with ≥95% similar body text (SimHash detection)</span>
+      </div>
+      <div class="comp-gap-wrap">
+        <table class="gtable">
+          <thead><tr>
+            <th>Page A</th>
+            <th>Page B</th>
+            <th>Similarity</th>
+            <th>Risk</th>
+            <th>Fix</th>
+          </tr></thead>
+          <tbody id="dedup-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Site Audit: HSTS + robots panel -->
+    <div class="comp-gap-panel" id="site-audit-panel" style="display:none">
+      <div class="comp-gap-head">
+        <h4>Site Security &amp; Crawlability Audit</h4>
+        <span style="font-size:10px;color:var(--dim)">robots.txt directives · HSTS header · redirect hop counts</span>
+      </div>
+      <div id="site-audit-body" style="padding:14px 16px;font-size:12px;line-height:1.8"></div>
     </div>
 
     <!-- Action priority list -->
@@ -807,6 +884,9 @@ td.check-cell{width:28px;padding:7px 6px;}
             <th style="padding:7px 10px">Title</th>
             <th style="padding:7px 10px">Meta</th>
             <th style="padding:7px 10px">H1</th>
+            <th style="padding:7px 10px" title="Flesch Reading Ease (0-100, higher = easier)">Readability</th>
+            <th style="padding:7px 10px" title="Mobile viewport meta tag present?">Viewport</th>
+            <th style="padding:7px 10px" title="JSON-LD schema @type values">Schema</th>
             <th style="padding:7px 10px">Top Issues</th>
           </tr>
         </thead>
@@ -2099,6 +2179,25 @@ function renderTechSeoTable(pages) {
       const title = p.title ? esc(p.title.slice(0, 40)) : '<span style="color:#e17055">Missing</span>';
       const meta  = p.meta  ? esc(p.meta.slice(0, 40))  : '<span style="color:#e17055">Missing</span>';
       const h1    = p.headings?.h1?.[0] ? esc(p.headings.h1[0].slice(0, 40)) : '<span style="color:#e17055">Missing</span>';
+      // Readability (new field from technical_seo.py)
+      const rdObj  = p.readability || {};
+      const rdVal  = rdObj.score != null ? Math.round(rdObj.score) : null;
+      const rdLbl  = rdObj.label || '—';
+      const rdCol  = rdVal == null ? 'var(--dim)' : rdVal >= 60 ? '#00b894' : rdVal >= 40 ? '#fdcb6e' : '#e17055';
+      const rdCell = rdVal != null
+        ? `<span style="color:${rdCol};font-weight:700">${rdVal}</span> <span style="font-size:9px;color:var(--dim)">${esc(rdLbl)}</span>`
+        : `<span style="color:var(--dim)">${esc(rdLbl)}</span>`;
+      // Viewport (new field)
+      const vpObj  = p.viewport || {};
+      const vpCell = vpObj.present
+        ? `<span style="color:#00b894">✓</span>`
+        : `<span style="color:#e17055" title="Mobile viewport missing">✗</span>`;
+      // Schema types (new field)
+      const stObj   = p.schema_types || {};
+      const stTypes = (stObj.types || []).slice(0, 2).join(', ') || '—';
+      const stCell  = stObj.present
+        ? `<span style="color:var(--cyan);font-size:9px">${esc(stTypes)}</span>`
+        : `<span style="color:var(--dim);font-size:9px">None</span>`;
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:7px 10px;font-size:10px;word-break:break-all;color:var(--cyan)">${esc(p.url)}</td>
         <td style="padding:7px 10px;font-weight:700;color:var(--accent)">${score}</td>
@@ -2109,6 +2208,9 @@ function renderTechSeoTable(pages) {
         <td style="padding:7px 10px;font-size:10px">${title}</td>
         <td style="padding:7px 10px;font-size:10px">${meta}</td>
         <td style="padding:7px 10px;font-size:10px">${h1}</td>
+        <td style="padding:7px 10px;font-size:11px">${rdCell}</td>
+        <td style="padding:7px 10px;text-align:center">${vpCell}</td>
+        <td style="padding:7px 10px">${stCell}</td>
         <td style="padding:7px 10px;font-size:10px;color:var(--dim)">${top3}</td>
       </tr>`;
     }).join('');
@@ -2335,7 +2437,12 @@ function renderCompResults(r) {
 
   renderScoreCards(r);
   renderDimTable(r);
+  renderCtrCurve();
   renderGapTable(r);
+  renderCannibalizationPanel(r);
+  renderOrphanPanel();
+  renderDedupPanel();
+  renderSiteAuditPanel();
   renderActions(r);
   if (typeof echarts !== 'undefined') {
     renderCharts(r);
@@ -2394,6 +2501,21 @@ function renderDimTable(r) {
   });
 }
 
+// Intent badge config — matches intent_classifier.py intent_label()
+const INTENT_CONFIG = {
+  informational: { color: '#3b82f6', bg: '#1e3a5f', short: 'Info'  },
+  commercial:    { color: '#f59e0b', bg: '#4a2e00', short: 'Comm'  },
+  transactional: { color: '#10b981', bg: '#0a2e1e', short: 'Trans' },
+  navigational:  { color: '#a78bfa', bg: '#2d1a5f', short: 'Nav'   },
+};
+function intentBadge(intent) {
+  const cfg = INTENT_CONFIG[intent] || INTENT_CONFIG.informational;
+  return `<span style="display:inline-block;padding:2px 6px;border-radius:3px;
+    font-size:9px;font-weight:700;letter-spacing:.4px;
+    background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}40"
+    title="${intent}">${cfg.short}</span>`;
+}
+
 function renderGapTable(r) {
   const compCount = (r.competitor_urls || []).length;
   // Client-side safety: only show gaps found in 2+ competitors (or 1 if only 1 was submitted).
@@ -2405,13 +2527,15 @@ function renderGapTable(r) {
     const msg = compCount < 2
       ? 'Add at least 2 competitor URLs for a reliable gap analysis.'
       : 'No keyword gaps detected — your site covers the same keywords as competitors.';
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">${msg}</td></tr>`;
     return;
   }
   tbody.innerHTML = gaps.slice(0, 30).map(g => {
     const barW = Math.round(g.opportunity_score) + '%';
+    const badge = intentBadge(g.intent || 'informational');
     return `<tr>
       <td class="gt-kw">${esc(g.keyword)}</td>
+      <td>${badge}</td>
       <td><div style="display:flex;align-items:center;gap:6px">
         <div class="opp-bar" style="width:${barW}"></div>
         <span class="gt-opp">${Math.round(g.opportunity_score)}</span>
@@ -2420,6 +2544,186 @@ function renderGapTable(r) {
       <td class="gt-found">${(g.found_in||[]).map(esc).join(', ')}</td>
     </tr>`;
   }).join('');
+}
+
+function renderCannibalizationPanel(r) {
+  const conflicts = r.cannibalization || [];
+  const panel  = document.getElementById('cannibal-panel');
+  const tbody  = document.getElementById('cannibal-tbody');
+  const count  = document.getElementById('cannibal-count');
+  if (!conflicts.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  count.textContent = `(${conflicts.length} risks)`;
+  const RISK_COLOR = { High: '#ef4444', Medium: '#f59e0b' };
+  tbody.innerHTML = conflicts.map(c => {
+    const col = RISK_COLOR[c.risk_level] || '#9ca3af';
+    const pages = (c.competing_pages || []).slice(0, 3)
+      .map(p => `<span style="font-size:9px;color:var(--dim)">${esc(p.replace(/https?:\/\/[^/]+/,''))}</span>`)
+      .join('<br>');
+    return `<tr>
+      <td class="gt-kw">${esc(c.keyword)}</td>
+      <td><span style="color:${col};font-weight:700;font-size:11px">${esc(c.risk_level)}</span></td>
+      <td>${pages}</td>
+      <td style="font-size:10px;color:var(--dim);max-width:200px">Consolidate into one canonical page</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCtrCurve() {
+  const panel = document.getElementById('ctr-curve-panel');
+  panel.style.display = '';
+  // Load CTR data from API then render ECharts line chart
+  fetch(API + '/serp/ctr-curve')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || !data.curve) return;
+      const curve = data.curve;
+      const chartEl = document.getElementById('ctr-curve-chart');
+      if (!chartEl || typeof echarts === 'undefined') return;
+      const chart = echarts.init(chartEl);
+      chart.setOption({
+        backgroundColor: 'transparent',
+        grid: { top: 12, bottom: 30, left: 44, right: 12 },
+        tooltip: {
+          trigger: 'axis',
+          formatter: p => `Position ${p[0].axisValue}: <b>${p[0].data}%</b> avg CTR`
+        },
+        xAxis: {
+          type: 'category',
+          data: curve.map(r => r.position),
+          axisLabel: { color: '#9ca3af', fontSize: 9 },
+          axisLine: { lineStyle: { color: '#374151' } },
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#9ca3af', fontSize: 9, formatter: v => v + '%' },
+          splitLine: { lineStyle: { color: '#1f2937' } },
+        },
+        series: [{
+          type: 'line',
+          data: curve.map(r => r.ctr_pct),
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 5,
+          lineStyle: { color: '#00e5a0', width: 2 },
+          itemStyle: { color: '#00e5a0' },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(0,229,160,0.25)' },
+              { offset: 1, color: 'rgba(0,229,160,0)' }
+            ]
+          }},
+        }],
+      });
+    })
+    .catch(() => { panel.style.display = 'none'; });
+}
+
+// ── Orphan Pages panel ──────────────────────────────────────────────────────
+function renderOrphanPanel() {
+  const panel  = document.getElementById('orphan-panel');
+  const tbody  = document.getElementById('orphan-tbody');
+  const cntEl  = document.getElementById('orphan-count');
+  fetch(API + '/link-graph/orphans')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const orphans = data.orphans || [];
+      cntEl.textContent = `(${data.orphan_count} pages)`;
+      if (!orphans.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:12px">No orphan pages detected.</td></tr>';
+      } else {
+        tbody.innerHTML = orphans.map(o => {
+          const depth = o.depth >= 0 ? o.depth : '?';
+          return `<tr>
+            <td style="word-break:break-all;max-width:260px"><a href="${o.url}" target="_blank" style="color:var(--acc);text-decoration:none">${o.url}</a></td>
+            <td>${o.silo || '—'}</td>
+            <td>${depth}</td>
+            <td>${o.out_links_count}</td>
+          </tr>`;
+        }).join('');
+      }
+      panel.style.display = '';
+    })
+    .catch(() => { /* silently skip if no crawl */ });
+}
+
+// ── Near-Duplicate Content panel ────────────────────────────────────────────
+function renderDedupPanel() {
+  const panel  = document.getElementById('dedup-panel');
+  const tbody  = document.getElementById('dedup-tbody');
+  const cntEl  = document.getElementById('dedup-count');
+  fetch(API + '/content-dedup')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const pairs = data.pairs || [];
+      cntEl.textContent = `(${data.duplicate_pairs} pairs)`;
+      if (!pairs.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:12px">No near-duplicate pages found.</td></tr>';
+      } else {
+        const riskColor = { exact: '#ef4444', near_duplicate: '#f59e0b', similar: '#6b7280' };
+        tbody.innerHTML = pairs.map(p => {
+          const color = riskColor[p.risk_level] || '#6b7280';
+          const sim = (p.similarity * 100).toFixed(1) + '%';
+          return `<tr>
+            <td style="word-break:break-all;max-width:200px;font-size:10px">${p.url_a}</td>
+            <td style="word-break:break-all;max-width:200px;font-size:10px">${p.url_b}</td>
+            <td style="text-align:center">${sim}</td>
+            <td><span style="background:${color}22;color:${color};padding:2px 7px;border-radius:9px;font-size:10px">${p.risk_level.replace('_',' ')}</span></td>
+            <td style="font-size:10px;color:var(--dim)">${p.recommendation}</td>
+          </tr>`;
+        }).join('');
+      }
+      panel.style.display = '';
+    })
+    .catch(() => { /* silently skip */ });
+}
+
+// ── Site Audit: HSTS + robots panel ─────────────────────────────────────────
+function renderSiteAuditPanel() {
+  const panel = document.getElementById('site-audit-panel');
+  const body  = document.getElementById('site-audit-body');
+  fetch(API + '/site-audit/full')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const parts = [];
+
+      // robots.txt summary
+      const rb = data.robots || {};
+      const rbStatus = rb.issues && rb.issues.length ? '⚠️' : '✅';
+      parts.push(`<div style="margin-bottom:10px"><strong>${rbStatus} robots.txt</strong>&nbsp;
+        <span style="color:var(--dim)">Disallow rules: ${(rb.disallowed||[]).length} · Sitemaps: ${(rb.sitemaps||[]).length}</span>
+        ${(rb.issues||[]).map(i => `<div style="color:#f59e0b;margin-left:12px">• ${i}</div>`).join('')}
+      </div>`);
+
+      // HSTS summary
+      const hs = data.hsts || {};
+      const hsColor = hs.status === 'good' ? '#10b981' : hs.status === 'missing' ? '#ef4444' : '#f59e0b';
+      parts.push(`<div style="margin-bottom:10px"><strong style="color:${hsColor}">HSTS: ${hs.status || 'unknown'}</strong>
+        ${hs.value ? `<span style="color:var(--dim);margin-left:8px;font-size:10px">${hs.value.substring(0,80)}</span>` : ''}
+        ${(hs.issues||[]).map(i => `<div style="color:#f59e0b;margin-left:12px">• ${i}</div>`).join('')}
+      </div>`);
+
+      // Mixed content
+      const mc = data.mixed_content || {};
+      const mcStatus = mc.pages_with_mixed_content > 0 ? '⚠️' : '✅';
+      parts.push(`<div style="margin-bottom:10px"><strong>${mcStatus} Mixed Content</strong>
+        <span style="color:var(--dim)"> — ${mc.pages_with_mixed_content || 0} pages affected, ${mc.total_mixed_resources || 0} HTTP resources</span>
+      </div>`);
+
+      // Redirect chains
+      const rc = data.redirect_chains || {};
+      const rcStatus = rc.problematic > 0 ? '⚠️' : '✅';
+      parts.push(`<div><strong>${rcStatus} Redirect Chains</strong>
+        <span style="color:var(--dim)"> — ${rc.checked || 0} checked, ${rc.problematic || 0} with issues</span>
+      </div>`);
+
+      body.innerHTML = parts.join('');
+      panel.style.display = '';
+    })
+    .catch(() => { /* silently skip */ });
 }
 
 function renderActions(r) {

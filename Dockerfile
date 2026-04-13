@@ -27,10 +27,16 @@ COPY backend/main.py \
      backend/ai_analysis.py \
      backend/robust_fetch.py \
      backend/crawler_fetch_patch.py \
+     backend/intent_classifier.py \
+     backend/serp_engine.py \
+     backend/link_graph.py \
+     backend/content_dedup.py \
+     backend/site_auditor.py \
      ./
 
-# Copy the frontend HTML (main.py serves it from BASE_DIR)
-COPY index.html .
+# Copy the dashboard HTML (main.py serves backend/index.html from BASE_DIR)
+# NOTE: backend/index.html is the full SPA dashboard; root index.html is the marketing page
+COPY backend/index.html ./index.html
 
 EXPOSE 7860
 

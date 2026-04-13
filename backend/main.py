@@ -122,6 +122,61 @@ from competitor_analysis import (
 )
 from competitor_db import list_snapshots as _list_comp_snapshots, delete_snapshot as _del_comp_snapshot
 
+# ── New intelligence modules (graceful fallback if not yet available) ─────────
+try:
+    from intent_classifier import (
+        classify_keywords as _classify_keywords,
+        classify_intent   as _classify_intent,
+        intent_label      as _intent_label,
+    )
+    _INTENT_MODULE = True
+except ImportError:
+    _INTENT_MODULE = False
+
+try:
+    from serp_engine import (
+        get_ctr_curve                 as _get_ctr_curve,
+        expected_ctr                  as _expected_ctr,
+        fetch_suggestions_with_intent as _fetch_suggestions_intent,
+        score_featured_snippet_potential as _snippet_score,
+    )
+    _SERP_MODULE = True
+except ImportError:
+    _SERP_MODULE = False
+
+try:
+    from competitor_analysis import detect_cannibalization as _detect_cannibalization
+    _CANNIBAL_MODULE = True
+except ImportError:
+    _CANNIBAL_MODULE = False
+
+try:
+    from link_graph import (
+        analyse_link_graph as _analyse_link_graph,
+        build_link_graph   as _build_link_graph,
+        detect_orphans     as _detect_orphans,
+    )
+    _LINK_GRAPH_MODULE = True
+except ImportError:
+    _LINK_GRAPH_MODULE = False
+
+try:
+    from content_dedup import duplicate_summary as _duplicate_summary
+    _DEDUP_MODULE = True
+except ImportError:
+    _DEDUP_MODULE = False
+
+try:
+    from site_auditor import (
+        fetch_robots_txt     as _fetch_robots_txt,
+        check_hsts           as _check_hsts,
+        scan_mixed_content_all as _scan_mixed_content_all,
+        run_site_audit       as _run_site_audit,
+    )
+    _SITE_AUDITOR_MODULE = True
+except ImportError:
+    _SITE_AUDITOR_MODULE = False
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -2305,6 +2360,312 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION N: INTELLIGENCE ENDPOINTS (intent / SERP / cannibalization) ──────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/serp/ctr-curve")
+def get_ctr_curve_endpoint():
+    """
+    Return Sistrix 2024 CTR benchmark curve for positions 1-20.
+
+    Response:
+      {
+        "curve": [
+          {"position": 1, "ctr_pct": 28.5, "ctr_frac": 0.285,
+           "delta_vs_prev": null, "tier": "gold", "tier_color": "#f59e0b"},
+          ...
+        ]
+      }
+
+    Use this to render a CTR opportunity chart in the frontend.
+    """
+    if not _SERP_MODULE:
+        raise HTTPException(status_code=503, detail="serp_engine module not available.")
+    return {"curve": _get_ctr_curve()}
+
+
+@app.get("/serp/suggestions")
+async def get_serp_suggestions(q: str = "", lang: str = "en"):
+    """
+    Fetch keyword suggestions from Google Suggest with intent classification.
+
+    Query params:
+      q    — seed keyword (required)
+      lang — language code, default "en"
+
+    Response:
+      {
+        "keyword":     "seo tools",
+        "suggestions": [
+          {"suggestion": "best seo tools 2026", "intent": "commercial",
+           "intent_short": "Comm", "intent_color": "#f59e0b"},
+          ...
+        ]
+      }
+    """
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Query parameter 'q' is required.")
+    if not _SERP_MODULE:
+        raise HTTPException(status_code=503, detail="serp_engine module not available.")
+
+    suggestions = await _fetch_suggestions_intent(q.strip(), lang=lang)
+    return {"keyword": q.strip(), "suggestions": suggestions}
+
+
+@app.get("/intent")
+def classify_crawled_keywords():
+    """
+    Classify all crawled page keywords by search intent.
+
+    Reads from the current crawl_results (must crawl first).
+
+    Response:
+      {
+        "page_count":    15,
+        "distribution":  {"informational": 42, "commercial": 18, ...},
+        "pages": [
+          {
+            "url":     "https://...",
+            "keywords": [
+              {"keyword": "seo guide", "intent": "informational",
+               "intent_short": "Info", "intent_color": "#3b82f6"},
+              ...
+            ]
+          }
+        ]
+      }
+    """
+    if not _INTENT_MODULE:
+        raise HTTPException(status_code=503, detail="intent_classifier module not available.")
+
+    from crawler import crawl_results as _cr
+    if not _cr:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+
+    total_dist = {"informational": 0, "commercial": 0,
+                  "transactional": 0, "navigational": 0}
+    pages_out  = []
+
+    for page in _cr:
+        if page.get("_is_error"):
+            continue
+        raw_kws = page.get("keywords") or []
+        classified = []
+        for k in raw_kws:
+            kw = k if isinstance(k, str) else k.get("keyword", "")
+            if not kw:
+                continue
+            intent = _classify_intent(kw)
+            label  = _intent_label(intent)
+            total_dist[intent] = total_dist.get(intent, 0) + 1
+            classified.append({
+                "keyword":      kw,
+                "intent":       intent,
+                "intent_short": label["short"],
+                "intent_color": label["color"],
+            })
+
+        if classified:
+            pages_out.append({
+                "url":      page.get("url", ""),
+                "keywords": classified,
+            })
+
+    return {
+        "page_count":   len(pages_out),
+        "distribution": total_dist,
+        "pages":        pages_out,
+    }
+
+
+@app.get("/cannibalization")
+def get_keyword_cannibalization():
+    """
+    Detect keyword cannibalization across all crawled pages.
+
+    Returns pages on the same site that compete for the same keywords —
+    these reduce each other's ranking potential.
+
+    Reads from the current crawl_results (must crawl first).
+
+    Response:
+      {
+        "total_conflicts": 3,
+        "conflicts": [
+          {
+            "keyword":         "seo audit",
+            "competing_pages": ["https://site.com/page-a", "https://site.com/page-b"],
+            "page_count":      2,
+            "risk_level":      "Medium",
+            "recommendation":  "..."
+          },
+          ...
+        ]
+      }
+    """
+    if not _CANNIBAL_MODULE:
+        raise HTTPException(status_code=503, detail="cannibalization module not available.")
+
+    from crawler import crawl_results as _cr
+    if not _cr:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+
+    conflicts = _detect_cannibalization(list(_cr))
+    return {
+        "total_conflicts": len(conflicts),
+        "conflicts":       conflicts,
+    }
+
+
+@app.get("/snippet-potential")
+def get_snippet_potential(url: str = ""):
+    """
+    Score a crawled page's featured snippet potential.
+
+    Query param:
+      url — URL of a page already in crawl_results (required)
+
+    Response:
+      {
+        "url":      "https://...",
+        "score":    72,
+        "potential": "High",
+        "signals":  ["numbered_list", "question_headings"],
+        "advice":   ["Add a 40-60 word definition paragraph after H1", ...]
+      }
+    """
+    if not url.strip():
+        raise HTTPException(status_code=400, detail="Query parameter 'url' is required.")
+    if not _SERP_MODULE:
+        raise HTTPException(status_code=503, detail="serp_engine module not available.")
+
+    from crawler import crawl_results as _cr
+    target_page = next(
+        (p for p in _cr if p.get("url", "").rstrip("/") == url.strip().rstrip("/")),
+        None,
+    )
+    if target_page is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"URL not found in crawl results: {url}. Run /crawl first.",
+        )
+
+    result = _snippet_score(target_page)
+    return {"url": url.strip(), **result}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── LINK GRAPH / PAGERANK / ORPHANS ─────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/link-graph")
+def get_link_graph():
+    """
+    Full internal link graph analysis:
+    PageRank scores, orphan pages, depth distribution, silo breakdown.
+    Requires a completed crawl.
+    """
+    if not _LINK_GRAPH_MODULE:
+        raise HTTPException(status_code=503, detail="link_graph module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    return _analyse_link_graph(pages)
+
+
+@app.get("/link-graph/orphans")
+def get_orphan_pages():
+    """Return only orphan pages (0 incoming internal links)."""
+    if not _LINK_GRAPH_MODULE:
+        raise HTTPException(status_code=503, detail="link_graph module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    graph = _build_link_graph(pages)
+    orphans = _detect_orphans(graph)
+    return {"orphan_count": len(orphans), "orphans": orphans}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── CONTENT DEDUPLICATION ────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/content-dedup")
+def get_content_dedup():
+    """
+    Near-duplicate content detection using SimHash.
+    Returns page pairs that are ≥95% similar in body text.
+    """
+    if not _DEDUP_MODULE:
+        raise HTTPException(status_code=503, detail="content_dedup module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    # Pass body_text field (used by SimHash)
+    dedup_pages = [{"url": p["url"], "body_text": p.get("body_text", "")} for p in pages]
+    return _duplicate_summary(dedup_pages)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SITE AUDITOR: robots / HSTS / mixed content / redirects ─────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/site-audit/full")
+async def get_full_site_audit():
+    """
+    Full site-level audit:
+    - robots.txt rules
+    - HSTS header strength
+    - Mixed content (HTTP resources on HTTPS pages)
+    - Redirect chains for crawled URLs
+    """
+    if not _SITE_AUDITOR_MODULE:
+        raise HTTPException(status_code=503, detail="site_auditor module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    site_url = pages[0]["url"] if pages else ""
+    return await _run_site_audit(site_url, pages)
+
+
+@app.get("/site-audit/robots")
+async def get_robots_audit(site_url: str = ""):
+    """Fetch and parse /robots.txt for the crawled (or provided) site."""
+    if not _SITE_AUDITOR_MODULE:
+        raise HTTPException(status_code=503, detail="site_auditor module not available")
+    if not site_url:
+        pages = [p for p in crawl_results if not p.get("_is_error")]
+        site_url = pages[0]["url"] if pages else ""
+    if not site_url:
+        raise HTTPException(status_code=400, detail="Provide site_url param or run /crawl first.")
+    return await _fetch_robots_txt(site_url)
+
+
+@app.get("/site-audit/mixed-content")
+def get_mixed_content_audit():
+    """Scan all crawled pages for mixed content (HTTP resources on HTTPS pages)."""
+    if not _SITE_AUDITOR_MODULE:
+        raise HTTPException(status_code=503, detail="site_auditor module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    return _scan_mixed_content_all(pages)
+
+
+@app.get("/site-audit/hsts")
+def get_hsts_audit():
+    """Check HSTS header on the first crawled page's response headers."""
+    if not _SITE_AUDITOR_MODULE:
+        raise HTTPException(status_code=503, detail="site_auditor module not available")
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+    # Use stored response_headers if available
+    headers = pages[0].get("response_headers", {}) or {}
+    return _check_hsts(headers)
 
 
 def _handle_sigterm(sig, frame):

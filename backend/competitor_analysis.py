@@ -93,6 +93,15 @@ from technical_seo import analyze_page as _tseo_page
 from issues import detect_issues
 from keyword_extractor import extract_keywords_corpus
 
+# ── Optional: intent classifier ──────────────────────────────────────────────
+try:
+    from intent_classifier import classify_intent as _classify_intent
+    _INTENT = True
+except ImportError:
+    _INTENT = False
+    def _classify_intent(kw: str) -> str:  # type: ignore
+        return "informational"
+
 # Serialise all competitor crawls so they don't clobber the shared crawl_results.
 # Each crawl: clear → run → snapshot → clear.
 # Concurrent dashboard crawls are blocked during this window (same as normal crawl).
@@ -616,9 +625,11 @@ def _word_count(page: dict) -> int:
     return len(body.split())
 
 
-def score_eeat(pages: list[dict], site_url: str) -> float:
+def score_eeat(pages: list[dict], site_url: str,
+               opr_score: float | None = None) -> float:
     """
-    E-E-A-T rule-based score (0–100) using 12 signals extracted from crawled pages.
+    E-E-A-T rule-based score (0–100) using 12 signals extracted from crawled pages
+    plus an optional OpenPageRank domain authority bonus.
 
     Signal                          Weight
     ─────────────────────────────────────
@@ -634,6 +645,7 @@ def score_eeat(pages: list[dict], site_url: str) -> float:
     Word count ≥ 1000 (avg)           +8
     Citation links to authorities     +7
     Has team / people page            +8
+    OpenPageRank domain authority    +up to +17 (bonus, if provided)
     ─────────────────────────────────────
     Total possible                   100
     """
@@ -709,12 +721,162 @@ def score_eeat(pages: list[dict], site_url: str) -> float:
     if avg_wc >= 1000:
         score += 8
 
+    # ── OpenPageRank domain authority bonus (0-10 scale → 0-17 bonus points) ─
+    # OPR score 0-10: 10 = highest authority, 0 = new/unknown domain.
+    # Maps linearly: score 10 → +17 pts, score 5 → +8.5 pts, score 0 → 0 pts.
+    # This ensures high-authority domains (Wikipedia, BBC) score near 100.
+    if opr_score is not None and 0 <= opr_score <= 10:
+        score += round(opr_score * 1.7, 1)
+
     return min(round(score, 1), 100.0)
 
 
 def _strip_path(url: str) -> str:
     p = urlparse(url)
     return f"{p.scheme}://{p.netloc}"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── OPENPR: Domain Authority via OpenPageRank API (free, 1000/day) ───────────
+# ════════════════════════════════════════════════════════════════════════════
+
+_OPR_API = "https://openpagerank.com/api/v1.0/getPageRank"
+_OPR_API_KEY = os.getenv("OPR_API_KEY", "")  # free key at openpagerank.com
+_OPR_TIMEOUT = 8  # seconds
+
+
+async def _fetch_open_pagerank(url: str) -> float | None:
+    """
+    Fetch domain authority score (0-10) from OpenPageRank API.
+
+    Free tier: 1000 requests/day. Requires OPR_API_KEY env var.
+    Returns None if key not set, API unavailable, or request fails.
+    Errors are silent — E-E-A-T scoring falls back to the 12-signal
+    rule-based score without the OPR bonus.
+    """
+    if not _OPR_API_KEY:
+        return None
+
+    domain = urlparse(url).netloc.lstrip("www.")
+    if not domain:
+        return None
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=_OPR_TIMEOUT)
+        headers = {
+            "API-OPR": _OPR_API_KEY,
+            "User-Agent": "CrawlIQ/1.0",
+        }
+        params = {"domains[]": domain}
+        async with aiohttp.ClientSession(timeout=timeout) as sess:
+            async with sess.get(_OPR_API, params=params, headers=headers,
+                                ssl=False) as resp:
+                if resp.status != 200:
+                    logger.debug("OPR API HTTP %d for %s", resp.status, domain)
+                    return None
+                data = await resp.json()
+                result = data.get("response", [{}])[0]
+                opr    = result.get("page_rank_decimal")
+                if opr is not None:
+                    logger.info("OPR score for %s: %.1f", domain, float(opr))
+                    return float(opr)
+    except Exception as exc:
+        logger.debug("OPR fetch failed for %s: %s", domain, exc)
+    return None
+
+
+async def fetch_opr_all(urls: list[str]) -> dict[str, float | None]:
+    """
+    Fetch OPR scores for all URLs with concurrency limit of 3.
+    Returns {url: opr_score_or_None}.
+    """
+    sem = asyncio.Semaphore(3)
+
+    async def _bounded(u: str) -> tuple[str, float | None]:
+        async with sem:
+            return u, await _fetch_open_pagerank(u)
+
+    tasks   = [_bounded(u) for u in urls]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    out: dict[str, float | None] = {}
+    for item in results:
+        if isinstance(item, tuple):
+            out[item[0]] = item[1]
+        else:
+            logger.debug("OPR gather error: %s", item)
+    return out
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── CANNIBALIZATION DETECTION ────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+def detect_cannibalization(pages: list[dict]) -> list[dict]:
+    """
+    Detect keyword cannibalization within a single site's crawled pages.
+
+    Cannibalization occurs when multiple pages on the same site compete
+    for the same keyword — Google splits ranking signal between them,
+    reducing the authority of each individual page.
+
+    Algorithm:
+      1. Build keyword → [page_urls] map across all crawled pages
+      2. Filter to keywords appearing in 2+ different pages
+      3. Score by: page_count (more competing pages = higher risk)
+      4. Return top 20 risks sorted by page_count descending
+
+    Returns:
+      [
+        {
+          "keyword":          "seo tools",
+          "competing_pages":  ["https://...", "https://..."],
+          "page_count":       2,
+          "risk_level":       "High" | "Medium",
+          "recommendation":   str,
+        },
+        ...
+      ]
+    """
+    from collections import defaultdict
+
+    kw_to_pages: dict[str, list[str]] = defaultdict(list)
+
+    for page in pages:
+        page_url = page.get("url", "")
+        if not page_url or page.get("_is_error"):
+            continue
+        # Collect keywords from all available keyword fields
+        for k in (page.get("keywords") or []):
+            kw = k if isinstance(k, str) else k.get("keyword", "")
+            if kw and len(kw) > 3:
+                kw_lower = kw.lower()
+                if page_url not in kw_to_pages[kw_lower]:
+                    kw_to_pages[kw_lower].append(page_url)
+
+    conflicts = []
+    for kw, page_urls in kw_to_pages.items():
+        if len(page_urls) < 2:
+            continue
+        count = len(page_urls)
+        risk  = "High" if count >= 4 else "Medium"
+        rec   = (
+            f"Consolidate '{kw}' content into one canonical page, "
+            "or use canonical tags to indicate the primary page. "
+            "Consider merging thin pages into a comprehensive hub."
+        )
+        conflicts.append({
+            "keyword":          kw,
+            "competing_pages":  page_urls[:6],  # cap display at 6
+            "page_count":       count,
+            "risk_level":       risk,
+            "recommendation":   rec,
+        })
+
+    # Sort: High risk first, then by page count descending
+    conflicts.sort(
+        key=lambda x: (x["risk_level"] != "High", -x["page_count"])
+    )
+    return conflicts[:20]
 
 
 def score_ctr_potential(pages: list[dict]) -> float:
@@ -757,13 +919,24 @@ def score_ctr_potential(pages: list[dict]) -> float:
         if any(w in tl.split() for w in _POWER_WORDS):
             s += 15
 
-        # Number in title
+        # Number in title (e.g. "7 Ways", "Top 10")
         if re.search(r"\d", title):
             s += 15
 
         # Year in title
         if this_year in title or str(int(this_year) - 1) in title:
             s += 10
+
+        # ── NEW: Bracket/parenthesis modifier (e.g. [Guide], (2026), [Free]) ──
+        # Brackets act as visual separators in SERPs — boost CTR by ~38%
+        if re.search(r"[\[\(].{1,20}[\]\)]", title):
+            s += 10
+
+        # ── NEW: Question-format title (e.g. "How to...", "What is...") ──
+        # Question titles often match PAA boxes and get more featured-snippet clicks
+        if (title.endswith("?") or
+                re.match(r"^(how|why|what|when|where|who|which|is|are|can)\b", tl)):
+            s += 8
 
         # Meta CTA
         ml = meta.lower()
@@ -949,10 +1122,11 @@ def compute_keyword_gap(
         coverage = len(domains) / max(len(comp_kw_map), 1)
         opp_score = min(coverage * 70 + length_bonus, 100)
         gaps.append({
-            "keyword":          kw,
-            "found_in":         domains,
-            "competitor_count": len(domains),
+            "keyword":           kw,
+            "found_in":          domains,
+            "competitor_count":  len(domains),
             "opportunity_score": round(opp_score, 1),
+            "intent":            _classify_intent(kw),   # informational/commercial/transactional/navigational
         })
 
     # Sort: most competitors first, then by opportunity score
@@ -1376,6 +1550,12 @@ async def run_competitor_analysis(
         for site_url, home in measure_urls.items():
             cwv_by_site[site_url] = cwv_map.get(home, {})
 
+        # ── Step 3b: OpenPageRank domain authority (free, 1000/day) ──────
+        # Runs concurrently with the PSI step. Falls back gracefully if
+        # OPR_API_KEY is not set — E-E-A-T scoring uses the 12-signal
+        # rule-based score alone in that case.
+        opr_map = await fetch_opr_all(all_urls)
+
         # ── Step 4: Score all dimensions per site ─────────────────────────
         # Strategy:
         #   crawl succeeded → score from crawled pages (full accuracy)
@@ -1386,6 +1566,7 @@ async def run_competitor_analysis(
         for url in all_urls:
             pages = pages_map[url]
             cwv   = cwv_by_site.get(url, {})
+            opr   = opr_map.get(url)    # float 0-10 or None
             blocked = url in crawl_errors
 
             if not blocked:
@@ -1394,7 +1575,7 @@ async def run_competitor_analysis(
                     "technical":  score_technical(pages),
                     "on_page":    score_on_page(pages),
                     "content":    score_content(pages),
-                    "eeat":       score_eeat(pages, url),
+                    "eeat":       score_eeat(pages, url, opr_score=opr),
                     "ctr":        score_ctr_potential(pages),
                     "keywords":   score_keywords(pages),
                     "page_speed": score_page_speed(cwv),
@@ -1442,6 +1623,10 @@ async def run_competitor_analysis(
             site_scores[target_url],
             {u: site_scores[u] for u in competitor_urls},
         )
+
+        # ── Step 7b: Cannibalization detection (target site only) ─────────
+        target_pages_all = pages_map.get(target_url, [])
+        cannibalization  = detect_cannibalization(target_pages_all)
 
         # ── Step 8: Build per-site page summaries ─────────────────────────
         def _site_summary(url: str) -> dict:
@@ -1495,6 +1680,7 @@ async def run_competitor_analysis(
             "keyword_gaps":      keyword_gaps,
             "similarities":      similarities,
             "actions":           actions,
+            "cannibalization":   cannibalization,  # NEW: keyword cannibalization risks
             "crawl_errors":      crawl_errors,
             "phase":             1,
         }

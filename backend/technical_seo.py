@@ -29,6 +29,14 @@ import re
 from collections import Counter
 from urllib.parse import urlparse
 
+# ── Optional: textstat for Flesch-Kincaid readability ────────────────────────
+try:
+    import textstat as _textstat
+    _TEXTSTAT = True
+except ImportError:
+    _textstat = None  # type: ignore
+    _TEXTSTAT = False
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 
@@ -175,22 +183,33 @@ def analyze_page(page: dict) -> dict:
     og_desc      = (page.get("og_description") or "").strip()
     body_text    = (page.get("body_text") or "")
     img_alts     = page.get("img_alts") or []
+    img_srcs     = page.get("img_srcs") or []
     int_links    = int(page.get("internal_links_count") or 0)
     is_error     = bool(page.get("_is_error"))
+    last_modified = (page.get("last_modified") or "")
+    viewport     = (page.get("viewport") or "")
+    schema_types = page.get("schema_types") or []
     indexability = assess_indexability(url, status_code, canonical, is_error)
 
     # ── Component audits ──────────────────────────────────────────────────────
-    title_audit     = _audit_title(title)
-    meta_audit      = _audit_meta(meta)
-    canonical_audit = _audit_canonical(canonical, url)
-    heading_audit   = _audit_headings(h1s, h2s, h3s)
-    og_audit        = _audit_og(og_title, og_desc)
-    content_audit   = _audit_content(body_text, int_links)
-    url_audit       = _audit_url(url)
-    image_audit     = _audit_images(img_alts)
-    status_audit    = _audit_status(status_code, is_error)
+    title_audit       = _audit_title(title)
+    meta_audit        = _audit_meta(meta)
+    canonical_audit   = _audit_canonical(canonical, url)
+    heading_audit     = _audit_headings(h1s, h2s, h3s)
+    og_audit          = _audit_og(og_title, og_desc)
+    content_audit     = _audit_content(body_text, int_links)
+    url_audit         = _audit_url(url)
+    image_audit       = _audit_images(img_alts)
+    image_fmt_audit   = _audit_image_formats(img_srcs)
+    status_audit      = _audit_status(status_code, is_error)
+    # ── NEW supplementary audits (informational — do not change existing score) ──
+    readability_audit = _audit_readability(body_text)
+    freshness_audit   = _audit_freshness(last_modified)
+    viewport_audit    = _audit_viewport(viewport)
+    schema_type_audit = _audit_schema_types(schema_types)
 
     # ── Compound technical score (0 – 100) ────────────────────────────────────
+    # Score uses only the original 9 components — new audits are additive/informational.
     score = _compute_score(
         title_audit, meta_audit, canonical_audit,
         heading_audit, og_audit, content_audit,
@@ -207,7 +226,9 @@ def analyze_page(page: dict) -> dict:
         + content_audit["issues"]
         + url_audit["issues"]
         + image_audit["issues"]
+        + image_fmt_audit["issues"]
         + status_audit["issues"]
+        + viewport_audit["issues"]
     )
 
     return {
@@ -219,7 +240,7 @@ def analyze_page(page: dict) -> dict:
         "status_code":    status_code,
         "is_error":       is_error,
         "indexability":   indexability,
-        # component audits
+        # ── original component audits ─────────────────────────────────────────
         "title":          title_audit,
         "meta":           meta_audit,
         "canonical":      canonical_audit,
@@ -229,6 +250,12 @@ def analyze_page(page: dict) -> dict:
         "url_analysis":   url_audit,
         "images":         image_audit,
         "status":         status_audit,
+        # ── NEW supplementary audits ──────────────────────────────────────────
+        "readability":    readability_audit,   # Flesch-Kincaid / sentence-length proxy
+        "freshness":      freshness_audit,     # Last-Modified age signal
+        "viewport":       viewport_audit,      # mobile viewport presence
+        "schema_types":   schema_type_audit,   # JSON-LD @type detection
+        "image_formats":  image_fmt_audit,     # WebP/AVIF vs legacy format ratio
     }
 
 
@@ -652,6 +679,351 @@ def _audit_status(status_code, is_error: bool) -> dict:
         "code":   code,
         "score":  score,
         "issues": issues,
+    }
+
+
+# ── NEW supplementary audit functions ────────────────────────────────────────
+# These are purely informational — they extend the output dict but do NOT
+# change the existing weighted score. Existing API consumers are unaffected.
+
+def _audit_readability(body_text: str) -> dict:
+    """
+    Measure content readability.
+
+    Primary: Flesch Reading Ease (textstat library, 0-100, higher=easier).
+      90-100 = Very Easy (5th grade)
+      60-70  = Standard (8th/9th grade — target for most web content)
+      30-50  = Difficult (college level)
+      0-30   = Very Confusing (professional/academic)
+
+    Fallback (if textstat not installed): average sentence length heuristic.
+      ≤18 words/sentence = Good (readable)
+      ≤25 words/sentence = Fair
+      >25 words/sentence = Difficult
+    """
+    if not body_text or len(body_text.split()) < 30:
+        return {
+            "method":       "insufficient_content",
+            "score":        None,
+            "label":        "N/A",
+            "grade_level":  None,
+            "issues":       [],
+        }
+
+    if _TEXTSTAT:
+        try:
+            fk_ease        = round(_textstat.flesch_reading_ease(body_text), 1)
+            fk_grade       = round(_textstat.flesch_kincaid_grade(body_text), 1)
+            gunning        = round(_textstat.gunning_fog(body_text), 1)
+            if fk_ease >= 70:
+                label = "Easy"
+            elif fk_ease >= 50:
+                label = "Standard"
+            elif fk_ease >= 30:
+                label = "Difficult"
+            else:
+                label = "Very Difficult"
+            issues = []
+            if fk_ease < 40:
+                issues.append(
+                    f"Low readability (Flesch {fk_ease}) — simplify sentences "
+                    f"and use shorter words"
+                )
+            return {
+                "method":        "flesch_kincaid",
+                "score":         fk_ease,
+                "label":         label,
+                "grade_level":   fk_grade,
+                "gunning_fog":   gunning,
+                "issues":        issues,
+            }
+        except Exception:
+            pass  # fall through to heuristic
+
+    # Fallback heuristic — average sentence length
+    sentences = [s.strip() for s in re.split(r"[.!?]", body_text) if len(s.strip()) > 10]
+    if not sentences:
+        return {"method": "insufficient_content", "score": None,
+                "label": "N/A", "grade_level": None, "issues": []}
+
+    avg_len = sum(len(s.split()) for s in sentences) / len(sentences)
+    avg_len = round(avg_len, 1)
+    if avg_len <= 18:
+        label, score = "Easy", 75
+    elif avg_len <= 25:
+        label, score = "Standard", 55
+    else:
+        label, score = "Difficult", 30
+
+    issues = []
+    if avg_len > 25:
+        issues.append(
+            f"High avg sentence length ({avg_len} words) — aim for ≤18 words/sentence"
+        )
+    return {
+        "method":       "sentence_length_heuristic",
+        "score":        score,
+        "label":        label,
+        "avg_sentence_len": avg_len,
+        "grade_level":  None,
+        "issues":       issues,
+    }
+
+
+def _audit_freshness(last_modified: str) -> dict:
+    """
+    Evaluate content freshness from the HTTP Last-Modified header.
+
+    Google uses freshness as a ranking signal for time-sensitive queries.
+    Pages not updated in 12+ months may lose SERP positions to fresher content.
+    """
+    if not last_modified:
+        return {
+            "last_modified": None,
+            "age_days":      None,
+            "status":        "unknown",
+            "label":         "No Last-Modified header",
+            "issues":        ["Last-Modified header missing — server should send this"],
+        }
+
+    import email.utils
+    import datetime
+
+    try:
+        # HTTP-date format: "Wed, 21 Oct 2015 07:28:00 GMT"
+        parsed_time = email.utils.parsedate_to_datetime(last_modified)
+        now         = datetime.datetime.now(datetime.timezone.utc)
+        age_days    = (now - parsed_time).days
+
+        if age_days < 30:
+            status, label = "fresh",   "Fresh (< 30 days)"
+        elif age_days < 180:
+            status, label = "recent",  f"Recent ({age_days} days old)"
+        elif age_days < 365:
+            status, label = "ageing",  f"Ageing ({age_days} days old)"
+        else:
+            status, label = "stale",   f"Stale ({age_days // 30} months old)"
+
+        issues = []
+        if age_days > 365:
+            issues.append(
+                f"Content last modified {age_days // 30} months ago — "
+                "update or add new content to signal freshness"
+            )
+        elif age_days > 180:
+            issues.append(
+                f"Content is {age_days} days old — consider a content refresh"
+            )
+
+        return {
+            "last_modified": last_modified,
+            "age_days":      age_days,
+            "status":        status,
+            "label":         label,
+            "issues":        issues,
+        }
+    except Exception:
+        return {
+            "last_modified": last_modified,
+            "age_days":      None,
+            "status":        "parse_error",
+            "label":         "Could not parse date",
+            "issues":        [],
+        }
+
+
+def _audit_viewport(viewport: str) -> dict:
+    """
+    Check for mobile-viewport meta tag — required for mobile-friendliness.
+
+    Google uses mobile-first indexing. Pages missing this tag are
+    treated as desktop-only and may rank lower on mobile searches.
+
+    Best practice: content="width=device-width, initial-scale=1"
+    """
+    issues = []
+    if not viewport:
+        issues.append(
+            'Mobile viewport meta tag missing — add '
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        )
+        return {
+            "present":       False,
+            "value":         "",
+            "has_width":     False,
+            "has_scale":     False,
+            "status":        "missing",
+            "issues":        issues,
+        }
+
+    vp_lower    = viewport.lower()
+    has_width   = "width=device-width" in vp_lower
+    has_scale   = "initial-scale=1" in vp_lower
+    has_shrink  = "user-scalable=no" in vp_lower
+
+    if not has_width:
+        issues.append(
+            'Viewport missing "width=device-width" — may not render correctly on mobile'
+        )
+    if has_shrink:
+        issues.append(
+            '"user-scalable=no" in viewport disables zoom — accessibility issue'
+        )
+
+    status = "ok" if has_width and not issues else "warning" if viewport else "missing"
+    return {
+        "present":      True,
+        "value":        viewport,
+        "has_width":    has_width,
+        "has_scale":    has_scale,
+        "user_scalable_disabled": has_shrink,
+        "status":       status,
+        "issues":       issues,
+    }
+
+
+def _audit_schema_types(schema_types: list) -> dict:
+    """
+    Detect and evaluate JSON-LD schema markup types on the page.
+
+    Rich result eligible types (direct SERP feature triggers):
+      Article, NewsArticle, BlogPosting → article rich result
+      FAQPage                           → FAQ accordion in SERP
+      HowTo                             → HowTo steps in SERP
+      Product + AggregateRating         → star ratings + price
+      BreadcrumbList                    → breadcrumb path in SERP
+      Event                             → event rich result
+      Recipe                            → recipe rich result
+      Review, AggregateRating           → star ratings
+      Organization, LocalBusiness       → knowledge panel signals
+    """
+    _RICH_RESULT_TYPES = {
+        "article", "newsarticle", "blogposting",
+        "faqpage",
+        "howto",
+        "product",
+        "breadcrumblist",
+        "event",
+        "recipe",
+        "review", "aggregaterating",
+        "organization", "localbusiness",
+        "person",
+        "video", "videoobject",
+    }
+    _RICH_RESULT_LABELS = {
+        "faqpage":        "FAQ accordion",
+        "howto":          "HowTo steps",
+        "product":        "Product rich result",
+        "breadcrumblist": "Breadcrumb path",
+        "event":          "Event rich result",
+        "recipe":         "Recipe rich result",
+        "article":        "Article rich result",
+        "newsarticle":    "News Article",
+        "blogposting":    "Blog Article",
+        "aggregaterating":"Star ratings",
+        "organization":   "Organization KP",
+        "localbusiness":  "Local Business",
+        "video":          "Video result",
+        "videoobject":    "Video result",
+    }
+
+    if not schema_types:
+        return {
+            "present":         False,
+            "types":           [],
+            "rich_results":    [],
+            "missing_types":   ["FAQPage", "BreadcrumbList", "Article"],
+            "status":          "missing",
+            "issues":          ["No JSON-LD structured data — add schema markup for rich results"],
+        }
+
+    types_lower     = [t.lower() for t in schema_types]
+    rich_eligible   = [
+        _RICH_RESULT_LABELS.get(t, t.title())
+        for t in types_lower
+        if t in _RICH_RESULT_TYPES
+    ]
+    suggested = []
+    if "faqpage" not in types_lower:
+        suggested.append("FAQPage")
+    if "breadcrumblist" not in types_lower:
+        suggested.append("BreadcrumbList")
+    if not any(t in types_lower for t in ("article", "newsarticle", "blogposting", "product")):
+        suggested.append("Article or Product")
+
+    issues = []
+    if not rich_eligible:
+        issues.append(
+            f"Schema types {schema_types} not rich-result eligible — "
+            "add FAQPage, HowTo, or Article markup"
+        )
+
+    return {
+        "present":       True,
+        "types":         schema_types,
+        "rich_results":  rich_eligible,
+        "suggested":     suggested[:3],
+        "status":        "ok" if rich_eligible else "non_eligible",
+        "issues":        issues,
+    }
+
+
+def _audit_image_formats(img_srcs: list) -> dict:
+    """
+    Check image format distribution — next-gen formats (WebP, AVIF) vs legacy.
+
+    Next-gen formats (WebP, AVIF) are 25-50% smaller than JPEG/PNG at same
+    quality. Google PageSpeed Insights flags legacy images as an opportunity.
+    """
+    issues = []
+    if not img_srcs:
+        return {
+            "total":          0,
+            "next_gen":       0,
+            "legacy":         0,
+            "next_gen_pct":   None,
+            "status":         "no_images",
+            "issues":         [],
+        }
+
+    next_gen_exts = {".webp", ".avif"}
+    legacy_exts   = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff"}
+
+    next_gen_count = 0
+    legacy_count   = 0
+    for src in img_srcs:
+        src_lower = src.lower().split("?")[0]   # strip query strings
+        ext = "." + src_lower.rsplit(".", 1)[-1] if "." in src_lower else ""
+        if ext in next_gen_exts:
+            next_gen_count += 1
+        elif ext in legacy_exts:
+            legacy_count += 1
+
+    total = next_gen_count + legacy_count
+    pct   = round((next_gen_count / total) * 100, 1) if total > 0 else 0.0
+
+    if legacy_count > 0 and next_gen_count == 0:
+        status = "legacy_only"
+        issues.append(
+            f"All {legacy_count} images use legacy formats (JPG/PNG) — "
+            "convert to WebP or AVIF for 25-50% smaller file sizes"
+        )
+    elif legacy_count > next_gen_count:
+        status = "mostly_legacy"
+        issues.append(
+            f"{legacy_count}/{total} images use legacy formats — "
+            "prioritise converting to WebP"
+        )
+    else:
+        status = "ok"
+
+    return {
+        "total":        total,
+        "next_gen":     next_gen_count,
+        "legacy":       legacy_count,
+        "next_gen_pct": pct,
+        "status":       status,
+        "issues":       issues,
     }
 
 

@@ -36,6 +36,7 @@ BUG 5 — NO www/non-www NORMALISATION
 
 import asyncio
 import logging
+import re
 import socket
 import ssl as _ssl
 import time
@@ -385,7 +386,8 @@ class SEOCrawler:
                                 html = await resp.text(errors="replace")
                                 result = _parse(
                                     self.root_url, resp.status, html,
-                                    self.domain, self._bare_domain
+                                    self.domain, self._bare_domain,
+                                    response_headers=dict(resp.headers),
                                 )
                                 links = result.pop("_internal_links", [])
                                 result["internal_links_count"] = len(links)
@@ -448,7 +450,8 @@ class SEOCrawler:
                         if "text/html" in ctype:
                             result = _parse(
                                 self.root_url, 200, cffi_resp.text,
-                                self.domain, self._bare_domain
+                                self.domain, self._bare_domain,
+                                response_headers=dict(cffi_resp.headers),
                             )
                             links = result.pop("_internal_links", [])
                             result["internal_links_count"] = len(links)
@@ -530,7 +533,8 @@ class SEOCrawler:
                         if cffi_resp.status_code == 200:
                             logger.info("cffi-mode OK %s", url)
                             return _parse(url, 200, cffi_resp.text,
-                                          self.domain, self._bare_domain)
+                                          self.domain, self._bare_domain,
+                                          response_headers=dict(cffi_resp.headers))
                         logger.warning("cffi-mode got HTTP %d for %s",
                                        cffi_resp.status_code, url)
                         crawl_status["errors"] += 1
@@ -616,7 +620,9 @@ class SEOCrawler:
 
                             html = await resp.text(errors="replace")
                             return _parse(url, status, html,
-                                          self.domain, self._bare_domain)
+                                          self.domain, self._bare_domain,
+                                          response_headers=dict(resp.headers),
+                                          redirect_hops=len(resp.history))
 
                 except asyncio.TimeoutError:
                     # Separate TimeoutError catch here for clarity
@@ -709,7 +715,8 @@ class SEOCrawler:
                             crawl_status["ssl_fallbacks"] = crawl_status.get("ssl_fallbacks", 0) + 1
                             self._use_cffi = True   # all future BFS fetches skip aiohttp
                             return _parse(url, 200, cffi_resp.text,
-                                          self.domain, self._bare_domain)
+                                          self.domain, self._bare_domain,
+                                          response_headers=dict(cffi_resp.headers))
                         logger.warning("cffi bypass got HTTP %d for %s",
                                        cffi_resp.status_code, url)
                         last_error = f"cffi HTTP {cffi_resp.status_code}"
@@ -728,7 +735,9 @@ class SEOCrawler:
 # ── HTML parsing ──────────────────────────────────────────────────────────────
 
 def _parse(url: str, status: int, html: str,
-           domain: str, bare_domain: str = "") -> dict:
+           domain: str, bare_domain: str = "",
+           response_headers: dict | None = None,
+           redirect_hops: int = 0) -> dict:
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception:
@@ -752,6 +761,61 @@ def _parse(url: str, status: int, html: str,
         if img.get("alt", "").strip()
     ][:20]   # cap at 20 to keep payload manageable
 
+    # ── NEW: Last-Modified header (content freshness signal) ─────────────────
+    _hdrs = response_headers or {}
+    last_modified = (
+        _hdrs.get("Last-Modified") or
+        _hdrs.get("last-modified") or
+        ""
+    )
+
+    # ── NEW: Viewport meta tag (mobile-friendliness signal) ──────────────────
+    _vp_tag = soup.find("meta", attrs={"name": lambda n: n and n.lower() == "viewport"})
+    viewport = (_vp_tag.get("content", "").strip() if _vp_tag else "")
+
+    # ── NEW: Image src list (format detection: WebP/AVIF vs legacy) ──────────
+    img_srcs = [
+        img.get("src", "").strip()
+        for img in soup.find_all("img")
+        if img.get("src", "").strip()
+    ][:20]
+
+    # ── NEW: Schema @type list from JSON-LD (Article, FAQ, HowTo, Product…) ──
+    import json as _json
+    schema_types: list[str] = []
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            obj = _json.loads(script.string or "{}")
+            t = obj.get("@type")
+            if isinstance(t, str):
+                schema_types.append(t)
+            elif isinstance(t, list):
+                schema_types.extend(str(x) for x in t if x)
+        except Exception:
+            pass
+
+    # ── NEW: Mixed content detection (HTTP resources on HTTPS page) ──────────
+    # Scanned here — raw HTML is available; avoids storing full HTML in memory.
+    mixed_resources: list[str] = []
+    if url.startswith("https://"):
+        _mc_seen: set[str] = set()
+        for _m in re.findall(
+            r'(?:src|href|action|data|poster)\s*=\s*[\'"]http://[^\'"]{4,}[\'"]',
+            html, re.I
+        ):
+            _hit = re.search(r"http://[^'\"]+", _m)
+            if _hit:
+                _mc_seen.add(_hit.group(0))
+        mixed_resources = sorted(_mc_seen)[:20]
+
+    # ── Filtered response headers (keep only SEO-relevant security/caching) ──
+    _KEEP_HDRS = frozenset([
+        "strict-transport-security", "content-security-policy",
+        "x-frame-options", "x-content-type-options", "x-xss-protection",
+        "cache-control", "last-modified", "etag", "server", "content-type",
+    ])
+    _stored_headers = {k: v for k, v in (_hdrs or {}).items() if k.lower() in _KEEP_HDRS}
+
     # Mark 4xx/5xx pages as errors — they contain no crawlable content
     # (403 = Cloudflare challenge, 404 = dead page, 5xx = server error).
     # These still appear in the results table but don't consume crawl quota
@@ -764,6 +828,16 @@ def _parse(url: str, status: int, html: str,
         "canonical": canon, "h1": h1s, "h2": h2s, "h3": h3s,
         "og_title": og_title, "og_description": og_desc, "body_text": body_txt,
         "img_alts": img_alts,   # image alt texts for SEO audit
+        # ── NEW fields (additive — no existing field changed) ─────────────────
+        "last_modified":    last_modified,    # HTTP Last-Modified header value
+        "viewport":         viewport,         # <meta name="viewport"> content
+        "img_srcs":         img_srcs,         # image src list for format detection
+        "schema_types":     schema_types,     # JSON-LD @type values on this page
+        "redirect_hops":    redirect_hops,    # number of redirects followed to reach this page
+        "response_headers": _stored_headers,  # SEO-relevant HTTP response headers
+        "mixed_resources":  mixed_resources,  # HTTP resources on HTTPS page (mixed content)
+        "links":            links if not is_error_status else [],  # internal link URLs for link graph
+        # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": links if not is_error_status else [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
         "keywords_scored": [],   # filled by keyword_scorer.score_keywords()
@@ -827,10 +901,15 @@ def _minimal_record(url: str, status, note: str = "") -> dict:
         "title": note, "meta_description": "", "meta_keywords": "",
         "canonical": "", "h1": [], "h2": [], "h3": [],
         "og_title": "", "og_description": "", "body_text": "",
+        "img_alts": [],
+        # ── new fields (must match _parse() return keys) ──────────────────────
+        "last_modified": "", "viewport": "", "img_srcs": [],
+        "schema_types": [], "redirect_hops": 0, "response_headers": {},
+        "mixed_resources": [], "links": [],
+        # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
         "keywords_scored": [], "competitor_gaps": None, "structured": None,
-        "img_alts": [],
         "competition": "Medium", "priority": "", "gemini_fields": [],
         "_is_error": True,   # flag — skip for Gemini, skip for keywords
     }
