@@ -23,8 +23,29 @@ import re
 import logging
 from collections import Counter
 from functools import lru_cache
+from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Lazy import — avoids circular dependency at module load time
+def _expected_ctr(position: int, intent: str = "informational") -> float:
+    """Thin wrapper so serp_engine is imported only when needed."""
+    try:
+        from serp_engine import expected_ctr
+        return expected_ctr(position, intent)
+    except Exception:
+        return 0.0
+
+def _ctr_tier(position: int) -> str:
+    """Return tier label from serp_engine CTR table."""
+    try:
+        from serp_engine import _CTR_TABLE
+        for row in _CTR_TABLE:
+            if row["position"] == position:
+                return row["tier"]
+    except Exception:
+        pass
+    return "below" if position > 10 else "bronze"
 
 # BUG-N01: pre-compiled word-boundary pattern used by _in_text().
 # Python's `kw in text` is substring matching — "art" matches "startup".
@@ -140,6 +161,7 @@ def score_keywords(
     page: dict,
     suggest_hits: set[str] | None = None,
     top_n: int = 10,
+    serp_positions: dict[str, int] | None = None,
 ) -> list[dict]:
     """
     Score each keyword and assign importance (HIGH / MEDIUM / LOW).
@@ -156,13 +178,18 @@ def score_keywords(
       < 3 → LOW
 
     Args:
-        page:         page dict from crawl_results
-        suggest_hits: set of strings returned by Google Suggest for this page.
-                      Pass None (or omit) if Suggest was not run.
-        top_n:        maximum keywords to return
+        page:           page dict from crawl_results
+        suggest_hits:   set of strings returned by Google Suggest for this page.
+                        Pass None (or omit) if Suggest was not run.
+        top_n:          maximum keywords to return
+        serp_positions: optional dict mapping keyword → current SERP position
+                        (int, 1-based). When provided, each keyword gets
+                        ``expected_ctr`` (0.0–1.0) and ``ctr_tier`` fields
+                        using the Sistrix 2024 benchmark curve.
 
     Returns:
-        [{"keyword": "coffee mug", "freq": 12, "importance": "HIGH"}, ...]
+        [{"keyword": "coffee mug", "freq": 12, "importance": "HIGH",
+          "serp_position": 5, "expected_ctr": 0.072, "ctr_tier": "silver"}, ...]
     """
     if page.get("_is_error") or not page.get("body_text"):
         return []
@@ -171,7 +198,10 @@ def score_keywords(
     if not kw_freq_list:
         return []
 
-    suggest_set = suggest_hits or set()
+    suggest_set   = suggest_hits or set()
+    positions_map = serp_positions or {}
+    # Detect page-level intent so CTR multiplier is applied consistently
+    page_intent   = page.get("intent", "informational") or "informational"
 
     # Precompute normalised field texts for substring matching
     title_norm = _norm(page.get("title", "") or "")
@@ -210,11 +240,23 @@ def score_keywords(
         else:
             importance = "LOW"
 
+        # CTR enrichment — only when SERP position is known for this keyword
+        position = positions_map.get(kw)
+        if position:
+            ctr_val  = _expected_ctr(position, page_intent)
+            ctr_tier = _ctr_tier(position)
+        else:
+            ctr_val  = None
+            ctr_tier = None
+
         scored.append({
-            "keyword":    kw,
-            "freq":       freq,
-            "importance": importance,
-            "score":      pts,
+            "keyword":      kw,
+            "freq":         freq,
+            "importance":   importance,
+            "score":        pts,
+            "serp_position": position,
+            "expected_ctr":  ctr_val,
+            "ctr_tier":      ctr_tier,
         })
 
     # Sort: HIGH first, then MEDIUM, then LOW; within tier by freq desc

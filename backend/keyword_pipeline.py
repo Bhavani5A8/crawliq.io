@@ -297,10 +297,17 @@ async def expand_keywords(
     # Step D: competition estimation (instant, no network)
     page["competition"] = estimate_competition(page["keywords"])
 
-    # Step E: keyword scoring (deterministic — title/H1/H2/freq/suggest)
-    # Build suggest_hits set from suggestions we already fetched
-    suggest_set = set(suggest_kws) if suggest_kws else set()
-    page["keywords_scored"] = score_keywords(page, suggest_hits=suggest_set)
+    # Step E: keyword scoring (deterministic — title/H1/H2/freq/suggest + CTR)
+    # Build suggest_hits set from suggestions we already fetched.
+    # Pass serp_positions if previously stored by a /serp/bulk-position call
+    # so each keyword gets expected_ctr and ctr_tier from the Sistrix 2024 curve.
+    suggest_set    = set(suggest_kws) if suggest_kws else set()
+    serp_positions = page.get("serp_positions") or {}
+    page["keywords_scored"] = score_keywords(
+        page,
+        suggest_hits=suggest_set,
+        serp_positions=serp_positions,
+    )
 
     # Step F: structured output (used by Gemini prompt + export)
     page["structured"] = build_structured_page(

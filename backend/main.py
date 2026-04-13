@@ -2753,6 +2753,34 @@ async def bulk_serp_position(request: BulkSerpRequest):
         logger.error("Bulk SERP check failed: %s", exc)
         raise HTTPException(status_code=500, detail="Bulk SERP check failed — see server logs.")
 
+    # Store positions on matching crawl pages so keyword scorer can emit
+    # expected_ctr / ctr_tier on the next /pages or /ctr-opportunity call.
+    pos_map: dict[str, int] = {
+        r["keyword"]: r["position"]
+        for r in results
+        if r.get("position") is not None
+    }
+    if pos_map:
+        norm_domain = request.domain.lower().rstrip("/").removeprefix("https://").removeprefix("http://").removeprefix("www.")
+        for page in crawl_results:
+            page_host = (page.get("url") or "").lower()
+            if norm_domain in page_host:
+                existing = page.get("serp_positions") or {}
+                existing.update(pos_map)
+                page["serp_positions"] = existing
+                # Re-score keywords with new CTR data
+                if page.get("keywords_scored") and not page.get("_is_error"):
+                    try:
+                        from keyword_scorer import score_keywords as _score_kw
+                        suggest_set = set(page.get("_suggest_cache") or [])
+                        page["keywords_scored"] = _score_kw(
+                            page,
+                            suggest_hits=suggest_set or None,
+                            serp_positions=existing,
+                        )
+                    except Exception as _exc:
+                        logger.warning("CTR re-score failed for %s: %s", page.get("url"), _exc)
+
     return {"domain": request.domain, "total": len(results), "results": results}
 
 
@@ -2779,6 +2807,75 @@ async def keyword_difficulty(request: DifficultyRequest):
         raise HTTPException(status_code=500, detail="Difficulty check failed — see server logs.")
 
     return {"total": len(results), "results": results}
+
+
+# ── CTR Opportunity endpoint ──────────────────────────────────────────────────
+
+class CtrOpportunityRequest(BaseModel):
+    """
+    Calculate CTR uplift opportunities for a set of keyword→position pairs.
+
+    ``positions`` maps each keyword to its current SERP rank (1-based).
+    ``target_position`` is the rank you want to move each keyword to
+    (default: 3, i.e. "what if I reach position 3?").
+    ``intent`` is applied uniformly; pass "commercial" or "transactional"
+    if the keyword set is clearly buy-intent.
+    """
+    positions:       dict[str, int] = Field(..., description="keyword → current position")
+    target_position: int            = Field(default=3, ge=1, le=20)
+    intent:          str            = Field(default="informational")
+
+
+@app.post("/ctr-opportunity")
+def ctr_opportunity(request: CtrOpportunityRequest):
+    """
+    Return CTR uplift analysis for each keyword given its current SERP position.
+
+    Uses the Sistrix 2024 CTR benchmark curve built into serp_engine.py.
+    No network calls — purely deterministic.
+
+    Response:
+      {
+        "target_position": 3,
+        "intent":          "informational",
+        "results": [
+          {
+            "keyword":          "seo audit",
+            "current_position": 8,
+            "current_ctr":      0.032,
+            "target_ctr":       0.11,
+            "uplift_abs":       0.078,   # absolute CTR gain
+            "uplift_rel":       3.4,     # relative multiplier
+            "tier_change":      "bronze → gold",
+          },
+          ...
+        ]
+      }
+    """
+    from serp_engine import ctr_opportunity_score as _ctr_opportunity_score
+
+    target  = request.target_position
+    intent  = request.intent
+    results = []
+
+    for keyword, current_pos in request.positions.items():
+        if not isinstance(current_pos, int) or current_pos < 1:
+            continue
+        opp = _ctr_opportunity_score(current_pos, target, intent)
+        results.append({
+            "keyword": keyword,
+            **opp,
+        })
+
+    # Sort by absolute CTR uplift descending (biggest wins first)
+    results.sort(key=lambda x: x.get("uplift_abs", 0), reverse=True)
+
+    return {
+        "target_position": target,
+        "intent":          intent,
+        "total":           len(results),
+        "results":         results,
+    }
 
 
 def _handle_sigterm(sig, frame):
