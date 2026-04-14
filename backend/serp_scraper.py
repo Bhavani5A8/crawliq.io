@@ -83,13 +83,40 @@ _HEADERS = {
     "Accept-Encoding": "gzip, deflate",
 }
 
-# Regex patterns to extract result URLs from Google's HTML.
-# Google wraps organic result URLs in <a href="/url?q=..."> or <cite>.
-_RE_RESULT_URL = re.compile(
-    r'href="/url\?q=(https?://[^&"]+)&',
-    re.IGNORECASE,
-)
+# ── Regex patterns — multiple strategies for different Google HTML versions ───
+# Google changes its HTML structure frequently; we try all patterns and merge.
+
+# Pattern 1 (legacy): href="/url?q=https://..." redirect links
+_RE_REDIRECT   = re.compile(r'href="/url\?q=(https?://[^&"]+)&', re.IGNORECASE)
+
+# Pattern 2 (2022+): direct href="https://..." on result anchor tags
+# Google moved away from /url?q= redirects for most organic results
+_RE_DIRECT     = re.compile(r'href="(https?://(?!(?:www\.)?google\.)[^"]+)"', re.IGNORECASE)
+
+# Pattern 3: <cite> tags that show the URL under each result
 _RE_CITE       = re.compile(r'<cite[^>]*>(https?://[^<\s]+)</cite>', re.IGNORECASE)
+
+# Pattern 4 (2024+): data-url attribute used by some Google SERP elements
+_RE_DATA_URL   = re.compile(r'data-url="(https?://[^"]+)"', re.IGNORECASE)
+
+# Block / CAPTCHA detection markers
+_BLOCKED_MARKERS = (
+    "detected unusual traffic",
+    "our systems have detected",
+    "recaptcha",
+    "/sorry/",
+    "g-recaptcha",
+    "captcha",
+    "automated queries",
+    "not a robot",
+    "sorry, we can",
+)
+
+# Known non-result Google domains to filter out
+_GOOGLE_HOSTS = (
+    "google.", "googleusercontent.", "googleapis.", "gstatic.",
+    "youtube.", "blogger.", "doubleclick.", "googlevideo.",
+)
 
 
 # ── Domain normalisation ───────────────────────────────────────────────────────
@@ -118,6 +145,9 @@ def _domain_in_url(target_domain: str, result_url: str) -> bool:
 
 # ── SERP scrape ────────────────────────────────────────────────────────────────
 
+_BLOCKED_SENTINEL = "__BLOCKED__"   # returned when Google serves a CAPTCHA page
+
+
 async def _fetch_serp_html(
     session: aiohttp.ClientSession,
     keyword: str,
@@ -126,7 +156,10 @@ async def _fetch_serp_html(
 ) -> str:
     """
     Fetch Google Search HTML for `keyword`.
-    Returns raw HTML string, or "" on error.
+    Returns:
+      - raw HTML string on success
+      - _BLOCKED_SENTINEL if Google served a CAPTCHA / block page
+      - "" on network error or non-200 status
     """
     params = {
         "q":    keyword,
@@ -146,40 +179,67 @@ async def _fetch_serp_html(
             ssl=False,
             allow_redirects=True,
         ) as resp:
+            if resp.status == 429 or resp.status == 503:
+                logger.warning("SERP blocked (HTTP %d) for %r", resp.status, keyword)
+                return _BLOCKED_SENTINEL
             if resp.status != 200:
                 logger.debug("SERP fetch returned HTTP %d for %r", resp.status, keyword)
                 return ""
-            return await resp.text(errors="replace")
+            html = await resp.text(errors="replace")
+            if _is_blocked(html):
+                logger.warning("SERP CAPTCHA detected for %r", keyword)
+                return _BLOCKED_SENTINEL
+            return html
     except Exception as exc:
         logger.debug("SERP fetch error for %r: %s", keyword, exc)
         return ""
 
 
+def _is_blocked(html: str) -> bool:
+    """Return True if the HTML looks like a CAPTCHA / block page."""
+    lower = html.lower()
+    return any(m in lower for m in _BLOCKED_MARKERS)
+
+
 def _extract_result_urls(html: str) -> list[str]:
     """
     Pull organic result URLs from raw Google HTML.
-    Uses two regex patterns — href=/url?q= (primary) and <cite> (fallback).
+    Tries 4 patterns in priority order:
+      1. /url?q= redirect links  (legacy, still present in some regions)
+      2. Direct https:// hrefs   (2022+ primary format)
+      3. data-url attributes     (2024+ supplemental)
+      4. <cite> tag text         (fallback — always present)
     Deduplicates while preserving order.
     """
-    found = _RE_RESULT_URL.findall(html)
-    if not found:
-        # Fallback: pull from <cite> tags
-        found = _RE_CITE.findall(html)
+    from urllib.parse import unquote
+
+    candidates: list[str] = []
+
+    # Strategy 1 — legacy redirect links
+    candidates.extend(_RE_REDIRECT.findall(html))
+
+    # Strategy 2 — direct href on anchor tags
+    candidates.extend(_RE_DIRECT.findall(html))
+
+    # Strategy 3 — data-url attributes
+    candidates.extend(_RE_DATA_URL.findall(html))
+
+    # Strategy 4 — <cite> tags (always try; deduplicate removes extra hits)
+    candidates.extend(_RE_CITE.findall(html))
 
     seen: set[str] = set()
     urls: list[str] = []
-    for raw in found:
-        # Decode %XX sequences
+    for raw in candidates:
         try:
-            from urllib.parse import unquote
             url = unquote(raw).split("&")[0].strip()
         except Exception:
             url = raw
-        # Filter out Google's own URLs and non-HTTP results
         if not url.startswith("http"):
             continue
-        host = urlparse(url).hostname or ""
-        if "google." in host or "googleusercontent" in host:
+        host = (urlparse(url).hostname or "").lower()
+        # Drop anything served from a Google-owned host
+        if any(host == g.rstrip(".") or host.endswith("." + g.rstrip("."))
+               for g in _GOOGLE_HOSTS):
             continue
         if url not in seen:
             seen.add(url)
@@ -318,7 +378,10 @@ async def get_serp_position(
             html = await _fetch_serp_html(session, keyword, lang=lang, num=num)
             if not html:
                 return None
+            if html == _BLOCKED_SENTINEL:
+                return "blocked"
             urls = _extract_result_urls(html)
+            logger.debug("SERP for %r: extracted %d URLs", keyword, len(urls))
             for i, url in enumerate(urls, start=1):
                 if _domain_in_url(target, url):
                     return i
@@ -367,6 +430,8 @@ async def get_keyword_difficulty(
             html = await _fetch_serp_html(session, keyword, lang=lang, num=10)
             if not html:
                 return {**result_base, "error": "SERP fetch failed"}
+            if html == _BLOCKED_SENTINEL:
+                return {**result_base, "error": "Google blocked this request (CAPTCHA). Try again later or from a different IP."}
 
             urls       = _extract_result_urls(html)[:10]
             n_results  = len(urls)
@@ -406,11 +471,14 @@ async def bulk_serp_check(
         if isinstance(pos, Exception):
             logger.warning("bulk_serp_check error for %r: %s", kw, pos)
             pos = None
+        blocked = pos == "blocked"
+        numeric_pos = None if (pos is None or blocked) else pos
         results.append({
             "keyword":    kw,
-            "position":   pos,
-            "in_top_10":  pos is not None and pos <= 10,
-            "in_top_30":  pos is not None and pos <= 30,
+            "position":   numeric_pos,
+            "in_top_10":  isinstance(numeric_pos, int) and numeric_pos <= 10,
+            "in_top_30":  isinstance(numeric_pos, int) and numeric_pos <= 30,
+            "blocked":    blocked,
         })
     return results
 

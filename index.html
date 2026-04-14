@@ -3088,12 +3088,13 @@ async function runBulkSerp(){
 
 function renderSerpPositions(data){
   const results=data.results||[];
-  const top10=results.filter(r=>r.in_top_10).length;
-  const top30=results.filter(r=>r.in_top_30&&!r.in_top_10).length;
-  const none =results.filter(r=>!r.in_top_30).length;
+  const top10   =results.filter(r=>r.in_top_10).length;
+  const top30   =results.filter(r=>r.in_top_30&&!r.in_top_10).length;
+  const blocked =results.filter(r=>r.blocked).length;
+  const none    =results.filter(r=>!r.in_top_30&&!r.blocked).length;
 
   const sumEl=document.getElementById('serp-pos-summary');
-  sumEl.innerHTML=[
+  const cards=[
     `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
       <span style="font-size:18px;font-weight:800;color:var(--green)">${top10}</span>
       <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">In Top 10</span></div>`,
@@ -3103,12 +3104,23 @@ function renderSerpPositions(data){
     `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
       <span style="font-size:18px;font-weight:800;color:var(--red)">${none}</span>
       <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">Not Ranked</span></div>`,
-  ].join('');
+  ];
+  if(blocked>0) cards.push(
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
+      <span style="font-size:18px;font-weight:800;color:var(--dim)">${blocked}</span>
+      <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">⚠ Blocked</span></div>`
+  );
+  sumEl.innerHTML=cards.join('');
 
   const tbody=document.getElementById('serp-pos-tbody');
   tbody.innerHTML=results.map(r=>{
-    const posColor=r.in_top_10?'var(--green)':r.in_top_30?'var(--yellow)':'var(--red)';
-    const posText=r.position!=null?`#${r.position}`:'—';
+    let posColor, posText;
+    if(r.blocked){
+      posColor='var(--dim)'; posText='⚠ Blocked';
+    } else {
+      posColor=r.in_top_10?'var(--green)':r.in_top_30?'var(--yellow)':'var(--red)';
+      posText=r.position!=null?`#${r.position}`:'Not ranked';
+    }
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;color:var(--text)">${r.keyword}</td>
       <td style="padding:7px 10px;text-align:center;font-weight:800;color:${posColor};font-family:var(--mono)">${posText}</td>
