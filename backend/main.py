@@ -3669,6 +3669,189 @@ async def gsc_callback(code: str = Query(default="")):
     }
 
 
+# ── Crawl diff endpoint ───────────────────────────────────────────────────────
+
+@app.get("/projects/{project_id}/diff")
+def project_diff(project_id: int):
+    """
+    Compare the two most recent crawl snapshots for a project.
+    Returns lists of new_issues (appeared), fixed_issues (resolved),
+    and score_delta.
+    """
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    history = _db_get_history(project_id, limit=2)
+    if len(history) < 2:
+        return {"has_diff": False, "message": "Need at least 2 snapshots to compare. Run another crawl and save."}
+    newer, older = history[0], history[1]
+
+    # Parse stored results_json from both snapshots
+    try:
+        from competitor_db import _connect as _db_conn
+        with _db_conn() as conn:
+            rows = conn.execute(
+                "SELECT results_json, crawled_at FROM crawl_snapshots WHERE project_id=? ORDER BY crawled_at DESC LIMIT 2",
+                (project_id,)
+            ).fetchall()
+        if len(rows) < 2:
+            return {"has_diff": False, "message": "Snapshot data not available for comparison."}
+        newer_pages = json.loads(rows[0]["results_json"] or "[]")
+        older_pages = json.loads(rows[1]["results_json"] or "[]")
+    except Exception as exc:
+        return {"has_diff": False, "message": f"Could not load snapshot data: {exc}"}
+
+    # Build issue maps: {url: set(issues)}
+    def issue_map(pages):
+        m = {}
+        for p in pages:
+            iss = p.get("issues", [])
+            if iss:
+                m[p["url"]] = set(iss)
+        return m
+
+    old_map = issue_map(older_pages)
+    new_map = issue_map(newer_pages)
+
+    # New issues: appeared in newer but not older (or new URL with issues)
+    new_issues = []
+    for url, issues in new_map.items():
+        old_iss = old_map.get(url, set())
+        appeared = issues - old_iss
+        for iss in appeared:
+            new_issues.append({"url": url, "issue": iss, "type": "new"})
+
+    # Fixed issues: were in older but not newer
+    fixed_issues = []
+    for url, issues in old_map.items():
+        new_iss = new_map.get(url, set())
+        resolved = issues - new_iss
+        for iss in resolved:
+            fixed_issues.append({"url": url, "issue": iss, "type": "fixed"})
+
+    score_delta = round(
+        (newer.get("health_score") or 0) - (older.get("health_score") or 0), 1
+    )
+
+    return {
+        "has_diff":    True,
+        "newer_date":  newer.get("crawled_at", ""),
+        "older_date":  older.get("crawled_at", ""),
+        "score_delta": score_delta,
+        "new_issues":  new_issues[:100],
+        "fixed_issues": fixed_issues[:100],
+        "new_issue_count":   len(new_issues),
+        "fixed_issue_count": len(fixed_issues),
+    }
+
+
+# ── Team / workspace endpoints ────────────────────────────────────────────────
+
+class TeamInviteRequest(BaseModel):
+    project_id: int
+    email:      str = Field(..., min_length=5)
+    role:       str = Field(default="viewer", pattern="^(viewer|editor)$")
+
+class TeamRemoveRequest(BaseModel):
+    project_id: int
+    email:      str
+
+@app.post("/team/invite")
+def team_invite(req: TeamInviteRequest, request: _FastAPIRequest):
+    """
+    Share a project with another user by email.
+    The invited user must have a CrawlIQ account.
+    Role: viewer (read-only) or editor (can save snapshots).
+    """
+    if not _AUTH_MODULE or not _PROJECTS_MODULE:
+        raise HTTPException(503, "Auth or Projects module not available")
+    owner = _get_current_user(request)
+    if not owner:
+        raise HTTPException(401, "Not authenticated")
+
+    proj = _db_get_project(req.project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    if proj.get("user_id") != owner["id"]:
+        raise HTTPException(403, "Only the project owner can invite members")
+
+    # Find the invited user
+    try:
+        from competitor_db import _connect as _db_conn
+        with _db_conn() as conn:
+            invitee = conn.execute(
+                "SELECT id, name, email FROM users WHERE email=?", (req.email.lower(),)
+            ).fetchone()
+        if not invitee:
+            raise HTTPException(404, f"No account found for {req.email}. They need to register first.")
+        invitee = dict(invitee)
+        # Upsert team membership
+        with _db_conn() as conn:
+            conn.execute("""
+                INSERT INTO project_members (project_id, user_id, role, invited_at)
+                VALUES (?,?,?,?)
+                ON CONFLICT(project_id, user_id) DO UPDATE SET role=excluded.role
+            """, (req.project_id, invitee["id"], req.role, __import__('datetime').datetime.utcnow().isoformat()))
+        return {
+            "status": "invited",
+            "user": {"name": invitee["name"], "email": invitee["email"]},
+            "role": req.role,
+            "project_id": req.project_id,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # project_members table may not exist yet — handle gracefully
+        if "no such table" in str(exc).lower():
+            raise HTTPException(503, "Team feature requires DB migration. Restart the server.")
+        raise HTTPException(500, str(exc))
+
+
+@app.get("/team/members/{project_id}")
+def team_list_members(project_id: int, request: _FastAPIRequest):
+    """List all members with access to a project."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    try:
+        from competitor_db import _connect as _db_conn
+        with _db_conn() as conn:
+            rows = conn.execute("""
+                SELECT u.id, u.name, u.email, pm.role, pm.invited_at
+                FROM project_members pm
+                JOIN users u ON u.id = pm.user_id
+                WHERE pm.project_id=?
+            """, (project_id,)).fetchall()
+        return {"members": [dict(r) for r in rows]}
+    except Exception as exc:
+        if "no such table" in str(exc).lower():
+            return {"members": []}
+        raise HTTPException(500, str(exc))
+
+
+@app.delete("/team/member")
+def team_remove_member(req: TeamRemoveRequest, request: _FastAPIRequest):
+    """Remove a user's access to a project."""
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    owner = _get_current_user(request)
+    if not owner:
+        raise HTTPException(401, "Not authenticated")
+    try:
+        from competitor_db import _connect as _db_conn
+        with _db_conn() as conn:
+            invitee = conn.execute("SELECT id FROM users WHERE email=?", (req.email.lower(),)).fetchone()
+            if not invitee:
+                raise HTTPException(404, "User not found")
+            conn.execute(
+                "DELETE FROM project_members WHERE project_id=? AND user_id=?",
+                (req.project_id, invitee["id"])
+            )
+        return {"status": "removed"}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, str(exc))
+
+
 def _handle_sigterm(sig, frame):
     """
     BUG-N19: graceful SIGTERM — mark crawl as stopped so the next startup

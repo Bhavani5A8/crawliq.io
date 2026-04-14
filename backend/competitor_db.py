@@ -190,6 +190,19 @@ CREATE TABLE IF NOT EXISTS issue_status (
 
 CREATE INDEX IF NOT EXISTS idx_issue_proj ON issue_status(project_id);
 CREATE INDEX IF NOT EXISTS idx_issue_url  ON issue_status(url);
+
+-- Team / workspace (project sharing)
+CREATE TABLE IF NOT EXISTS project_members (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+    role        TEXT    DEFAULT 'viewer',  -- viewer / editor
+    invited_at  TEXT    NOT NULL,
+    UNIQUE(project_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pm_project ON project_members(project_id);
+CREATE INDEX IF NOT EXISTS idx_pm_user    ON project_members(user_id);
 """
 
 
