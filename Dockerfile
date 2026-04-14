@@ -35,6 +35,8 @@ COPY backend/main.py \
      backend/site_auditor.py \
      backend/monitor.py \
      backend/pdf_export.py \
+     backend/auth.py \
+     backend/email_alerts.py \
      ./
 
 # Copy the dashboard HTML (main.py serves backend/index.html from BASE_DIR)

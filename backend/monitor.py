@@ -35,16 +35,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MonitorJob:
-    job_id:         str
-    domain:         str
-    keywords:       list[str]
-    interval_hours: float          # how often to run (e.g. 24 = daily)
-    created_at:     str            # ISO-8601 UTC
-    last_run_at:    Optional[str]  # ISO-8601 UTC or None
-    next_run_at:    str            # ISO-8601 UTC
-    run_count:      int   = 0
-    active:         bool  = True
-    last_error:     Optional[str] = None
+    job_id:              str
+    domain:              str
+    keywords:            list[str]
+    interval_hours:      float          # how often to run (e.g. 24 = daily)
+    created_at:          str            # ISO-8601 UTC
+    last_run_at:         Optional[str]  # ISO-8601 UTC or None
+    next_run_at:         str            # ISO-8601 UTC
+    run_count:           int   = 0
+    active:              bool  = True
+    last_error:          Optional[str] = None
+    alert_email:         Optional[str] = None   # email to notify on rank drop
+    drop_threshold:      int   = 5              # alert when position drops by this many
 
 
 # ── In-memory store ───────────────────────────────────────────────────────────
@@ -84,10 +86,19 @@ async def _run_job(job: MonitorJob) -> None:
         from serp_scraper import bulk_serp_check
         results = await bulk_serp_check(job.keywords, job.domain, concurrency=2)
 
+        # Load previous positions for drop detection
+        prev_positions: dict[str, int | None] = {}
+        try:
+            from competitor_db import get_monitor_latest
+            for row in get_monitor_latest(job.domain):
+                prev_positions[row["keyword"]] = row.get("position")
+        except Exception:
+            pass
+
         # Persist to SQLite
+        now = _now_iso()
         try:
             from competitor_db import save_monitor_rankings
-            now = _now_iso()
             save_monitor_rankings(
                 job_id   = job.job_id,
                 domain   = job.domain,
@@ -105,6 +116,9 @@ async def _run_job(job: MonitorJob) -> None:
         except Exception as db_exc:
             logger.warning("Monitor DB save failed for job %s: %s", job.job_id, db_exc)
 
+        # Detect rank drops and fire email alert
+        await _check_rank_drops(job, results, prev_positions)
+
         logger.info("Monitor: job %s complete — %d positions checked",
                     job.job_id, len(results))
 
@@ -114,6 +128,41 @@ async def _run_job(job: MonitorJob) -> None:
 
     finally:
         job.next_run_at = _next_run(job.interval_hours)
+
+
+async def _check_rank_drops(
+    job:            "MonitorJob",
+    results:        list[dict],
+    prev_positions: dict[str, int | None],
+) -> None:
+    """Detect significant rank drops and send an email alert if configured."""
+    if not job.alert_email:
+        return
+    drops = []
+    for r in results:
+        kw       = r["keyword"]
+        new_pos  = r.get("position")
+        old_pos  = prev_positions.get(kw)
+        if (
+            new_pos is not None
+            and old_pos is not None
+            and isinstance(new_pos, int)
+            and isinstance(old_pos, int)
+            and new_pos > old_pos  # higher number = worse rank
+            and (new_pos - old_pos) >= job.drop_threshold
+        ):
+            drops.append({
+                "keyword": kw,
+                "old_pos": old_pos,
+                "new_pos": new_pos,
+                "delta":   new_pos - old_pos,
+            })
+    if drops:
+        try:
+            from email_alerts import send_rank_drop_alert
+            await send_rank_drop_alert(job.alert_email, job.domain, drops)
+        except Exception as exc:
+            logger.warning("Rank drop alert send failed for job %s: %s", job.job_id, exc)
 
 
 async def _monitor_loop() -> None:
@@ -164,9 +213,11 @@ def start_monitor_service() -> None:
 
 
 def schedule_job(
-    domain:         str,
-    keywords:       list[str],
-    interval_hours: float = 24.0,
+    domain:          str,
+    keywords:        list[str],
+    interval_hours:  float = 24.0,
+    alert_email:     str | None = None,
+    drop_threshold:  int = 5,
 ) -> MonitorJob:
     """
     Schedule a new SERP monitoring job.
@@ -175,15 +226,17 @@ def schedule_job(
     job_id = str(uuid.uuid4())
     now    = _now_iso()
     job    = MonitorJob(
-        job_id         = job_id,
-        domain         = domain,
-        keywords       = keywords[:50],   # cap at 50 keywords per job
-        interval_hours = max(0.5, interval_hours),  # minimum 30 minutes
-        created_at     = now,
-        last_run_at    = None,
-        next_run_at    = now,   # run immediately on first tick
-        run_count      = 0,
-        active         = True,
+        job_id          = job_id,
+        domain          = domain,
+        keywords        = keywords[:50],
+        interval_hours  = max(0.5, interval_hours),
+        created_at      = now,
+        last_run_at     = None,
+        next_run_at     = now,
+        run_count       = 0,
+        active          = True,
+        alert_email     = alert_email or None,
+        drop_threshold  = max(1, drop_threshold),
     )
     _job_store[job_id] = job
     logger.info("Monitor: scheduled job %s — %s every %.1fh (%d keywords)",

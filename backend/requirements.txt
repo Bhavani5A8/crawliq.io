@@ -44,3 +44,13 @@ reportlab>=4.0.0,<5.0  # PDF export (Phase 4) — pure Python, no system deps
 # Used by technical_seo._audit_readability() — Flesch-Kincaid + Gunning Fog.
 # Fails gracefully to sentence-length heuristic if not installed.
 textstat>=0.7.0,<1.0
+
+# -- SaaS auth + email (Phase 5) -----------------------------------------------
+# JWT authentication
+python-jose[cryptography]>=3.3.0,<4.0
+# Password hashing
+passlib[bcrypt]>=1.7.4,<2.0
+# File uploads (multipart form data for logo upload)
+python-multipart>=0.0.9,<1.0
+# Async SMTP for email alerts (rank drop / issue notifications)
+aiosmtplib>=3.0.0,<4.0

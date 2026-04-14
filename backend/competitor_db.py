@@ -123,6 +123,73 @@ CREATE INDEX IF NOT EXISTS idx_mon_job     ON monitor_rankings(job_id);
 CREATE INDEX IF NOT EXISTS idx_mon_domain  ON monitor_rankings(domain);
 CREATE INDEX IF NOT EXISTS idx_mon_keyword ON monitor_rankings(keyword);
 CREATE INDEX IF NOT EXISTS idx_mon_date    ON monitor_rankings(checked_at);
+
+-- ── SaaS tables ──────────────────────────────────────────────────────────────
+
+-- Users (auth + billing)
+CREATE TABLE IF NOT EXISTS users (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    email           TEXT    UNIQUE NOT NULL,
+    name            TEXT,
+    password_hash   TEXT    NOT NULL,
+    tier            TEXT    DEFAULT 'free',   -- free / pro / agency
+    api_key         TEXT    UNIQUE,
+    logo_base64     TEXT,                     -- base64 PNG for white-label PDF
+    pages_used      INTEGER DEFAULT 0,
+    pages_reset_at  TEXT    NOT NULL,         -- ISO-8601: first day of billing month
+    alert_email     TEXT,                     -- override email for alerts (NULL = use account email)
+    rank_drop_threshold INTEGER DEFAULT 5,    -- alert when position drops by this many spots
+    created_at      TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email   ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
+
+-- Projects (saved crawl sessions)
+CREATE TABLE IF NOT EXISTS projects (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    name          TEXT    NOT NULL,
+    url           TEXT    NOT NULL,
+    created_at    TEXT    NOT NULL,
+    last_crawl_at TEXT,
+    page_count    INTEGER DEFAULT 0,
+    issue_count   INTEGER DEFAULT 0,
+    health_score  REAL    DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_proj_user    ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_proj_url     ON projects(url);
+CREATE INDEX IF NOT EXISTS idx_proj_created ON projects(created_at DESC);
+
+-- Crawl snapshots (score history per project — stored newest-first)
+CREATE TABLE IF NOT EXISTS crawl_snapshots (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    crawled_at   TEXT    NOT NULL,
+    page_count   INTEGER,
+    issue_count  INTEGER,
+    health_score REAL,
+    results_json TEXT    -- JSON: top-100 pages (lightweight, not full blob)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snap_proj ON crawl_snapshots(project_id);
+CREATE INDEX IF NOT EXISTS idx_snap_date ON crawl_snapshots(crawled_at DESC);
+
+-- Issue status tracking (open / in_progress / resolved)
+CREATE TABLE IF NOT EXISTS issue_status (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id  INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+    url         TEXT    NOT NULL,
+    issue_type  TEXT    NOT NULL,
+    status      TEXT    DEFAULT 'open',  -- open / in_progress / resolved
+    note        TEXT,
+    updated_at  TEXT    NOT NULL,
+    UNIQUE(project_id, url, issue_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_proj ON issue_status(project_id);
+CREATE INDEX IF NOT EXISTS idx_issue_url  ON issue_status(url);
 """
 
 
@@ -149,8 +216,10 @@ def _run_migrations() -> None:
     errors (OperationalError: duplicate column name), so we swallow those.
     """
     migrations = [
-        # Example future migration (add column that didn't exist in v1):
-        # "ALTER TABLE competitor_snapshots ADD COLUMN phase INTEGER DEFAULT 1",
+        # SaaS columns added in v2 — safe to re-run (duplicate column errors are caught)
+        "ALTER TABLE users ADD COLUMN alert_email TEXT",
+        "ALTER TABLE users ADD COLUMN rank_drop_threshold INTEGER DEFAULT 5",
+        "ALTER TABLE users ADD COLUMN logo_base64 TEXT",
     ]
     if not migrations:
         return
@@ -437,6 +506,134 @@ def get_monitor_latest(domain: str) -> list[dict]:
     """
     with _connect() as conn:
         rows = conn.execute(sql, (domain,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Projects ──────────────────────────────────────────────────────────────────
+
+def create_project(user_id: int | None, name: str, url: str) -> dict:
+    """Create a new project. Returns the project dict."""
+    now = _now_iso()
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO projects (user_id, name, url, created_at) VALUES (?,?,?,?)",
+            (user_id, name, url, now),
+        )
+        proj_id = cur.lastrowid
+        row = conn.execute("SELECT * FROM projects WHERE id=?", (proj_id,)).fetchone()
+        return dict(row)
+
+
+def list_projects(user_id: int | None, limit: int = 50) -> list[dict]:
+    """List projects for a user (or all if user_id is None), newest first."""
+    with _connect() as conn:
+        if user_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM projects WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM projects ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_project(project_id: int) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_project(project_id: int, **kwargs) -> None:
+    """Update page_count, issue_count, health_score, last_crawl_at, name on a project."""
+    allowed = {"page_count", "issue_count", "health_score", "last_crawl_at", "name"}
+    sets, params = [], []
+    for k, v in kwargs.items():
+        if k in allowed:
+            sets.append(f"{k}=?"); params.append(v)
+    if not sets:
+        return
+    params.append(project_id)
+    with _connect() as conn:
+        conn.execute(f"UPDATE projects SET {', '.join(sets)} WHERE id=?", params)
+
+
+def delete_project(project_id: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        return cur.rowcount > 0
+
+
+# ── Crawl snapshots ───────────────────────────────────────────────────────────
+
+def save_crawl_snapshot(
+    project_id:   int,
+    page_count:   int,
+    issue_count:  int,
+    health_score: float,
+    results_json: str = "",
+) -> int:
+    """Persist a crawl snapshot for score history. Returns snapshot id."""
+    now = _now_iso()
+    with _connect() as conn:
+        cur = conn.execute(
+            """INSERT INTO crawl_snapshots
+               (project_id, crawled_at, page_count, issue_count, health_score, results_json)
+               VALUES (?,?,?,?,?,?)""",
+            (project_id, now, page_count, issue_count, health_score, results_json),
+        )
+        return cur.lastrowid
+
+
+def get_crawl_history(project_id: int, limit: int = 20) -> list[dict]:
+    """Return score history for a project, newest first (no results_json blob)."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT id, project_id, crawled_at, page_count, issue_count, health_score
+               FROM crawl_snapshots
+               WHERE project_id=?
+               ORDER BY crawled_at DESC LIMIT ?""",
+            (project_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Issue status ──────────────────────────────────────────────────────────────
+
+def upsert_issue_status(
+    project_id: int | None,
+    url:        str,
+    issue_type: str,
+    status:     str,   # open / in_progress / resolved
+    note:       str = "",
+) -> None:
+    """Create or update an issue status row."""
+    now = _now_iso()
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO issue_status (project_id, url, issue_type, status, note, updated_at)
+               VALUES (?,?,?,?,?,?)
+               ON CONFLICT(project_id, url, issue_type)
+               DO UPDATE SET status=excluded.status, note=excluded.note, updated_at=excluded.updated_at""",
+            (project_id, url, issue_type, status, note, now),
+        )
+
+
+def get_issue_statuses(project_id: int | None, url: str | None = None) -> list[dict]:
+    """Return all issue status rows for a project (optionally filtered by URL)."""
+    with _connect() as conn:
+        if url:
+            rows = conn.execute(
+                "SELECT * FROM issue_status WHERE project_id=? AND url=?",
+                (project_id, url),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM issue_status WHERE project_id=? ORDER BY updated_at DESC",
+                (project_id,),
+            ).fetchall()
     return [dict(r) for r in rows]
 
 

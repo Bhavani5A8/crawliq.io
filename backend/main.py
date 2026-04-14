@@ -3128,6 +3128,547 @@ def export_pdf(url: str = Query(default="", description="Crawled site URL for re
     )
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 10: SaaS ENDPOINTS (Phase 5) ─────────────────────────────────────
+#   Auth, Projects, Issue Status, Keyword Gap, API Keys, Sitemap Crawl,
+#   Score History, User Settings (white-label logo, alert prefs)
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Auth module (graceful fallback) ──────────────────────────────────────────
+try:
+    import auth as _auth_mod
+    from auth import (
+        register          as _auth_register,
+        login             as _auth_login,
+        get_user_by_token as _auth_by_token,
+        get_user_by_api_key as _auth_by_key,
+        get_user_by_id    as _auth_by_id,
+        update_user       as _auth_update,
+        rotate_api_key    as _auth_rotate_key,
+        check_crawl_quota as _auth_check_quota,
+        record_pages_crawled as _auth_record_pages,
+        TIER_LIMITS       as _TIER_LIMITS,
+    )
+    _AUTH_MODULE = True
+except ImportError:
+    _AUTH_MODULE = False
+
+# ── DB project / snapshot / issue helpers ────────────────────────────────────
+try:
+    from competitor_db import (
+        create_project      as _db_create_project,
+        list_projects       as _db_list_projects,
+        get_project         as _db_get_project,
+        update_project      as _db_update_project,
+        delete_project      as _db_delete_project,
+        save_crawl_snapshot as _db_save_snapshot,
+        get_crawl_history   as _db_get_history,
+        upsert_issue_status as _db_upsert_issue,
+        get_issue_statuses  as _db_get_issues,
+    )
+    _PROJECTS_MODULE = True
+except ImportError:
+    _PROJECTS_MODULE = False
+
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+def _get_current_user(request) -> dict | None:
+    """
+    Extract user from Authorization: Bearer <token> header or X-API-Key header.
+    Returns user dict or None (unauthenticated).
+    """
+    if not _AUTH_MODULE:
+        return None
+    auth_header = request.headers.get("Authorization", "")
+    api_key_header = request.headers.get("X-API-Key", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        return _auth_by_token(token)
+    if api_key_header:
+        return _auth_by_key(api_key_header)
+    return None
+
+
+# ── Pydantic models ───────────────────────────────────────────────────────────
+
+from fastapi import Request as _FastAPIRequest, UploadFile, File
+import base64 as _base64
+
+class RegisterRequest(BaseModel):
+    email:    str = Field(..., min_length=5, max_length=254)
+    password: str = Field(..., min_length=6, max_length=128)
+    name:     str = Field(default="", max_length=100)
+
+class LoginRequest(BaseModel):
+    email:    str
+    password: str
+
+class ProjectCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    url:  str = Field(..., min_length=4, max_length=2048)
+
+class IssueStatusRequest(BaseModel):
+    project_id: int | None = None
+    url:        str
+    issue_type: str
+    status:     str = Field(..., pattern="^(open|in_progress|resolved)$")
+    note:       str = ""
+
+class UserSettingsRequest(BaseModel):
+    name:                str | None = None
+    alert_email:         str | None = None
+    rank_drop_threshold: int | None = None
+
+class KeywordGapRequest(BaseModel):
+    your_keywords:       list[str] = Field(..., max_items=500)
+    competitor_keywords: list[str] = Field(..., max_items=500)
+
+
+# ── Auth endpoints ────────────────────────────────────────────────────────────
+
+@app.post("/auth/register")
+def auth_register(req: RegisterRequest):
+    """Register a new user. Returns access token."""
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available (install python-jose + passlib)")
+    try:
+        user  = _auth_register(req.email, req.password, req.name)
+        token = _auth_login(req.email, req.password)
+        return {"token": token, "user": user}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/auth/login")
+def auth_login(req: LoginRequest):
+    """Login and return JWT access token."""
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    try:
+        token = _auth_login(req.email, req.password)
+        user  = _auth_by_token(token)
+        return {"token": token, "user": user}
+    except ValueError as exc:
+        raise HTTPException(401, str(exc))
+
+
+@app.get("/auth/me")
+def auth_me(request: _FastAPIRequest):
+    """Return current user profile (requires Bearer token)."""
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    # Enrich with tier limits
+    tier   = user.get("tier", "free")
+    limits = (_TIER_LIMITS if _AUTH_MODULE else {}).get(tier, {})
+    return {**user, "limits": limits}
+
+
+@app.post("/auth/api-key/rotate")
+def auth_rotate_api_key(request: _FastAPIRequest):
+    """Generate a new API key for the current user."""
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    new_key = _auth_rotate_key(user["id"])
+    return {"api_key": new_key}
+
+
+@app.patch("/user/settings")
+def user_settings(req: UserSettingsRequest, request: _FastAPIRequest):
+    """Update user profile: display name, alert email, rank-drop threshold."""
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    kwargs = {k: v for k, v in req.dict().items() if v is not None}
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    _auth_update(user["id"], **kwargs)
+    return {"status": "updated"}
+
+
+@app.post("/user/logo")
+async def user_upload_logo(request: _FastAPIRequest, file: UploadFile = File(...)):
+    """
+    Upload a logo image (PNG/JPG, max 512 KB) stored as base64 for white-label PDF.
+    """
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    content = await file.read()
+    if len(content) > 512 * 1024:
+        raise HTTPException(400, "Logo file too large (max 512 KB)")
+    if not content[:4] in (b"\x89PNG", b"\xff\xd8\xff"):
+        pass   # allow other image types
+    encoded = _base64.b64encode(content).decode()
+    if _AUTH_MODULE:
+        _auth_update(user["id"], logo_base64=encoded)
+    return {"status": "uploaded", "size": len(content)}
+
+
+# ── Project endpoints ─────────────────────────────────────────────────────────
+
+@app.get("/projects")
+def list_projects(request: _FastAPIRequest):
+    """List all projects for the current user (or all if no auth)."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    user = _get_current_user(request)
+    uid  = user["id"] if user else None
+    return {"projects": _db_list_projects(uid)}
+
+
+@app.post("/projects")
+def create_project(req: ProjectCreateRequest, request: _FastAPIRequest):
+    """Create a new project (named crawl session)."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    user = _get_current_user(request)
+    uid  = user["id"] if user else None
+    proj = _db_create_project(uid, req.name, req.url)
+    return {"project": proj}
+
+
+@app.get("/projects/{project_id}")
+def get_project(project_id: int, request: _FastAPIRequest):
+    """Get a single project by ID."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    proj = _db_get_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    return proj
+
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: int, request: _FastAPIRequest):
+    """Delete a project and all its snapshots."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    deleted = _db_delete_project(project_id)
+    if not deleted:
+        raise HTTPException(404, "Project not found")
+    return {"status": "deleted", "project_id": project_id}
+
+
+@app.post("/projects/{project_id}/snapshot")
+def save_snapshot(project_id: int, request: _FastAPIRequest):
+    """
+    Save a crawl snapshot for the given project.
+    Reads from the current in-memory crawl_results + crawl_status.
+    """
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    if not crawl_results:
+        raise HTTPException(400, "No crawl data to snapshot. Run a crawl first.")
+    proj = _db_get_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+
+    pages       = [p for p in crawl_results if not p.get("_is_error")]
+    issue_count = sum(1 for p in pages if p.get("issues"))
+    scores      = [p.get("seo_score", 0) for p in pages if p.get("seo_score") is not None]
+    health      = round(sum(scores) / len(scores), 1) if scores else 0
+
+    # Lightweight results json: top 100 pages, no full HTML
+    top_pages = sorted(pages, key=lambda p: p.get("seo_score", 0))[:100]
+    light = [{
+        "url":    p.get("url", ""),
+        "title":  (p.get("title") or "")[:100],
+        "score":  p.get("seo_score"),
+        "issues": p.get("issues", []),
+        "priority": p.get("priority", ""),
+    } for p in top_pages]
+
+    snap_id = _db_save_snapshot(
+        project_id   = project_id,
+        page_count   = len(pages),
+        issue_count  = issue_count,
+        health_score = health,
+        results_json = json.dumps(light),
+    )
+    _db_update_project(
+        project_id,
+        page_count   = len(pages),
+        issue_count  = issue_count,
+        health_score = health,
+        last_crawl_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    )
+    return {"snapshot_id": snap_id, "health_score": health,
+            "page_count": len(pages), "issue_count": issue_count}
+
+
+@app.get("/projects/{project_id}/history")
+def get_project_history(project_id: int):
+    """Return score history for a project (for the health-score trend chart)."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    history = _db_get_history(project_id)
+    return {"project_id": project_id, "history": history}
+
+
+# ── Issue status endpoints ────────────────────────────────────────────────────
+
+@app.patch("/issues/status")
+def update_issue_status(req: IssueStatusRequest):
+    """Mark an issue as open / in_progress / resolved, with optional note."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    _db_upsert_issue(req.project_id, req.url, req.issue_type, req.status, req.note)
+    return {"status": "updated"}
+
+
+@app.get("/issues/status")
+def get_issue_statuses_endpoint(
+    project_id: int | None = Query(default=None),
+    url:        str | None = Query(default=None),
+):
+    """Get all issue statuses for a project (optionally filtered by URL)."""
+    if not _PROJECTS_MODULE:
+        raise HTTPException(503, "Projects module not available")
+    rows = _db_get_issues(project_id, url)
+    return {"statuses": rows}
+
+
+# ── Keyword gap endpoint ──────────────────────────────────────────────────────
+
+@app.post("/keyword-gap")
+def keyword_gap(req: KeywordGapRequest):
+    """
+    Compare two keyword sets and return gap analysis.
+
+    Returns:
+      - only_competitor: keywords competitor has that you don't
+      - only_you: keywords you have that competitor doesn't
+      - shared: keywords both rank for
+    """
+    yours = {k.strip().lower() for k in req.your_keywords if k.strip()}
+    theirs = {k.strip().lower() for k in req.competitor_keywords if k.strip()}
+
+    only_comp = sorted(theirs - yours)
+    only_you  = sorted(yours - theirs)
+    shared    = sorted(yours & theirs)
+
+    return {
+        "your_total":         len(yours),
+        "competitor_total":   len(theirs),
+        "only_competitor":    only_comp,
+        "only_you":           only_you,
+        "shared":             shared,
+        "gap_count":          len(only_comp),
+        "opportunity_count":  len(only_comp),
+    }
+
+
+# ── Sitemap-driven crawl endpoint ─────────────────────────────────────────────
+
+@app.post("/sitemap-crawl")
+async def sitemap_crawl(
+    sitemap_url:  str   = Query(..., description="URL of the sitemap.xml"),
+    max_pages:    int   = Query(default=100, ge=1, le=500),
+    background_tasks: BackgroundTasks = None,
+):
+    """
+    Parse a sitemap.xml and crawl only those URLs (not BFS from root).
+    Returns immediately; results available via /results and /crawl-status.
+    """
+    if crawl_status.get("running"):
+        raise HTTPException(400, "A crawl is already running. Wait for it to finish.")
+
+    # Fetch and parse sitemap
+    urls = []
+    try:
+        import aiohttp as _aio
+        async with _aio.ClientSession() as _sess:
+            async with _sess.get(sitemap_url, timeout=_aio.ClientTimeout(total=15), ssl=False) as resp:
+                if resp.status != 200:
+                    raise HTTPException(400, f"Sitemap fetch failed (HTTP {resp.status})")
+                xml_text = await resp.text(errors="replace")
+        import re as _re
+        urls = _re.findall(r"<loc>\s*(https?://[^<\s]+)\s*</loc>", xml_text, _re.IGNORECASE)
+        urls = list(dict.fromkeys(urls))[:max_pages]   # dedup + cap
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(400, f"Sitemap parse error: {exc}")
+
+    if not urls:
+        raise HTTPException(400, "No <loc> URLs found in sitemap.")
+
+    # Fire a synthetic crawl using the first URL as root, seed queue with all sitemap URLs
+    root_url = urls[0]
+    crawl_results.clear()
+    crawl_status.update({
+        "running": True, "done": False, "error": None,
+        "pages_crawled": 0, "total_pages": len(urls),
+        "current_url": "", "elapsed_s": 0,
+        "source": "sitemap",
+    })
+
+    async def _sitemap_crawl_task():
+        import time as _time
+        start = _time.time()
+        from crawler import SEOCrawler
+        try:
+            crawler = SEOCrawler(root_url, max_pages=len(urls))
+            # Seed the crawler's queue with sitemap URLs
+            crawler.queue = [(u, 1) for u in urls]
+            crawler._queued = set(urls)
+            results = await crawler.crawl()
+            crawl_results.extend(results)
+            crawl_status.update({
+                "running": False, "done": True,
+                "pages_crawled": len(results),
+                "elapsed_s": round(_time.time() - start, 1),
+            })
+        except Exception as exc:
+            crawl_status.update({"running": False, "done": False, "error": str(exc)})
+
+    if background_tasks:
+        background_tasks.add_task(_sitemap_crawl_task)
+    else:
+        asyncio.create_task(_sitemap_crawl_task())
+
+    return {"status": "started", "urls_found": len(urls), "root": root_url}
+
+
+# ── Usage / quota endpoint ────────────────────────────────────────────────────
+
+@app.get("/user/usage")
+def user_usage(request: _FastAPIRequest):
+    """Return current user's crawl credit usage and tier limits."""
+    if not _AUTH_MODULE:
+        return {"tier": "unlimited", "pages_used": 0, "pages_limit": -1}
+    user = _get_current_user(request)
+    if not user:
+        return {"tier": "free", "pages_used": 0, "pages_limit": 200}
+    tier   = user.get("tier", "free")
+    limits = _TIER_LIMITS.get(tier, _TIER_LIMITS["free"])
+    return {
+        "tier":         tier,
+        "pages_used":   user.get("pages_used", 0),
+        "pages_limit":  limits["pages_per_month"],
+        "projects_limit": limits["projects"],
+        "monitor_limit":  limits["monitor_jobs"],
+        "pages_reset_at": user.get("pages_reset_at"),
+    }
+
+
+# ── Update monitor/schedule to accept alert settings ─────────────────────────
+
+class MonitorScheduleRequestV2(BaseModel):
+    domain:          str       = Field(..., min_length=4, max_length=2048)
+    keywords:        list[str] = Field(..., min_items=1, max_items=50)
+    interval_hours:  float     = Field(default=24.0, ge=0.5, le=168.0)
+    alert_email:     str | None = None
+    drop_threshold:  int       = Field(default=5, ge=1, le=100)
+
+
+@app.post("/monitor/schedule/v2")
+async def monitor_schedule_v2(request: MonitorScheduleRequestV2):
+    """Schedule monitoring with email alert support."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(503, "monitor module not available")
+    if not _SERP_SCRAPER_MODULE:
+        raise HTTPException(503, "serp_scraper module not available")
+    from monitor import schedule_job as _sched
+    job = _sched(
+        domain         = request.domain,
+        keywords       = request.keywords,
+        interval_hours = request.interval_hours,
+        alert_email    = request.alert_email,
+        drop_threshold = request.drop_threshold,
+    )
+    import dataclasses
+    return {"status": "scheduled", "job": dataclasses.asdict(job)}
+
+
+# ── White-label PDF endpoint ──────────────────────────────────────────────────
+
+@app.get("/export-pdf/branded")
+def export_pdf_branded(
+    request:    _FastAPIRequest,
+    url:        str = Query(default=""),
+    brand_name: str = Query(default=""),
+):
+    """
+    Generate PDF with the user's brand name and logo (white-label).
+    Falls back to standard /export-pdf if not authenticated.
+    """
+    if not _PDF_MODULE:
+        raise HTTPException(503, "PDF module not available")
+    if not crawl_results:
+        raise HTTPException(400, "No crawl data. Run a crawl first.")
+
+    user = _get_current_user(request)
+    effective_brand = brand_name.strip() or (
+        user.get("name", "") if user else ""
+    ) or "CrawlIQ"
+
+    site_url = url.strip() or (
+        crawl_results[0].get("url", "") if crawl_results else ""
+    )
+    try:
+        pdf_bytes = _generate_pdf_bytes(
+            list(crawl_results),
+            dict(crawl_status),
+            site_url   = site_url,
+            brand_name = effective_brand,
+        )
+    except Exception as exc:
+        raise HTTPException(500, f"PDF generation failed: {exc}")
+
+    safe_brand = effective_brand.replace(" ", "_")[:20]
+    safe_host  = (site_url or "site").replace("https://", "").replace("http://", "").rstrip("/")[:30]
+    filename   = f"{safe_brand}_audit_{safe_host}.pdf"
+    return Response(
+        content    = pdf_bytes,
+        media_type = "application/pdf",
+        headers    = {"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── Google Search Console OAuth stub ─────────────────────────────────────────
+
+@app.get("/gsc/auth-url")
+def gsc_auth_url():
+    """
+    Returns the Google OAuth2 URL to connect Google Search Console.
+    Requires GSC_CLIENT_ID env var to be configured.
+    """
+    client_id = os.getenv("GSC_CLIENT_ID", "")
+    if not client_id:
+        return {
+            "available": False,
+            "message": "Set GSC_CLIENT_ID env var to enable Search Console integration.",
+        }
+    redirect = os.getenv("GSC_REDIRECT_URI", "http://localhost:7860/gsc/callback")
+    scope    = "https://www.googleapis.com/auth/webmasters.readonly"
+    url      = (
+        f"https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect}"
+        f"&response_type=code"
+        f"&scope={scope}"
+        f"&access_type=offline"
+        f"&prompt=consent"
+    )
+    return {"available": True, "auth_url": url}
+
+
+@app.get("/gsc/callback")
+async def gsc_callback(code: str = Query(default="")):
+    """OAuth2 callback — exchange code for token (stub for now)."""
+    if not code:
+        raise HTTPException(400, "No OAuth code received")
+    return {
+        "status": "received",
+        "message": "GSC OAuth callback received. Full integration coming soon.",
+        "code_length": len(code),
+    }
+
+
 def _handle_sigterm(sig, frame):
     """
     BUG-N19: graceful SIGTERM — mark crawl as stopped so the next startup
