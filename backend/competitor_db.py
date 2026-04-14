@@ -233,6 +233,29 @@ def _run_migrations() -> None:
         "ALTER TABLE users ADD COLUMN alert_email TEXT",
         "ALTER TABLE users ADD COLUMN rank_drop_threshold INTEGER DEFAULT 5",
         "ALTER TABLE users ADD COLUMN logo_base64 TEXT",
+        # Billing columns added in v3
+        "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT",
+        "ALTER TABLE users ADD COLUMN subscription_expires_at TEXT",
+        # Password reset table (forward-only DDL — safe to re-run)
+        """CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token      TEXT    NOT NULL UNIQUE,
+            expires_at TEXT    NOT NULL,
+            used       INTEGER DEFAULT 0,
+            created_at TEXT    NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens(token)",
+        # Email verification table
+        """CREATE TABLE IF NOT EXISTS email_verify_tokens (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token      TEXT    NOT NULL UNIQUE,
+            expires_at TEXT    NOT NULL,
+            created_at TEXT    NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_evt_token ON email_verify_tokens(token)",
+        "ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0",
     ]
     if not migrations:
         return

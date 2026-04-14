@@ -54,3 +54,5 @@ passlib[bcrypt]>=1.7.4,<2.0
 python-multipart>=0.0.9,<1.0
 # Async SMTP for email alerts (rank drop / issue notifications)
 aiosmtplib>=3.0.0,<4.0
+# Stripe billing (subscriptions, webhooks, customer portal)
+stripe>=7.0.0,<8.0

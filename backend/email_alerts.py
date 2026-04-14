@@ -232,3 +232,45 @@ async def send_weekly_digest(
     """
     subject = f"📊 [{domain}] Weekly SERP digest — CrawlIQ"
     return await _send(to_email, subject, _BASE.format(content=content))
+
+
+async def send_password_reset(to_email: str, token: str) -> bool:
+    """Send a password reset link to the user."""
+    app_url = __import__("os").getenv("APP_BASE_URL", "http://localhost:7860")
+    reset_url = f"{app_url}/?reset_token={token}"
+    content = f"""
+    <h2 style='color:#6366F1;margin:0 0 4px'>Reset Your Password</h2>
+    <p style='color:#9CA3AF;font-size:13px;margin:0 0 16px'>
+      You requested a password reset for your CrawlIQ account.
+      This link expires in 1 hour.
+    </p>
+    <a href="{reset_url}" style='display:inline-block;background:#6366F1;color:#fff;
+      padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:700'>
+      Reset Password
+    </a>
+    <p style='color:#6B7280;font-size:11px;margin-top:16px'>
+      If you didn't request this, ignore this email.
+    </p>
+    """
+    return await _send(to_email, "Reset your CrawlIQ password", _BASE.format(content=content))
+
+
+async def send_email_verify(to_email: str, token: str) -> bool:
+    """Send an email address verification link."""
+    app_url = __import__("os").getenv("APP_BASE_URL", "http://localhost:7860")
+    verify_url = f"{app_url}/auth/verify-email/{token}"
+    content = f"""
+    <h2 style='color:#10B981;margin:0 0 4px'>Verify Your Email</h2>
+    <p style='color:#9CA3AF;font-size:13px;margin:0 0 16px'>
+      Thanks for signing up for CrawlIQ! Click below to verify your email address.
+      This link expires in 24 hours.
+    </p>
+    <a href="{verify_url}" style='display:inline-block;background:#10B981;color:#fff;
+      padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:700'>
+      Verify Email
+    </a>
+    <p style='color:#6B7280;font-size:11px;margin-top:16px'>
+      If you didn't create an account, ignore this email.
+    </p>
+    """
+    return await _send(to_email, "Verify your CrawlIQ email address", _BASE.format(content=content))

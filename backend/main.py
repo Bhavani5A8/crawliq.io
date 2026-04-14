@@ -884,8 +884,8 @@ if "*" in _allowed_origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 # BUG-001: lock prevents two simultaneous /crawl requests corrupting shared state.
@@ -947,7 +947,7 @@ class SelectedPagesRequest(BaseModel):
 # ── Crawl endpoints ───────────────────────────────────────────────────────────
 
 @app.post("/crawl")
-async def start_crawl(request: CrawlRequest):
+async def start_crawl(request: CrawlRequest, http_request: _FastAPIRequest = None):
     """
     Fire-and-forget async crawl.
     Returns immediately — poll /crawl-status every 2s for progress.
@@ -964,6 +964,16 @@ async def start_crawl(request: CrawlRequest):
             status_code=400,
             detail="Private or reserved IP addresses are not allowed.",
         )
+
+    # Quota check for authenticated users
+    _crawl_user_id = None
+    if _AUTH_MODULE and http_request is not None:
+        _crawl_user = _get_current_user(http_request)
+        if _crawl_user:
+            _crawl_user_id = _crawl_user["id"]
+            _allowed, _msg = _auth_check_quota(_crawl_user_id, request.max_pages)
+            if not _allowed:
+                raise HTTPException(status_code=429, detail=_msg)
 
     # BUG-N07 + BUG-001: the entire state reset is now inside the lock so no
     # concurrent request ever sees a window where running=True but results are
@@ -990,14 +1000,19 @@ async def start_crawl(request: CrawlRequest):
             "processed": 0, "total": 0, "skipped": 0,
         })
 
-    asyncio.create_task(_run_crawl(url, request.max_pages))
+    asyncio.create_task(_run_crawl(url, request.max_pages, _crawl_user_id))
     return {"status": "running", "message": "Crawl started"}
 
 
-async def _run_crawl(url: str, max_pages: int) -> None:
-    """Background task: runs the async crawler, logs errors."""
+async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> None:
+    """Background task: runs the async crawler, logs errors, records quota usage."""
     try:
         await SEOCrawler(url, max_pages=max_pages).crawl_async()
+        # Record pages crawled against the user's monthly quota
+        if user_id and _AUTH_MODULE:
+            pages_done = len(crawl_results)
+            if pages_done > 0:
+                _auth_record_pages(user_id, pages_done)
     except Exception as exc:
         logger.error("Crawl failed: %s", exc)
         crawl_status.update({"running": False, "done": False, "error": str(exc)})
@@ -3138,20 +3153,38 @@ def export_pdf(url: str = Query(default="", description="Crawled site URL for re
 try:
     import auth as _auth_mod
     from auth import (
-        register          as _auth_register,
-        login             as _auth_login,
-        get_user_by_token as _auth_by_token,
-        get_user_by_api_key as _auth_by_key,
-        get_user_by_id    as _auth_by_id,
-        update_user       as _auth_update,
-        rotate_api_key    as _auth_rotate_key,
-        check_crawl_quota as _auth_check_quota,
-        record_pages_crawled as _auth_record_pages,
-        TIER_LIMITS       as _TIER_LIMITS,
+        register                  as _auth_register,
+        login                     as _auth_login,
+        get_user_by_token         as _auth_by_token,
+        get_user_by_api_key       as _auth_by_key,
+        get_user_by_id            as _auth_by_id,
+        update_user               as _auth_update,
+        rotate_api_key            as _auth_rotate_key,
+        check_crawl_quota         as _auth_check_quota,
+        record_pages_crawled      as _auth_record_pages,
+        create_password_reset_token as _auth_create_reset_token,
+        reset_password            as _auth_reset_password,
+        create_email_verify_token as _auth_create_verify_token,
+        verify_email_token        as _auth_verify_email,
+        TIER_LIMITS               as _TIER_LIMITS,
     )
     _AUTH_MODULE = True
 except ImportError:
     _AUTH_MODULE = False
+
+# ── Billing module (graceful fallback — requires stripe package) ──────────────
+try:
+    import billing as _billing_mod
+    from billing import (
+        is_configured           as _billing_configured,
+        create_checkout_session as _billing_checkout,
+        create_portal_session   as _billing_portal,
+        handle_webhook          as _billing_webhook,
+        get_subscription_status as _billing_status,
+    )
+    _BILLING_MODULE = True
+except ImportError:
+    _BILLING_MODULE = False
 
 # ── DB project / snapshot / issue helpers ────────────────────────────────────
 try:
@@ -3224,6 +3257,16 @@ class KeywordGapRequest(BaseModel):
     your_keywords:       list[str] = Field(..., max_items=500)
     competitor_keywords: list[str] = Field(..., max_items=500)
 
+class BillingCheckoutRequest(BaseModel):
+    tier: str = Field(..., pattern="^(pro|agency)$")
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=254)
+
+class ResetPasswordRequest(BaseModel):
+    token:        str = Field(..., min_length=10)
+    new_password: str = Field(..., min_length=6, max_length=128)
+
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
@@ -3235,6 +3278,14 @@ def auth_register(req: RegisterRequest):
     try:
         user  = _auth_register(req.email, req.password, req.name)
         token = _auth_login(req.email, req.password)
+        # Send email verification token (best-effort)
+        try:
+            verify_token = _auth_create_verify_token(user["id"])
+            from email_alerts import send_email_verify
+            import asyncio as _asyncio
+            _asyncio.create_task(send_email_verify(user["email"], verify_token))
+        except Exception:
+            pass
         return {"token": token, "user": user}
     except ValueError as exc:
         raise HTTPException(400, str(exc))
@@ -3273,6 +3324,125 @@ def auth_rotate_api_key(request: _FastAPIRequest):
         raise HTTPException(401, "Not authenticated")
     new_key = _auth_rotate_key(user["id"])
     return {"api_key": new_key}
+
+
+@app.post("/auth/forgot-password")
+def auth_forgot_password(req: ForgotPasswordRequest):
+    """
+    Initiate password reset. Sends a reset link to the registered email.
+    Always returns 200 to avoid leaking whether the email is registered.
+    """
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    token = _auth_create_reset_token(req.email)
+    if token:
+        try:
+            from email_alerts import send_password_reset
+            import asyncio as _asyncio
+            _asyncio.create_task(send_password_reset(req.email, token))
+        except Exception:
+            pass
+    return {"status": "ok", "message": "If that email is registered, a reset link has been sent."}
+
+
+@app.post("/auth/reset-password")
+def auth_reset_password(req: ResetPasswordRequest):
+    """Consume a password reset token and set a new password."""
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    try:
+        ok = _auth_reset_password(req.token, req.new_password)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    if not ok:
+        raise HTTPException(400, "Invalid or expired reset token.")
+    return {"status": "ok", "message": "Password updated. You can now log in."}
+
+
+@app.get("/auth/verify-email/{token}")
+def auth_verify_email(token: str):
+    """Verify email address via token sent at registration."""
+    if not _AUTH_MODULE:
+        raise HTTPException(503, "Auth module not available")
+    ok = _auth_verify_email(token)
+    if not ok:
+        raise HTTPException(400, "Invalid or expired verification link.")
+    return {"status": "ok", "message": "Email verified."}
+
+
+# ── Billing endpoints ─────────────────────────────────────────────────────────
+
+@app.post("/billing/checkout")
+def billing_checkout(req: BillingCheckoutRequest, request: _FastAPIRequest):
+    """Create a Stripe Checkout session to upgrade to pro or agency tier."""
+    if not _BILLING_MODULE:
+        raise HTTPException(503, "Billing module not available (install stripe>=7.0.0)")
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    try:
+        result = _billing_checkout(user, req.tier)
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc))
+    except Exception as exc:
+        logger.error("Billing checkout error: %s", exc)
+        raise HTTPException(500, "Checkout session creation failed")
+
+
+@app.post("/billing/webhook")
+async def billing_webhook(request: _FastAPIRequest):
+    """
+    Receive and process Stripe webhook events.
+    Stripe signs each payload with a webhook secret — always verify.
+    """
+    if not _BILLING_MODULE:
+        raise HTTPException(503, "Billing module not available")
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        result = _billing_webhook(payload, sig)
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except Exception as exc:
+        logger.error("Billing webhook error: %s", exc)
+        raise HTTPException(500, "Webhook processing failed")
+
+
+@app.get("/billing/portal")
+def billing_portal(request: _FastAPIRequest):
+    """Create a Stripe Customer Portal session for managing subscription."""
+    if not _BILLING_MODULE:
+        raise HTTPException(503, "Billing module not available")
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    customer_id = user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(400, "No active subscription found. Please upgrade first.")
+    try:
+        return _billing_portal(customer_id)
+    except Exception as exc:
+        logger.error("Billing portal error: %s", exc)
+        raise HTTPException(500, "Portal session creation failed")
+
+
+@app.get("/billing/status")
+def billing_status(request: _FastAPIRequest):
+    """Return current subscription status for the authenticated user."""
+    user = _get_current_user(request)
+    if not user:
+        return {"tier": "free", "status": "unauthenticated"}
+    customer_id = user.get("stripe_customer_id")
+    if not _BILLING_MODULE or not customer_id:
+        return {"tier": user.get("tier", "free"), "status": "local"}
+    try:
+        return _billing_status(customer_id)
+    except Exception:
+        return {"tier": user.get("tier", "free"), "status": "error"}
 
 
 @app.patch("/user/settings")
@@ -3338,14 +3508,37 @@ def get_project(project_id: int, request: _FastAPIRequest):
     proj = _db_get_project(project_id)
     if not proj:
         raise HTTPException(404, "Project not found")
+    # Ownership check: only owner or project members may view
+    user = _get_current_user(request)
+    if user and proj.get("user_id") and proj["user_id"] != user["id"]:
+        # Check if user is a member
+        try:
+            from competitor_db import _connect as _dbc
+            with _dbc() as conn:
+                member = conn.execute(
+                    "SELECT 1 FROM project_members WHERE project_id=? AND user_id=?",
+                    (project_id, user["id"])
+                ).fetchone()
+            if not member:
+                raise HTTPException(403, "Access denied")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(403, "Access denied")
     return proj
 
 
 @app.delete("/projects/{project_id}")
 def delete_project(project_id: int, request: _FastAPIRequest):
-    """Delete a project and all its snapshots."""
+    """Delete a project and all its snapshots. Only the owner may delete."""
     if not _PROJECTS_MODULE:
         raise HTTPException(503, "Projects module not available")
+    proj = _db_get_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    user = _get_current_user(request)
+    if user and proj.get("user_id") and proj["user_id"] != user["id"]:
+        raise HTTPException(403, "Only the project owner can delete this project")
     deleted = _db_delete_project(project_id)
     if not deleted:
         raise HTTPException(404, "Project not found")
@@ -3365,6 +3558,22 @@ def save_snapshot(project_id: int, request: _FastAPIRequest):
     proj = _db_get_project(project_id)
     if not proj:
         raise HTTPException(404, "Project not found")
+    # Only owner or editors may save snapshots
+    user = _get_current_user(request)
+    if user and proj.get("user_id") and proj["user_id"] != user["id"]:
+        try:
+            from competitor_db import _connect as _dbc
+            with _dbc() as conn:
+                member = conn.execute(
+                    "SELECT role FROM project_members WHERE project_id=? AND user_id=?",
+                    (project_id, user["id"])
+                ).fetchone()
+            if not member or member["role"] not in ("editor",):
+                raise HTTPException(403, "Editor or owner access required to save snapshots")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(403, "Access denied")
 
     pages       = [p for p in crawl_results if not p.get("_is_error")]
     issue_count = sum(1 for p in pages if p.get("issues"))
@@ -3411,10 +3620,30 @@ def get_project_history(project_id: int):
 # ── Issue status endpoints ────────────────────────────────────────────────────
 
 @app.patch("/issues/status")
-def update_issue_status(req: IssueStatusRequest):
+def update_issue_status(req: IssueStatusRequest, request: _FastAPIRequest):
     """Mark an issue as open / in_progress / resolved, with optional note."""
     if not _PROJECTS_MODULE:
         raise HTTPException(503, "Projects module not available")
+    # Auth required when project_id is provided
+    if req.project_id is not None and _AUTH_MODULE:
+        user = _get_current_user(request)
+        if not user:
+            raise HTTPException(401, "Authentication required to update issue status")
+        proj = _db_get_project(req.project_id)
+        if proj and proj.get("user_id") and proj["user_id"] != user["id"]:
+            try:
+                from competitor_db import _connect as _dbc
+                with _dbc() as conn:
+                    member = conn.execute(
+                        "SELECT role FROM project_members WHERE project_id=? AND user_id=?",
+                        (req.project_id, user["id"])
+                    ).fetchone()
+                if not member:
+                    raise HTTPException(403, "Access denied")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(403, "Access denied")
     _db_upsert_issue(req.project_id, req.url, req.issue_type, req.status, req.note)
     return {"status": "updated"}
 
@@ -3672,7 +3901,7 @@ async def gsc_callback(code: str = Query(default="")):
 # ── Crawl diff endpoint ───────────────────────────────────────────────────────
 
 @app.get("/projects/{project_id}/diff")
-def project_diff(project_id: int):
+def project_diff(project_id: int, request: _FastAPIRequest):
     """
     Compare the two most recent crawl snapshots for a project.
     Returns lists of new_issues (appeared), fixed_issues (resolved),
@@ -3680,6 +3909,24 @@ def project_diff(project_id: int):
     """
     if not _PROJECTS_MODULE:
         raise HTTPException(503, "Projects module not available")
+    proj = _db_get_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    user = _get_current_user(request)
+    if user and proj.get("user_id") and proj["user_id"] != user["id"]:
+        try:
+            from competitor_db import _connect as _dbc
+            with _dbc() as conn:
+                member = conn.execute(
+                    "SELECT 1 FROM project_members WHERE project_id=? AND user_id=?",
+                    (project_id, user["id"])
+                ).fetchone()
+            if not member:
+                raise HTTPException(403, "Access denied")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(403, "Access denied")
     history = _db_get_history(project_id, limit=2)
     if len(history) < 2:
         return {"has_diff": False, "message": "Need at least 2 snapshots to compare. Run another crawl and save."}
@@ -3785,12 +4032,13 @@ def team_invite(req: TeamInviteRequest, request: _FastAPIRequest):
             raise HTTPException(404, f"No account found for {req.email}. They need to register first.")
         invitee = dict(invitee)
         # Upsert team membership
+        from datetime import datetime as _dt, timezone as _tz
         with _db_conn() as conn:
             conn.execute("""
                 INSERT INTO project_members (project_id, user_id, role, invited_at)
                 VALUES (?,?,?,?)
                 ON CONFLICT(project_id, user_id) DO UPDATE SET role=excluded.role
-            """, (req.project_id, invitee["id"], req.role, __import__('datetime').datetime.utcnow().isoformat()))
+            """, (req.project_id, invitee["id"], req.role, _dt.now(_tz.utc).isoformat(timespec="seconds")))
         return {
             "status": "invited",
             "user": {"name": invitee["name"], "email": invitee["email"]},
@@ -3808,9 +4056,28 @@ def team_invite(req: TeamInviteRequest, request: _FastAPIRequest):
 
 @app.get("/team/members/{project_id}")
 def team_list_members(project_id: int, request: _FastAPIRequest):
-    """List all members with access to a project."""
+    """List all members with access to a project. Auth required."""
     if not _PROJECTS_MODULE:
         raise HTTPException(503, "Projects module not available")
+    if _AUTH_MODULE:
+        user = _get_current_user(request)
+        if not user:
+            raise HTTPException(401, "Not authenticated")
+        proj = _db_get_project(project_id)
+        if proj and proj.get("user_id") and proj["user_id"] != user["id"]:
+            try:
+                from competitor_db import _connect as _dbc
+                with _dbc() as conn:
+                    member = conn.execute(
+                        "SELECT 1 FROM project_members WHERE project_id=? AND user_id=?",
+                        (project_id, user["id"])
+                    ).fetchone()
+                if not member:
+                    raise HTTPException(403, "Access denied")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(403, "Access denied")
     try:
         from competitor_db import _connect as _db_conn
         with _db_conn() as conn:

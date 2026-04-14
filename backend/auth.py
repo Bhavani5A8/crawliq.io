@@ -210,8 +210,13 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
 
 
 def update_user(user_id: int, **kwargs) -> None:
-    """Update any column(s) on the users table. Allowed: name, tier, logo_base64."""
-    allowed = {"name", "tier", "logo_base64"}
+    """Update any column(s) on the users table."""
+    allowed = {
+        "name", "tier", "logo_base64",
+        "alert_email", "rank_drop_threshold",
+        "stripe_customer_id", "subscription_expires_at",
+        "email_verified",
+    }
     sets = []
     params = []
     for k, v in kwargs.items():
@@ -299,3 +304,102 @@ def record_pages_crawled(user_id: int, n_pages: int) -> None:
             "UPDATE users SET pages_used = pages_used + ? WHERE id=?",
             (n_pages, user_id),
         )
+
+
+# ── Password reset ────────────────────────────────────────────────────────────
+
+def create_password_reset_token(email: str) -> Optional[str]:
+    """
+    Generate a password reset token for the given email.
+    Returns token string, or None if email not found.
+    Token expires in 1 hour.
+    """
+    email = email.strip().lower()
+    with _db() as conn:
+        row = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+    if row is None:
+        return None
+    token  = str(uuid.uuid4()).replace("-", "")
+    now    = datetime.now(timezone.utc)
+    exp    = (now + timedelta(hours=1)).isoformat(timespec="seconds")
+    now_s  = now.isoformat(timespec="seconds")
+    with _db() as conn:
+        # Invalidate any existing unused tokens for this user
+        conn.execute(
+            "UPDATE password_reset_tokens SET used=1 WHERE user_id=? AND used=0",
+            (row["id"],),
+        )
+        conn.execute(
+            "INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at) VALUES (?,?,?,?)",
+            (row["id"], token, exp, now_s),
+        )
+    return token
+
+
+def reset_password(token: str, new_password: str) -> bool:
+    """
+    Consume a password reset token and update the user's password.
+    Returns True on success, False if token invalid/expired/used.
+    """
+    if not _auth_available():
+        return False
+    if len(new_password) < 6:
+        raise ValueError("Password must be at least 6 characters")
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token=? AND used=0 AND expires_at > ?",
+            (token, now),
+        ).fetchone()
+        if row is None:
+            return False
+        pw_hash = _hash_password(new_password)
+        conn.execute(
+            "UPDATE users SET password_hash=? WHERE id=?",
+            (pw_hash, row["user_id"]),
+        )
+        conn.execute(
+            "UPDATE password_reset_tokens SET used=1 WHERE id=?",
+            (row["id"],),
+        )
+    return True
+
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+def create_email_verify_token(user_id: int) -> str:
+    """Generate an email verification token (expires in 24 h)."""
+    token  = str(uuid.uuid4()).replace("-", "")
+    now    = datetime.now(timezone.utc)
+    exp    = (now + timedelta(hours=24)).isoformat(timespec="seconds")
+    now_s  = now.isoformat(timespec="seconds")
+    with _db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO email_verify_tokens (user_id, token, expires_at, created_at) VALUES (?,?,?,?)",
+            (user_id, token, exp, now_s),
+        )
+    return token
+
+
+def verify_email_token(token: str) -> bool:
+    """
+    Consume an email verification token.
+    Returns True on success, False if invalid/expired.
+    """
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT * FROM email_verify_tokens WHERE token=? AND expires_at > ?",
+            (token, now),
+        ).fetchone()
+        if row is None:
+            return False
+        conn.execute(
+            "UPDATE users SET email_verified=1 WHERE id=?",
+            (row["user_id"],),
+        )
+        conn.execute(
+            "DELETE FROM email_verify_tokens WHERE id=?",
+            (row["id"],),
+        )
+    return True

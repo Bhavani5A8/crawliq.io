@@ -865,12 +865,16 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     <button class="auth-tab"        id="tab-register" onclick="authTab('register')">Create Account</button>
   </div>
   <div id="auth-error" class="auth-error"></div>
+  <div id="auth-success" style="color:var(--green);font-size:11px;margin-bottom:10px;display:none"></div>
 
   <!-- Login form -->
   <div id="auth-form-login">
     <div class="auth-field"><label>Email</label><input id="login-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
-    <div class="auth-field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <div class="auth-field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doLogin()">Sign In</button>
+    <div style="text-align:right;margin-top:6px">
+      <button onclick="authTab('forgot')" style="background:none;border:none;color:var(--indigo);font-size:11px;cursor:pointer;text-decoration:underline">Forgot password?</button>
+    </div>
     <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
   </div>
 
@@ -882,6 +886,78 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
     <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doRegister()">Create Free Account</button>
     <div style="font-size:10px;color:var(--dim);text-align:center;margin-top:8px">Free plan: 200 pages/month · 3 projects · No credit card required</div>
     <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
+  </div>
+
+  <!-- Forgot password form -->
+  <div id="auth-form-forgot" style="display:none">
+    <p style="font-size:12px;color:var(--dim);margin:0 0 12px">Enter your account email and we'll send a reset link.</p>
+    <div class="auth-field"><label>Email</label><input id="forgot-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doForgotPassword()">Send Reset Link</button>
+    <button onclick="authTab('login')" style="background:none;border:none;color:var(--indigo);font-size:11px;cursor:pointer;margin-top:8px;text-decoration:underline">Back to Sign In</button>
+  </div>
+
+  <!-- Reset password form (shown when ?reset_token= is in URL) -->
+  <div id="auth-form-reset" style="display:none">
+    <p style="font-size:12px;color:var(--dim);margin:0 0 12px">Enter your new password below.</p>
+    <div class="auth-field"><label>New Password</label><input id="reset-pass" type="password" placeholder="Min 6 characters" autocomplete="new-password"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doResetPassword()">Set New Password</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ UPGRADE / PRICING MODAL ═══════════════════════════════════════════════ -->
+<div id="upgrade-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:600px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <h2 style="font-size:18px;font-weight:800">Choose Your Plan</h2>
+    <button onclick="closeUpgradeModal()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div id="upgrade-error" style="color:var(--red);font-size:11px;margin-bottom:10px;display:none"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <!-- Free -->
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Free</div>
+      <div style="font-size:24px;font-weight:900;color:var(--cyan);margin-bottom:8px">$0<span style="font-size:11px;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;padding:0;margin:0 0 16px;font-size:11px;color:var(--dim);text-align:left">
+        <li>&#10003; 200 pages/month</li>
+        <li>&#10003; 3 projects</li>
+        <li>&#10003; SEO audit + AI</li>
+        <li>&#10003; PDF export</li>
+      </ul>
+      <button class="btn btn-outline" style="width:100%;font-size:11px" disabled>Current Plan</button>
+    </div>
+    <!-- Pro -->
+    <div style="background:var(--surf2);border:2px solid var(--indigo);border-radius:10px;padding:16px;text-align:center;position:relative">
+      <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--indigo);color:#fff;font-size:9px;font-weight:800;padding:2px 10px;border-radius:20px">POPULAR</div>
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Pro</div>
+      <div style="font-size:24px;font-weight:900;color:var(--indigo);margin-bottom:8px">$29<span style="font-size:11px;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;padding:0;margin:0 0 16px;font-size:11px;color:var(--dim);text-align:left">
+        <li>&#10003; 5,000 pages/month</li>
+        <li>&#10003; 20 projects</li>
+        <li>&#10003; 15 monitor jobs</li>
+        <li>&#10003; Email alerts</li>
+        <li>&#10003; White-label PDF</li>
+        <li>&#10003; Team workspace</li>
+      </ul>
+      <button class="btn btn-green" style="width:100%;font-size:11px" onclick="doUpgrade('pro')">Upgrade to Pro</button>
+    </div>
+    <!-- Agency -->
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Agency</div>
+      <div style="font-size:24px;font-weight:900;color:var(--yellow);margin-bottom:8px">$99<span style="font-size:11px;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;padding:0;margin:0 0 16px;font-size:11px;color:var(--dim);text-align:left">
+        <li>&#10003; Unlimited pages</li>
+        <li>&#10003; Unlimited projects</li>
+        <li>&#10003; Unlimited monitor jobs</li>
+        <li>&#10003; Priority support</li>
+        <li>&#10003; API access</li>
+        <li>&#10003; Custom branding</li>
+      </ul>
+      <button class="btn" style="width:100%;font-size:11px;background:var(--yellow);color:#000" onclick="doUpgrade('agency')">Upgrade to Agency</button>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:14px">
+    <button onclick="closeUpgradeModal();openSettings();setTimeout(()=>document.getElementById('manage-billing-btn')?.click(),300)" style="background:none;border:none;color:var(--indigo);font-size:11px;cursor:pointer;text-decoration:underline">Manage existing subscription →</button>
   </div>
 </div>
 </div>
@@ -902,7 +978,11 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       <span id="usage-count" style="font-family:var(--mono)">0 / 200</span>
     </div>
     <div class="usage-bar-wrap"><div id="usage-bar" class="usage-bar" style="width:0%;background:var(--indigo)"></div></div>
-    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Free tier · <a href="#" style="color:var(--indigo)" onclick="alert('Upgrade coming soon!')">Upgrade to Pro →</a></div>
+    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Free tier · <a href="#" style="color:var(--indigo)" onclick="closeSettings();openUpgradeModal()">Upgrade to Pro →</a></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button id="upgrade-plan-btn" class="btn btn-green" style="font-size:11px;flex:1" onclick="closeSettings();openUpgradeModal()">Upgrade Plan</button>
+      <button id="manage-billing-btn" class="btn btn-outline" style="font-size:11px;flex:1" onclick="openBillingPortal()">Manage Billing</button>
+    </div>
   </div>
 
   <!-- Profile -->
@@ -3843,10 +3923,16 @@ function closeAuthModal(){
   document.getElementById('auth-modal').style.display='none';
 }
 function authTab(tab){
-  document.getElementById('auth-form-login').style.display    = tab==='login'    ? '' : 'none';
-  document.getElementById('auth-form-register').style.display = tab==='register' ? '' : 'none';
+  ['login','register','forgot','reset'].forEach(t=>{
+    const el = document.getElementById('auth-form-'+t);
+    if(el) el.style.display = (t===tab) ? '' : 'none';
+  });
   document.getElementById('tab-login').classList.toggle('active', tab==='login');
   document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  // Clear messages on tab switch
+  document.getElementById('auth-error').style.display='none';
+  const suc = document.getElementById('auth-success');
+  if(suc) suc.style.display='none';
 }
 async function doLogin(){
   const email = document.getElementById('login-email').value.trim();
@@ -3879,11 +3965,79 @@ async function doRegister(){
     applyAuthState();
   }catch(e){errEl.textContent=e.message; errEl.style.display='';}
 }
+async function doForgotPassword(){
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('auth-error');
+  const sucEl = document.getElementById('auth-success');
+  errEl.style.display='none'; sucEl.style.display='none';
+  if(!email){errEl.textContent='Enter your email address.';errEl.style.display='';return;}
+  try{
+    const res = await fetch(`${API}/auth/forgot-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Request failed');
+    sucEl.textContent=d.message||'Reset link sent! Check your email.';
+    sucEl.style.display='';
+    document.getElementById('forgot-email').value='';
+  }catch(e){errEl.textContent=e.message;errEl.style.display='';}
+}
+async function doResetPassword(){
+  const newPass = document.getElementById('reset-pass').value;
+  const token   = new URLSearchParams(location.search).get('reset_token');
+  const errEl   = document.getElementById('auth-error');
+  const sucEl   = document.getElementById('auth-success');
+  errEl.style.display='none'; sucEl.style.display='none';
+  if(!newPass||newPass.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='';return;}
+  try{
+    const res = await fetch(`${API}/auth/reset-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,new_password:newPass})});
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Reset failed');
+    sucEl.textContent='Password updated! You can now sign in.';
+    sucEl.style.display='';
+    // Clear token from URL
+    window.history.replaceState({},'',location.pathname);
+    setTimeout(()=>authTab('login'),2000);
+  }catch(e){errEl.textContent=e.message;errEl.style.display='';}
+}
 function doLogout(){
   _ciqToken=''; _ciqUser=null; window._ciqProject=null;
   localStorage.removeItem('ciq_token');
   localStorage.removeItem('ciq_brand_name');
   applyAuthState();
+}
+
+// ── Upgrade / Billing ─────────────────────────────────────────────────────────
+function openUpgradeModal(){
+  document.getElementById('upgrade-modal').style.display='flex';
+  document.getElementById('upgrade-error').style.display='none';
+  // Update free plan button to show current plan
+  if(_ciqUser){
+    const tier = _ciqUser.tier||'free';
+    const btn  = document.querySelector('#upgrade-modal button[disabled]');
+    if(btn) btn.textContent = tier==='free' ? 'Current Plan' : 'Free';
+  }
+}
+function closeUpgradeModal(){
+  document.getElementById('upgrade-modal').style.display='none';
+}
+async function doUpgrade(tier){
+  if(!_ciqUser){closeUpgradeModal();openAuthModal();return;}
+  const errEl = document.getElementById('upgrade-error');
+  errEl.style.display='none';
+  try{
+    const res = await safeAuthFetch(`${API}/billing/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier})});
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Checkout failed');
+    if(d.url) window.location.href = d.url;
+  }catch(e){errEl.textContent=e.message;errEl.style.display='';}
+}
+async function openBillingPortal(){
+  if(!_ciqUser){openAuthModal();return;}
+  try{
+    const res = await safeAuthFetch(`${API}/billing/portal`);
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Portal unavailable');
+    if(d.url) window.open(d.url,'_blank');
+  }catch(e){alert('Billing portal: '+e.message);}
 }
 async function loadCurrentUser(){
   if(!_ciqToken) return;
@@ -4353,11 +4507,30 @@ async function removeTeamMember(email){
 // ── Init on page load ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', ()=>{
   loadCurrentUser();
+
+  // Auto-open password reset form when URL has ?reset_token=
+  const resetToken = new URLSearchParams(location.search).get('reset_token');
+  if(resetToken){
+    openAuthModal();
+    authTab('reset');
+  }
+
+  // Auto-open upgrade success notification when ?upgrade=success
+  const upgradeStatus = new URLSearchParams(location.search).get('upgrade');
+  if(upgradeStatus === 'success'){
+    window.history.replaceState({},'',location.pathname);
+    setTimeout(async ()=>{
+      // Reload user to get updated tier
+      await loadCurrentUser();
+      alert('Upgrade successful! Your new plan is now active.');
+    }, 500);
+  }
+
   // Keyboard dismiss for modals
   document.addEventListener('keydown', e=>{
     if(e.key==='Escape'){
       ['auth-modal','settings-modal','projects-modal','kwgap-modal',
-       'score-history-modal','sitemap-modal'].forEach(id=>{
+       'score-history-modal','sitemap-modal','upgrade-modal'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.style.display='none';
       });
