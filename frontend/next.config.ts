@@ -1,7 +1,19 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Static export — required for GitHub Pages (no Node server)
+  output: 'export',
 
-export default nextConfig;
+  // GitHub Pages serves the app under /seo-project/
+  basePath: '/seo-project',
+
+  // next/image optimisation needs a server; disable for static export
+  images: {
+    unoptimized: true,
+  },
+
+  // Trailing slash so every page gets an index.html file
+  trailingSlash: true,
+}
+
+export default nextConfig
