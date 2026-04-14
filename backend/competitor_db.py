@@ -106,6 +106,23 @@ CREATE TABLE IF NOT EXISTS cwv_history (
 
 CREATE INDEX IF NOT EXISTS idx_cwv_url  ON cwv_history(url);
 CREATE INDEX IF NOT EXISTS idx_cwv_date ON cwv_history(created_at);
+
+-- Monitor rankings: standalone SERP position history (Phase 3, no FK dependency)
+CREATE TABLE IF NOT EXISTS monitor_rankings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      TEXT    NOT NULL,
+    domain      TEXT    NOT NULL,
+    keyword     TEXT    NOT NULL,
+    position    INTEGER,           -- NULL = not in top results
+    in_top_10   INTEGER DEFAULT 0,
+    in_top_30   INTEGER DEFAULT 0,
+    checked_at  TEXT    NOT NULL   -- ISO-8601 UTC
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_job     ON monitor_rankings(job_id);
+CREATE INDEX IF NOT EXISTS idx_mon_domain  ON monitor_rankings(domain);
+CREATE INDEX IF NOT EXISTS idx_mon_keyword ON monitor_rankings(keyword);
+CREATE INDEX IF NOT EXISTS idx_mon_date    ON monitor_rankings(checked_at);
 """
 
 
@@ -355,6 +372,71 @@ def get_cwv_history(url: str, strategy: str = "mobile", days: int = 90) -> list[
     """
     with _connect() as conn:
         rows = conn.execute(sql, (url, strategy, f"-{days} days")).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Monitor rankings (Phase 3) ────────────────────────────────────────────────
+
+def save_monitor_rankings(job_id: str, domain: str, rankings: list[dict]) -> None:
+    """
+    Bulk-insert monitor_rankings rows for scheduled SERP tracking.
+    Each dict must have: keyword, position (int|None), in_top_10, in_top_30, checked_at.
+    """
+    now = _now_iso()
+    rows = [
+        (
+            job_id,
+            domain,
+            r["keyword"],
+            r.get("position"),
+            int(bool(r.get("in_top_10", False))),
+            int(bool(r.get("in_top_30", False))),
+            r.get("checked_at", now),
+        )
+        for r in rankings
+    ]
+    sql = """
+        INSERT INTO monitor_rankings
+            (job_id, domain, keyword, position, in_top_10, in_top_30, checked_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """
+    with _connect() as conn:
+        conn.executemany(sql, rows)
+    logger.debug("Saved %d monitor ranking rows for job %s", len(rows), job_id)
+
+
+def get_monitor_history(
+    domain: str,
+    keyword: str,
+    limit: int = 30,
+) -> list[dict]:
+    """
+    Return position time-series for (domain, keyword) from monitor_rankings.
+    Returns newest-first list of {keyword, position, in_top_10, in_top_30, checked_at}.
+    """
+    sql = """
+        SELECT keyword, position, in_top_10, in_top_30, checked_at
+        FROM monitor_rankings
+        WHERE domain = ? AND keyword = ?
+        ORDER BY checked_at DESC
+        LIMIT ?
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (domain, keyword, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_monitor_latest(domain: str) -> list[dict]:
+    """Return latest position for every tracked keyword on domain."""
+    sql = """
+        SELECT keyword, position, in_top_10, in_top_30, MAX(checked_at) as checked_at
+        FROM monitor_rankings
+        WHERE domain = ?
+        GROUP BY keyword
+        ORDER BY checked_at DESC
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (domain,)).fetchall()
     return [dict(r) for r in rows]
 
 

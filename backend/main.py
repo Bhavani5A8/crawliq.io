@@ -2948,6 +2948,186 @@ def ctr_opportunity(request: CtrOpportunityRequest):
     }
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 8: SCHEDULED MONITORING ENDPOINTS (Phase 3) ─────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+try:
+    from monitor import (
+        schedule_job   as _schedule_job,
+        cancel_job     as _cancel_job,
+        delete_job     as _delete_job,
+        list_jobs      as _list_jobs,
+        get_job        as _get_job,
+        get_job_history as _get_job_history,
+        get_domain_latest as _get_domain_latest,
+        start_monitor_service as _start_monitor_service,
+    )
+    _MONITOR_MODULE = True
+except ImportError:
+    _MONITOR_MODULE = False
+
+
+class MonitorScheduleRequest(BaseModel):
+    domain:         str        = Field(..., min_length=4, max_length=2048)
+    keywords:       list[str]  = Field(..., min_items=1, max_items=50)
+    interval_hours: float      = Field(default=24.0, ge=0.5, le=168.0)
+
+
+@app.post("/monitor/schedule")
+async def monitor_schedule(request: MonitorScheduleRequest):
+    """
+    Schedule periodic SERP position tracking for a domain + keywords.
+
+    The monitor fires every interval_hours, checks each keyword's position
+    on Google, and saves results to the SQLite database.
+
+    Returns the created MonitorJob with job_id for future management.
+    """
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    if not _SERP_SCRAPER_MODULE:
+        raise HTTPException(status_code=503, detail="serp_scraper module not available (needed for SERP checks).")
+
+    job = _schedule_job(
+        domain         = request.domain,
+        keywords       = request.keywords,
+        interval_hours = request.interval_hours,
+    )
+    return {"status": "scheduled", "job": job.__dict__ if hasattr(job, "__dict__") else job}
+
+
+@app.get("/monitor/jobs")
+def monitor_list_jobs():
+    """List all active and inactive monitoring jobs."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    return {"total": len(_list_jobs()), "jobs": _list_jobs()}
+
+
+@app.get("/monitor/job/{job_id}")
+def monitor_get_job(job_id: str):
+    """Get a single monitoring job by ID."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return job
+
+
+@app.delete("/monitor/job/{job_id}")
+def monitor_delete_job(job_id: str):
+    """Delete a monitoring job by ID."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    deleted = _delete_job(job_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return {"status": "deleted", "job_id": job_id}
+
+
+@app.patch("/monitor/job/{job_id}/cancel")
+def monitor_cancel_job(job_id: str):
+    """Pause (deactivate) a monitoring job without deleting it."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    ok = _cancel_job(job_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return {"status": "cancelled", "job_id": job_id}
+
+
+@app.get("/monitor/history")
+def monitor_history(domain: str, keyword: str, limit: int = Query(default=30, ge=1, le=200)):
+    """
+    Retrieve position history for domain + keyword from the monitoring database.
+    Returns newest-first list of {keyword, position, in_top_10, in_top_30, checked_at}.
+    """
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    results = _get_job_history(domain, keyword, limit=limit)
+    return {"domain": domain, "keyword": keyword, "total": len(results), "history": results}
+
+
+@app.get("/monitor/latest")
+def monitor_latest(domain: str):
+    """Return the latest tracked position for every keyword on domain."""
+    if not _MONITOR_MODULE:
+        raise HTTPException(status_code=503, detail="monitor module not available.")
+    results = _get_domain_latest(domain)
+    return {"domain": domain, "total": len(results), "results": results}
+
+
+# ── Start monitor service on FastAPI startup ──────────────────────────────────
+
+@app.on_event("startup")
+async def _startup_monitor():
+    """Start the background SERP monitor loop when FastAPI boots."""
+    if _MONITOR_MODULE:
+        try:
+            _start_monitor_service()
+            logger.info("Monitor service started at FastAPI startup")
+        except Exception as exc:
+            logger.warning("Monitor service startup failed: %s", exc)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 9: PDF EXPORT ENDPOINT (Phase 4) ────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+try:
+    from pdf_export import generate_pdf_bytes as _generate_pdf_bytes
+    _PDF_MODULE = True
+except ImportError:
+    _PDF_MODULE = False
+
+
+@app.get("/export-pdf")
+def export_pdf(url: str = Query(default="", description="Crawled site URL for report header")):
+    """
+    Generate and download a PDF audit report of the last crawl.
+
+    Requires reportlab to be installed (pip install reportlab>=4.0.0).
+    Returns a PDF file with:
+      - Cover header (site URL, crawl date, stats)
+      - Summary metrics (pages, issues, high priority, clean)
+      - Issue breakdown table
+      - Per-page audit table (top 100 pages, sorted by priority)
+      - Top keywords
+    """
+    if not _PDF_MODULE:
+        raise HTTPException(
+            status_code=503,
+            detail="PDF export unavailable — add 'reportlab>=4.0.0' to requirements.txt.",
+        )
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data. Run a crawl first.")
+
+    site_url = url.strip() or (
+        crawl_results[0].get("url", "") if crawl_results else ""
+    )
+    try:
+        pdf_bytes = _generate_pdf_bytes(
+            list(crawl_results),
+            dict(crawl_status),
+            site_url=site_url,
+        )
+    except Exception as exc:
+        logger.error("PDF generation failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {exc}")
+
+    from fastapi.responses import Response as _Resp
+    from urllib.parse import quote as _quote
+    safe_host = (site_url or "crawliq").replace("https://", "").replace("http://", "").rstrip("/").replace("/", "_")[:40]
+    filename  = f"crawliq_audit_{safe_host}.pdf"
+    return _Resp(
+        content      = pdf_bytes,
+        media_type   = "application/pdf",
+        headers      = {"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 def _handle_sigterm(sig, frame):
     """
     BUG-N19: graceful SIGTERM — mark crawl as stopped so the next startup

@@ -63,8 +63,26 @@ except Exception as _cffi_err:
     _CFFI = False
     logger.debug("curl_cffi unavailable in crawler (%s) — no Cloudflare bypass", _cffi_err)
 
-_CFFI_IMPERSONATE   = "chrome124"  # current Chrome TLS fingerprint
+_CFFI_IMPERSONATE   = "chrome124"  # Chrome TLS fingerprint (JA3/JA4 match)
 _CFFI_FETCH_TIMEOUT = 25           # seconds — cffi per-request timeout
+
+# Bot-challenge markers — presence in HTML means we got a JS-challenge page,
+# not real content. Detected even on HTTP 200 responses.
+_BOT_CHALLENGE_MARKERS = (
+    "cf-chl-bypass",         # Cloudflare challenge bypass token
+    "__cf_chl_f_tk",         # Cloudflare fingerprint token
+    "jschl_answer",          # Cloudflare legacy IUAM challenge
+    "Ray ID",                # Cloudflare Ray ID (typically in 403 HTML too)
+    "checking your browser", # Cloudflare "checking your browser" text
+    "please wait",           # Generic bot-protection wait page
+    "enable javascript",     # JS-required pages (no real content)
+    "ddos-guard",            # DDoS-Guard protection
+    "datadome",              # DataDome bot-protection
+    "perimeterx",            # PerimeterX bot-protection
+    "px-captcha",            # PerimeterX captcha
+    "akamai-bot",            # Akamai Bot Manager
+    "_px3",                  # PerimeterX pixel tag
+)
 
 
 # BUG-N33: removed _ssl_ctx_permissive() dead-code stub.
@@ -120,28 +138,100 @@ HEADERS = {
 import random as _random
 
 _USER_AGENTS = [
-    # Chrome Windows
+    # Chrome 124 Windows (current)
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36",
+    # Chrome 123 Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    # Chrome Mac
+    # Chrome 124 Mac
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    # Edge Windows
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    # Chrome 124 Linux
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    # Edge 124 Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
-    # Firefox Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    # Firefox 125 Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-    # Firefox Mac
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    # Firefox 125 Mac
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0",
-    # Safari Mac
+    # Safari 17 Mac
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
+    # Chrome 124 Android (mobile UA can bypass some paywalls)
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
 ]
 
+# Per-UA consistent sec-ch-ua headers — must match the User-Agent string.
+# Bot detectors cross-check these; mismatches are a strong bot signal.
+_UA_HINTS: dict[str, dict] = {
+    "Chrome/124": {
+        "sec-ch-ua":          '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        "sec-ch-ua-mobile":   "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    },
+    "Chrome/123": {
+        "sec-ch-ua":          '"Chromium";v="123", "Google Chrome";v="123", "Not-A.Brand";v="24"',
+        "sec-ch-ua-mobile":   "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    },
+    "Edg/124": {
+        "sec-ch-ua":          '"Chromium";v="124", "Microsoft Edge";v="124", "Not-A.Brand";v="99"',
+        "sec-ch-ua-mobile":   "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    },
+    "Firefox": {
+        "sec-ch-ua":          "",   # Firefox does not send sec-ch-ua
+        "sec-ch-ua-mobile":   "",
+        "sec-ch-ua-platform": "",
+    },
+    "Safari": {
+        "sec-ch-ua":          "",
+        "sec-ch-ua-mobile":   "",
+        "sec-ch-ua-platform": "",
+    },
+}
+
 def _random_headers() -> dict:
-    """Return HEADERS with a randomly selected User-Agent string."""
-    ua = _random.choice(_USER_AGENTS)
-    h  = dict(HEADERS)
+    """
+    Return a full browser-matching header set with a random User-Agent.
+
+    Crucially: sec-ch-ua / sec-ch-ua-platform are set to match the chosen UA.
+    Bot detectors cross-check these — a mismatched set is a strong bot signal.
+    Firefox/Safari don't send sec-ch-ua at all, so those headers are omitted.
+    """
+    ua  = _random.choice(_USER_AGENTS)
+    h   = dict(HEADERS)
     h["User-Agent"] = ua
+
+    # Pick matching sec-ch-ua hints
+    hint_key = next((k for k in _UA_HINTS if k in ua), None)
+    hints    = _UA_HINTS.get(hint_key, {})
+    if hints.get("sec-ch-ua"):
+        h["sec-ch-ua"]          = hints["sec-ch-ua"]
+        h["sec-ch-ua-mobile"]   = hints["sec-ch-ua-mobile"]
+        h["sec-ch-ua-platform"] = hints["sec-ch-ua-platform"]
+    else:
+        # Firefox/Safari: remove Chromium-specific hint headers entirely
+        h.pop("sec-ch-ua", None)
+        h.pop("sec-ch-ua-mobile", None)
+        h.pop("sec-ch-ua-platform", None)
+
     return h
+
+
+def _is_bot_challenge(html: str, status: int) -> bool:
+    """
+    Return True if the HTML looks like a bot-protection challenge page.
+    Checks both hard-blocked status codes and JS-challenge 200 responses.
+    """
+    if status in (403, 429, 503, 403):
+        return True
+    if not html:
+        return False
+    sample = html[:4096].lower()
+    return any(marker in sample for marker in _BOT_CHALLENGE_MARKERS)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 TIMEOUTS        = [10, 20, 30]   # outer session timeout reference
@@ -385,7 +475,7 @@ class SEOCrawler:
                         self.domain       = parsed.netloc
                         self._bare_domain = self.domain.lstrip("www.")
                         self.root_url     = final.rstrip("/")
-                        self.queue        = [self.root_url]
+                        self.queue        = [(self.root_url, 0)]
                         logger.info("Domain resolved [%s]: %s → %s",
                                     label, try_url, self.domain)
 
@@ -404,9 +494,11 @@ class SEOCrawler:
                                 crawl_results.append(result)
                                 self.visited.add(self.root_url)
                                 self.queue = []
+                                self._queued.clear()
                                 for link in links:
-                                    if link not in self.visited:
-                                        self.queue.append(link)
+                                    if link not in self.visited and link not in self._queued:
+                                        self.queue.append((link, 1))
+                                        self._queued.add(link)
                                 crawl_status.update({
                                     "pages_crawled": 1,
                                     "pages_queued":  len(self.queue),
@@ -468,9 +560,11 @@ class SEOCrawler:
                             crawl_results.append(result)
                             self.visited.add(self.root_url)
                             self.queue = []
+                            self._queued.clear()
                             for link in links:
-                                if link not in self.visited:
-                                    self.queue.append(link)
+                                if link not in self.visited and link not in self._queued:
+                                    self.queue.append((link, 1))
+                                    self._queued.add(link)
                             crawl_status.update({
                                 "pages_crawled": 1,
                                 "pages_queued":  len(self.queue),
@@ -487,8 +581,11 @@ class SEOCrawler:
             "All probes failed for %s — _fetch will retry with 4-attempt cascade",
             self.root_url,
         )
-        if self.root_url not in self.queue and self.root_url not in self.visited:
-            self.queue = [self.root_url]
+        # All probes failed — ensure root is queued as (url, depth) tuple
+        already = any(u == self.root_url for u, _ in self.queue) if self.queue else False
+        if not already and self.root_url not in self.visited:
+            self.queue = [(self.root_url, 0)]
+            self._queued.add(self.root_url)
 
     # ── Per-URL fetch with adaptive timeout ───────────────────────────────────
 
@@ -616,19 +713,18 @@ class SEOCrawler:
                                 rec["_is_error"] = True
                                 return rec
 
-                            # Detect bot-wall responses before parsing:
-                            # 403/429/503 from real servers = bot-blocked, not network error.
-                            # Flag for cffi retry; still try to parse in case cffi unavailable.
-                            if status in (403, 429, 503):
+                            html = await resp.text(errors="replace")
+
+                            # Detect bot-wall: hard block (403/429/503) OR
+                            # JS-challenge disguised as HTTP 200 (Cloudflare, DataDome…)
+                            if _is_bot_challenge(html, status):
                                 got_blocked = True
-                                last_error  = f"HTTP {status} (bot-protection wall)"
-                                logger.warning("BOT-BLOCKED [%s] %s → HTTP %s",
+                                last_error  = f"HTTP {status} (bot-protection / JS-challenge)"
+                                logger.warning("BOT-BLOCKED [%s] %s → HTTP %s (challenge detected)",
                                                label, try_url, status)
-                                # Don't return yet — try remaining aiohttp attempts,
-                                # then cffi below if all aiohttp attempts are blocked.
+                                # Continue to next aiohttp attempt; cffi tried after all fail.
                                 continue
 
-                            html = await resp.text(errors="replace")
                             return _parse(url, status, html,
                                           self.domain, self._bare_domain,
                                           response_headers=dict(resp.headers),
@@ -705,34 +801,39 @@ class SEOCrawler:
                     if not connector.closed:
                         await connector.close()
 
-            # ── Attempt 5: curl_cffi Chrome TLS impersonation ────────────────
-            # Only tried when ALL aiohttp attempts hit a bot-protection wall
-            # (403/429/503). cffi sends the exact TLS fingerprint of Chrome 124,
-            # bypassing Cloudflare JA3/JA4 checks. Network errors go straight to
-            # the error record below — no point retrying with a different TLS stack.
+            # ── Attempt 5+: curl_cffi Chrome TLS impersonation ──────────────
+            # Tried when ALL aiohttp attempts hit a bot-protection wall (403/429/503
+            # OR JS-challenge 200). cffi sends the exact TLS JA3/JA4 fingerprint of
+            # Chrome, bypassing Cloudflare, DataDome, PerimeterX, Akamai.
+            # Try two impersonation profiles: chrome124, then chrome110 (older = less
+            # likely to trigger novelty-based bot filters on some WAFs).
             if _CFFI and got_blocked:
-                try:
-                    logger.info("cffi fallback attempt for %s", url)
-                    async with _CffiSession() as _cffi_sess:
-                        cffi_resp = await _cffi_sess.get(
-                            url,
-                            impersonate=_CFFI_IMPERSONATE,
-                            timeout=_CFFI_FETCH_TIMEOUT,
-                            allow_redirects=True,
-                        )
-                        if cffi_resp.status_code == 200:
-                            logger.info("cffi bypass SUCCESS for %s — enabling cffi-mode", url)
-                            crawl_status["ssl_fallbacks"] = crawl_status.get("ssl_fallbacks", 0) + 1
-                            self._use_cffi = True   # all future BFS fetches skip aiohttp
-                            return _parse(url, 200, cffi_resp.text,
-                                          self.domain, self._bare_domain,
-                                          response_headers=dict(cffi_resp.headers))
-                        logger.warning("cffi bypass got HTTP %d for %s",
-                                       cffi_resp.status_code, url)
-                        last_error = f"cffi HTTP {cffi_resp.status_code}"
-                except Exception as _cffi_exc:
-                    logger.warning("cffi fallback failed for %s: %s", url, _cffi_exc)
-                    last_error = f"cffi error: {_cffi_exc}"
+                for _cffi_profile in ("chrome124", "chrome110"):
+                    try:
+                        logger.info("cffi fallback [%s] for %s", _cffi_profile, url)
+                        async with _CffiSession() as _cffi_sess:
+                            cffi_resp = await _cffi_sess.get(
+                                url,
+                                impersonate=_cffi_profile,
+                                timeout=_CFFI_FETCH_TIMEOUT,
+                                allow_redirects=True,
+                            )
+                            html_cffi = cffi_resp.text or ""
+                            if cffi_resp.status_code == 200 and not _is_bot_challenge(html_cffi, 200):
+                                logger.info("cffi bypass SUCCESS [%s] for %s — enabling cffi-mode",
+                                            _cffi_profile, url)
+                                crawl_status["ssl_fallbacks"] = crawl_status.get("ssl_fallbacks", 0) + 1
+                                self._use_cffi = True   # all future BFS fetches skip aiohttp
+                                return _parse(url, 200, html_cffi,
+                                              self.domain, self._bare_domain,
+                                              response_headers=dict(cffi_resp.headers))
+                            logger.warning("cffi [%s] got HTTP %d / still blocked for %s",
+                                           _cffi_profile, cffi_resp.status_code, url)
+                            last_error = f"cffi HTTP {cffi_resp.status_code}"
+                    except Exception as _cffi_exc:
+                        logger.warning("cffi [%s] failed for %s: %s", _cffi_profile, url, _cffi_exc)
+                        last_error = f"cffi error: {_cffi_exc}"
+                        break  # network error — no point retrying with different profile
 
             # All attempts failed — record error, BFS continues
             crawl_status["errors"] += 1

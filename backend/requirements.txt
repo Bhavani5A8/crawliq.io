@@ -37,8 +37,8 @@ curl_cffi>=0.7.0,<1.0
 # PSI API uses aiohttp (already listed above)
 # ECharts loaded from CDN in frontend — no server dep
 # Phase 2 optional:
-# apscheduler>=3.10.0  # Scheduled monitoring (Phase 3)
-# weasyprint>=60.0     # PDF export (Phase 4)
+# apscheduler>=3.10.0  # (not used — pure asyncio scheduler in monitor.py)
+reportlab>=4.0.0,<5.0  # PDF export (Phase 4) — pure Python, no system deps
 
 # ── Readability scoring (Phase 1.5) ──────────────────────────
 # Used by technical_seo._audit_readability() — Flesch-Kincaid + Gunning Fog.

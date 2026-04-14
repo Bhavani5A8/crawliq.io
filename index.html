@@ -577,6 +577,15 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
 .ft-badges{display:flex;gap:8px;flex-wrap:wrap;}
 .ft-badge{background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:10px;color:var(--muted);font-family:var(--mono);}
 
+/* ── SERP INTEL / MONITOR PANEL ── */
+.serp-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:var(--mono);font-size:11px;font-weight:600;padding:10px 18px;cursor:pointer;transition:color .15s,border-color .15s;}
+.serp-tab:hover{color:var(--text);}
+.serp-tab-active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.serp-pane{min-height:80px;}
+.serp-input{background:var(--bg);border:1.5px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:var(--r);outline:none;transition:border-color .15s;}
+.serp-input:focus{border-color:var(--cyan);}
+.serp-input::placeholder{color:var(--dim);}
+
 /* ── TECH SEO PANEL ── */
 .tseo-panel{display:none;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin:8px 20px;overflow:hidden;}
 .tseo-panel.show{display:block;}
@@ -924,6 +933,9 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
         <button class="btn btn-purple"  id="popup-btn"   onclick="openPopup()" disabled>◈ Popup</button>
         <button class="btn btn-outline" id="export-btn"  onclick="openExportModal()" disabled>↓ Export</button>
         <button class="btn" style="border:1px solid var(--green);color:var(--green);background:transparent" id="tseo-btn" onclick="runTechSEO()" disabled>🔬 Tech SEO</button>
+        <button class="btn" style="border:1px solid var(--cyan);color:var(--cyan);background:transparent" id="serp-btn" onclick="openSerpPanel()" disabled>📊 SERP Intel</button>
+        <button class="btn" style="border:1px solid var(--indigo);color:var(--indigo);background:transparent" id="monitor-btn" onclick="openMonitorPanel()">🔔 Monitor</button>
+        <button class="btn" style="border:1px solid var(--yellow);color:var(--yellow);background:transparent" id="pdf-btn" onclick="exportPDF()" disabled>⬇ PDF</button>
       </div>
 
       <div class="summary" id="summary">
@@ -1091,6 +1103,143 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       </div>
     </div>
   </div>
+</section>
+
+<!-- ══ SERP INTEL PANEL ══════════════════════════════════════════════════ -->
+<section id="serp-intel-sec" style="display:none;padding:0 60px 40px">
+<div class="sec-inner">
+<div class="dash-card" id="serp-panel-card">
+  <div class="dash-chrome">
+    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+    <span class="tab">SERP Intelligence — Position &amp; Keyword Difficulty</span>
+    <button onclick="closeSerpPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
+  </div>
+
+  <!-- Tab bar -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surf2)">
+    <button id="serp-tab-pos"   class="serp-tab serp-tab-active" onclick="serpTab('pos')">📍 Position Check</button>
+    <button id="serp-tab-diff"  class="serp-tab" onclick="serpTab('diff')">🎯 Keyword Difficulty</button>
+    <button id="serp-tab-vis"   class="serp-tab" onclick="serpTab('vis')">👁 Visibility Score</button>
+  </div>
+
+  <!-- Position Check -->
+  <div id="serp-pane-pos" class="serp-pane" style="padding:16px 20px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <input id="serp-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:180px"/>
+      <textarea id="serp-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="3" style="flex:2;min-width:220px;resize:vertical"></textarea>
+      <button class="btn btn-green" onclick="runBulkSerp()" id="serp-run-btn">▶ Check Positions</button>
+    </div>
+    <div id="serp-pos-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span id="serp-pos-txt">Checking positions…</span></div>
+    <div id="serp-pos-results" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="serp-pos-summary"></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
+          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+            <th style="padding:8px 10px;text-align:left">Keyword</th>
+            <th style="padding:8px 10px;text-align:center">Position</th>
+            <th style="padding:8px 10px;text-align:center">Top 10?</th>
+            <th style="padding:8px 10px;text-align:center">Top 30?</th>
+          </tr></thead>
+          <tbody id="serp-pos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyword Difficulty -->
+  <div id="serp-pane-diff" class="serp-pane" style="display:none;padding:16px 20px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <textarea id="diff-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="4" style="flex:2;min-width:220px;resize:vertical"></textarea>
+      <button class="btn btn-green" onclick="runDifficulty()" id="diff-run-btn" style="align-self:flex-start">▶ Check Difficulty</button>
+    </div>
+    <div id="diff-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span>Checking difficulty…</span></div>
+    <div id="diff-results" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
+        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+          <th style="padding:8px 10px;text-align:left">Keyword</th>
+          <th style="padding:8px 10px;text-align:center">Difficulty</th>
+          <th style="padding:8px 10px;text-align:center">Label</th>
+          <th style="padding:8px 10px;text-align:left">Top Domains</th>
+        </tr></thead>
+        <tbody id="diff-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Visibility Score -->
+  <div id="serp-pane-vis" class="serp-pane" style="display:none;padding:16px 20px">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+      <button class="btn btn-green" onclick="loadVisibility()">↻ Refresh Visibility</button>
+      <span style="font-size:11px;color:var(--muted)">Uses positions from the Position Check tab</span>
+    </div>
+    <div id="vis-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <div id="vis-results" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
+        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+          <th style="padding:8px 10px;text-align:left">Keyword</th>
+          <th style="padding:8px 10px;text-align:center">Position</th>
+          <th style="padding:8px 10px;text-align:left">Page</th>
+          <th style="padding:8px 10px;text-align:center">Expected CTR</th>
+        </tr></thead>
+        <tbody id="vis-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+
+<!-- ══ SCHEDULED MONITOR PANEL ═══════════════════════════════════════════ -->
+<section id="monitor-sec" style="display:none;padding:0 60px 40px">
+<div class="sec-inner">
+<div class="dash-card">
+  <div class="dash-chrome">
+    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+    <span class="tab">SERP Monitor — Scheduled Position Tracking</span>
+    <button onclick="closeMonitorPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
+  </div>
+  <div style="padding:16px 20px">
+    <!-- Schedule new job -->
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px">Schedule New Tracking Job</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="mon-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:160px"/>
+        <textarea id="mon-keywords" class="serp-input" placeholder="Keywords (one per line)" rows="3" style="flex:2;min-width:200px;resize:vertical"></textarea>
+        <div style="display:flex;flex-direction:column;gap:8px;align-self:flex-start">
+          <select id="mon-interval" class="serp-input">
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24" selected>Daily (24h)</option>
+            <option value="48">Every 2 days</option>
+            <option value="168">Weekly</option>
+          </select>
+          <button class="btn btn-green" onclick="scheduleMonitor()">+ Schedule Job</button>
+        </div>
+      </div>
+      <div id="mon-sched-msg" style="font-size:10px;margin-top:8px;display:none"></div>
+    </div>
+
+    <!-- Active jobs -->
+    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Active Jobs <button class="btn btn-outline btn-sm" onclick="loadMonitorJobs()" style="margin-left:8px">↻ Refresh</button></div>
+    <div id="mon-jobs-wrap" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
+        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+          <th style="padding:7px 10px;text-align:left">Domain</th>
+          <th style="padding:7px 10px;text-align:left">Keywords</th>
+          <th style="padding:7px 10px;text-align:center">Interval</th>
+          <th style="padding:7px 10px;text-align:center">Runs</th>
+          <th style="padding:7px 10px;text-align:center">Status</th>
+          <th style="padding:7px 10px;text-align:left">Next Run</th>
+          <th style="padding:7px 10px"></th>
+        </tr></thead>
+        <tbody id="mon-jobs-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet. Schedule one above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
 </section>
 
 <!-- COMPETITOR ANALYSIS SECTION -->
@@ -1729,7 +1878,7 @@ async function startCrawl() {
   renderTable([]); hideSummary();
   bar('c', true, 'Starting crawl…'); bar('g', false);
   btnSet('crawl-btn', true);
-  btns({ gemini:1, popup:1, export:1, opt:1, tseo:1 });
+  btns({ gemini:1, popup:1, export:1, opt:1, tseo:1, pdf:1, serp:1 });
   showProgress(true);
   document.getElementById('sel-toolbar').classList.remove('show');
   try {
@@ -1751,7 +1900,7 @@ function startCrawlPolling() {
       updateProgress(s);
       const live = await (await fetch(`${API}/results/live`)).json();
       if (live.results && live.results.length > allResults.length) { allResults = live.results; applyFilters(); updateSummary(allResults); }
-      if (s.error) { clearInterval(crawlTimer); bar('c', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0}); showProgress(false); }
+      if (s.error) { clearInterval(crawlTimer); bar('c', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:1,serp:1}); showProgress(false); }
       if (s.done) {
         clearInterval(crawlTimer); await loadResults();
         const realPages = allResults.filter(r => r.status_code===200||r.status_code==='200');
@@ -1762,7 +1911,7 @@ function startCrawlPolling() {
           const t = s.timeouts>0 ? ` · ${s.timeouts} timeout${s.timeouts!==1?'s':''}` : '';
           const e = s.errors>0 ? ` · ${s.errors} error${s.errors!==1?'s':''}` : '';
           bar('c', false, `✓ ${realPages.length} pages crawled in ${elapsed}s${t}${e}`);
-          btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0});
+          btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:0,serp:0});
         }
         btnSet('crawl-btn', false); showProgress(false);
       }
@@ -2028,7 +2177,7 @@ function bar(type,spinning,msg){
   if(msg) document.getElementById(tid).textContent=msg;
 }
 function btns(state){
-  const map={crawl:'crawl-btn',gemini:'gemini-btn',popup:'popup-btn',export:'export-btn',opt:'opt-btn',tseo:'tseo-btn'};
+  const map={crawl:'crawl-btn',gemini:'gemini-btn',popup:'popup-btn',export:'export-btn',opt:'opt-btn',tseo:'tseo-btn',pdf:'pdf-btn',serp:'serp-btn'};
   for(const[k,id]of Object.entries(map)){const el=document.getElementById(id);if(el&&k in state)el.disabled=!!state[k];}
 }
 function btnSet(id,disabled){const el=document.getElementById(id);if(el)el.disabled=disabled;}
@@ -2886,6 +3035,286 @@ window.addEventListener('resize',()=>{
   if(radarChart)radarChart.resize();
   if(cwvChart)cwvChart.resize();
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// SERP INTEL — Position, Difficulty, Visibility
+// ══════════════════════════════════════════════════════════════════════════
+
+function openSerpPanel(){
+  document.getElementById('serp-intel-sec').style.display='';
+  document.getElementById('serp-intel-sec').scrollIntoView({behavior:'smooth'});
+}
+function closeSerpPanel(){
+  document.getElementById('serp-intel-sec').style.display='none';
+}
+
+function serpTab(name){
+  ['pos','diff','vis'].forEach(t=>{
+    document.getElementById(`serp-tab-${t}`).classList.toggle('serp-tab-active', t===name);
+    document.getElementById(`serp-pane-${t}`).style.display = t===name ? '' : 'none';
+  });
+}
+
+async function runBulkSerp(){
+  const domain = document.getElementById('serp-domain').value.trim();
+  const kwRaw  = document.getElementById('serp-keywords').value;
+  const keywords = kwRaw.split('\n').map(k=>k.trim()).filter(Boolean).slice(0,20);
+  if(!domain){alert('Enter a domain.');return;}
+  if(!keywords.length){alert('Enter at least one keyword.');return;}
+
+  const btn=document.getElementById('serp-run-btn');
+  btn.disabled=true;
+  const bar=document.getElementById('serp-pos-bar');
+  bar.style.display='flex';
+  document.getElementById('serp-pos-txt').textContent=`Checking ${keywords.length} keyword${keywords.length>1?'s':''}… (this may take 30-60s)`;
+  document.getElementById('serp-pos-results').style.display='none';
+
+  try{
+    const res=await fetch(`${API}/serp/bulk-position`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keywords, domain}),
+    });
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'SERP check failed');}
+    const data=await safeJson(res);
+    renderSerpPositions(data);
+  }catch(e){
+    alert(`SERP check failed: ${e.message}`);
+  }finally{
+    btn.disabled=false;
+    bar.style.display='none';
+  }
+}
+
+function renderSerpPositions(data){
+  const results=data.results||[];
+  const top10=results.filter(r=>r.in_top_10).length;
+  const top30=results.filter(r=>r.in_top_30&&!r.in_top_10).length;
+  const none =results.filter(r=>!r.in_top_30).length;
+
+  const sumEl=document.getElementById('serp-pos-summary');
+  sumEl.innerHTML=[
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
+      <span style="font-size:18px;font-weight:800;color:var(--green)">${top10}</span>
+      <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">In Top 10</span></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
+      <span style="font-size:18px;font-weight:800;color:var(--yellow)">${top30}</span>
+      <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">Top 11-30</span></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:11px">
+      <span style="font-size:18px;font-weight:800;color:var(--red)">${none}</span>
+      <span style="color:var(--dim);font-family:var(--mono);margin-left:6px">Not Ranked</span></div>`,
+  ].join('');
+
+  const tbody=document.getElementById('serp-pos-tbody');
+  tbody.innerHTML=results.map(r=>{
+    const posColor=r.in_top_10?'var(--green)':r.in_top_30?'var(--yellow)':'var(--red)';
+    const posText=r.position!=null?`#${r.position}`:'—';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;color:var(--text)">${r.keyword}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:800;color:${posColor};font-family:var(--mono)">${posText}</td>
+      <td style="padding:7px 10px;text-align:center">${r.in_top_10?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--dim)">—</span>'}</td>
+      <td style="padding:7px 10px;text-align:center">${r.in_top_30?'<span style="color:var(--yellow)">✓</span>':'<span style="color:var(--dim)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('serp-pos-results').style.display='';
+}
+
+async function runDifficulty(){
+  const kwRaw = document.getElementById('diff-keywords').value;
+  const keywords = kwRaw.split('\n').map(k=>k.trim()).filter(Boolean).slice(0,20);
+  if(!keywords.length){alert('Enter at least one keyword.');return;}
+
+  const btn=document.getElementById('diff-run-btn');
+  btn.disabled=true;
+  const bar=document.getElementById('diff-bar');
+  bar.style.display='flex';
+  document.getElementById('diff-results').style.display='none';
+
+  try{
+    const res=await fetch(`${API}/serp/difficulty`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keywords}),
+    });
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Difficulty check failed');}
+    const data=await safeJson(res);
+    renderDifficulty(data);
+  }catch(e){
+    alert(`Difficulty check failed: ${e.message}`);
+  }finally{
+    btn.disabled=false;
+    bar.style.display='none';
+  }
+}
+
+function renderDifficulty(data){
+  const results=data.results||[];
+  const tbody=document.getElementById('diff-tbody');
+  tbody.innerHTML=results.map(r=>{
+    const sc=r.difficulty_score??0;
+    const c=sc>=76?'var(--red)':sc>=51?'var(--yellow)':sc>=26?'var(--cyan)':'var(--green)';
+    const bar=`<div style="display:flex;align-items:center;gap:6px"><div style="width:${sc}%;max-width:80px;height:6px;background:${c};border-radius:3px"></div><span style="font-weight:700;color:${c}">${sc}</span></div>`;
+    const domains=(r.top_domains||[]).slice(0,3).join(', ')||'—';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;color:var(--text)">${r.keyword}</td>
+      <td style="padding:7px 10px">${bar}</td>
+      <td style="padding:7px 10px;text-align:center;font-size:10px;font-weight:700;color:${c}">${r.difficulty_label||'—'}</td>
+      <td style="padding:7px 10px;font-size:10px;color:var(--dim);font-family:var(--mono)">${domains}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('diff-results').style.display='';
+}
+
+async function loadVisibility(){
+  document.getElementById('vis-results').style.display='none';
+  const sumEl=document.getElementById('vis-summary');
+  sumEl.innerHTML='<span style="color:var(--muted);font-size:11px">Loading…</span>';
+  try{
+    const res=await fetch(`${API}/serp/visibility`);
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Failed');}
+    const data=await safeJson(res);
+    renderVisibility(data);
+  }catch(e){
+    sumEl.innerHTML=`<span style="color:var(--red);font-size:11px">Error: ${e.message}</span>`;
+  }
+}
+
+function renderVisibility(data){
+  const sc=data.visibility_score??0;
+  const scColor=sc>=70?'var(--green)':sc>=40?'var(--yellow)':'var(--red)';
+  document.getElementById('vis-summary').innerHTML=[
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px">
+      <div style="font-size:28px;font-weight:900;color:${scColor}">${sc.toFixed(1)}</div>
+      <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px">Visibility Score</div></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px">
+      <div style="font-size:22px;font-weight:800;color:var(--green)">${data.in_top_3??0}</div>
+      <div style="font-size:9px;color:var(--dim)">In Top 3</div></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px">
+      <div style="font-size:22px;font-weight:800;color:var(--cyan)">${data.in_top_10??0}</div>
+      <div style="font-size:9px;color:var(--dim)">In Top 10</div></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px">
+      <div style="font-size:22px;font-weight:800;color:var(--yellow)">${data.in_top_30??0}</div>
+      <div style="font-size:9px;color:var(--dim)">In Top 30</div></div>`,
+    `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px">
+      <div style="font-size:22px;font-weight:800;color:var(--dim)">${data.not_ranked??0}</div>
+      <div style="font-size:9px;color:var(--dim)">Not Ranked</div></div>`,
+  ].join('');
+
+  const kws=data.keywords||[];
+  const tbody=document.getElementById('vis-tbody');
+  tbody.innerHTML=kws.map(k=>{
+    const c=k.position<=3?'var(--green)':k.position<=10?'var(--cyan)':k.position<=30?'var(--yellow)':'var(--dim)';
+    const ctr=(k.expected_ctr!=null)?(k.expected_ctr*100).toFixed(1)+'%':'—';
+    const shortUrl=(k.page_url||'').replace(/https?:\/\//,'').slice(0,45);
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;color:var(--text)">${k.keyword}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:800;color:${c};font-family:var(--mono)">#${k.position}</td>
+      <td style="padding:7px 10px;font-size:10px;color:var(--cyan);font-family:var(--mono)">${shortUrl||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;color:var(--green)">${ctr}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('vis-results').style.display='';
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCHEDULED MONITOR
+// ══════════════════════════════════════════════════════════════════════════
+
+function openMonitorPanel(){
+  document.getElementById('monitor-sec').style.display='';
+  document.getElementById('monitor-sec').scrollIntoView({behavior:'smooth'});
+  loadMonitorJobs();
+}
+function closeMonitorPanel(){
+  document.getElementById('monitor-sec').style.display='none';
+}
+
+async function scheduleMonitor(){
+  const domain   = document.getElementById('mon-domain').value.trim();
+  const kwRaw    = document.getElementById('mon-keywords').value;
+  const keywords = kwRaw.split('\n').map(k=>k.trim()).filter(Boolean).slice(0,50);
+  const interval = parseFloat(document.getElementById('mon-interval').value);
+  if(!domain){alert('Enter a domain.');return;}
+  if(!keywords.length){alert('Enter at least one keyword.');return;}
+
+  const msg=document.getElementById('mon-sched-msg');
+  msg.style.display='';msg.style.color='var(--dim)';msg.textContent='Scheduling…';
+
+  try{
+    const res=await fetch(`${API}/monitor/schedule`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({domain, keywords, interval_hours:interval}),
+    });
+    if(!res.ok){const e=await safeJson(res);throw new Error(e.detail||'Failed');}
+    const data=await safeJson(res);
+    msg.style.color='var(--green)';
+    msg.textContent=`Job scheduled (ID: ${(data.job||{}).job_id||'—'}). First run triggers in ~60s.`;
+    loadMonitorJobs();
+  }catch(e){
+    msg.style.color='var(--red)';
+    msg.textContent=`Error: ${e.message}`;
+  }
+}
+
+async function loadMonitorJobs(){
+  try{
+    const res=await fetch(`${API}/monitor/jobs`);
+    if(!res.ok)return;
+    const data=await safeJson(res);
+    renderMonitorJobs(data.jobs||[]);
+  }catch(e){console.warn('loadMonitorJobs:',e);}
+}
+
+function renderMonitorJobs(jobs){
+  const tbody=document.getElementById('mon-jobs-tbody');
+  if(!jobs.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=jobs.map(j=>{
+    const sc=j.active?'var(--green)':'var(--dim)';
+    const status=j.active?'Active':'Paused';
+    const kws=(j.keywords||[]).slice(0,3).join(', ')+(j.keywords?.length>3?'…':'');
+    const nextRun=j.next_run_at?j.next_run_at.replace('T',' ').slice(0,16):'-';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;color:var(--cyan);font-family:var(--mono)">${j.domain}</td>
+      <td style="padding:7px 10px;color:var(--dim);font-size:10px">${kws}</td>
+      <td style="padding:7px 10px;text-align:center">${j.interval_hours}h</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:700;color:var(--yellow)">${j.run_count||0}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:700;color:${sc}">${status}</td>
+      <td style="padding:7px 10px;font-size:10px;color:var(--dim)">${nextRun}</td>
+      <td style="padding:7px 10px">
+        ${j.active?`<button class="btn btn-outline btn-sm" onclick="monitorAction('cancel','${j.job_id}')">Pause</button>`:''}
+        <button class="btn btn-sm" style="border:1px solid var(--red);color:var(--red);background:transparent;margin-left:4px" onclick="monitorAction('delete','${j.job_id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function monitorAction(action, jobId){
+  if(action==='delete'&&!confirm('Delete this monitoring job?'))return;
+  const url=action==='cancel'?`${API}/monitor/job/${jobId}/cancel`:`${API}/monitor/job/${jobId}`;
+  const method=action==='cancel'?'PATCH':'DELETE';
+  try{
+    const res=await fetch(url,{method});
+    if(res.ok)loadMonitorJobs();
+    else{const e=await safeJson(res);alert(e.detail||'Action failed');}
+  }catch(e){alert(`Error: ${e.message}`);}
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ══════════════════════════════════════════════════════════════════════════
+
+function exportPDF(){
+  const urlParam=encodeURIComponent(document.getElementById('url-input')?.value?.trim()||'');
+  window.location=`${API}/export-pdf?url=${urlParam}`;
+}
+
 
 </script>
 </body>
