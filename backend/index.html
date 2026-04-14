@@ -1195,12 +1195,20 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
 <div class="dash-card">
   <div class="dash-chrome">
     <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-    <span class="tab">SERP Monitor — Scheduled Position Tracking</span>
+    <span class="tab">🔔 SERP Monitor — Scheduled Position Tracking</span>
     <button onclick="closeMonitorPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
   </div>
-  <div style="padding:16px 20px">
-    <!-- Schedule new job -->
-    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+
+  <!-- Tab bar -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px">
+    <button class="serp-tab serp-tab-active" id="mon-tab-schedule" onclick="monTab('schedule')">+ Schedule</button>
+    <button class="serp-tab" id="mon-tab-jobs"     onclick="monTab('jobs')">Active Jobs</button>
+    <button class="serp-tab" id="mon-tab-history"  onclick="monTab('history')">📈 Position History</button>
+  </div>
+
+  <!-- Pane: Schedule -->
+  <div id="mon-pane-schedule" class="serp-pane" style="padding:16px 20px">
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px">Schedule New Tracking Job</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <input id="mon-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:160px"/>
@@ -1218,9 +1226,17 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       </div>
       <div id="mon-sched-msg" style="font-size:10px;margin-top:8px;display:none"></div>
     </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6">
+      <b style="color:var(--muted)">How it works:</b> After scheduling, the monitor checks each keyword's Google position on the chosen interval and saves results to the database. Click <b>Position History</b> tab to see tracked data over time.
+    </div>
+  </div>
 
-    <!-- Active jobs -->
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Active Jobs <button class="btn btn-outline btn-sm" onclick="loadMonitorJobs()" style="margin-left:8px">↻ Refresh</button></div>
+  <!-- Pane: Active Jobs -->
+  <div id="mon-pane-jobs" class="serp-pane" style="display:none;padding:16px 20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)">Active Jobs</span>
+      <button class="btn btn-outline btn-sm" onclick="loadMonitorJobs()" style="margin-left:4px">↻ Refresh</button>
+    </div>
     <div id="mon-jobs-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
         <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
@@ -1233,11 +1249,48 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
           <th style="padding:7px 10px"></th>
         </tr></thead>
         <tbody id="mon-jobs-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet. Schedule one above.</td></tr>
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet. Go to Schedule tab to add one.</td></tr>
         </tbody>
       </table>
     </div>
   </div>
+
+  <!-- Pane: Position History -->
+  <div id="mon-pane-history" class="serp-pane" style="display:none;padding:16px 20px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+      <div>
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">DOMAIN</div>
+        <input id="hist-domain" class="serp-input" placeholder="e.g. example.com" style="width:200px"/>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">KEYWORD (optional — blank = all)</div>
+        <input id="hist-keyword" class="serp-input" placeholder="e.g. ielts mock test" style="width:220px"/>
+      </div>
+      <button class="btn btn-green" onclick="loadHistory()">▶ Load History</button>
+    </div>
+    <div id="hist-bar" class="sbar" style="display:none;margin-bottom:10px"><div class="spin g"></div><span>Loading…</span></div>
+    <div id="hist-results" style="display:none">
+      <!-- Latest snapshot cards -->
+      <div id="hist-latest" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <!-- History table -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
+          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+            <th style="padding:7px 10px;text-align:left">Keyword</th>
+            <th style="padding:7px 10px;text-align:center">Position</th>
+            <th style="padding:7px 10px;text-align:center">Top 10</th>
+            <th style="padding:7px 10px;text-align:center">Top 30</th>
+            <th style="padding:7px 10px;text-align:left">Checked At</th>
+          </tr></thead>
+          <tbody id="hist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="hist-empty" style="color:var(--dim);font-size:11px;text-align:center;padding:20px">
+      Enter a domain above and click Load History to see tracked positions.
+    </div>
+  </div>
+
 </div>
 </div>
 </section>
@@ -3236,11 +3289,93 @@ function renderVisibility(data){
 
 function openMonitorPanel(){
   document.getElementById('monitor-sec').style.display='';
-  document.getElementById('monitor-sec').scrollIntoView({behavior:'smooth'});
+  setTimeout(()=>document.getElementById('monitor-sec').scrollIntoView({behavior:'smooth'}),50);
+  monTab('schedule');
   loadMonitorJobs();
 }
 function closeMonitorPanel(){
   document.getElementById('monitor-sec').style.display='none';
+}
+function monTab(name){
+  ['schedule','jobs','history'].forEach(t=>{
+    document.getElementById('mon-pane-'+t).style.display = t===name?'':'none';
+    const btn=document.getElementById('mon-tab-'+t);
+    if(btn){btn.classList.toggle('serp-tab-active', t===name);}
+  });
+  if(name==='jobs') loadMonitorJobs();
+}
+
+async function loadHistory(){
+  const domain  = document.getElementById('hist-domain').value.trim();
+  const keyword = document.getElementById('hist-keyword').value.trim();
+  if(!domain){alert('Enter a domain.');return;}
+
+  document.getElementById('hist-bar').style.display='flex';
+  document.getElementById('hist-results').style.display='none';
+  document.getElementById('hist-empty').style.display='none';
+  try{
+    // Load latest snapshot
+    const latestRes = await fetch(`${API}/monitor/latest?domain=${encodeURIComponent(domain)}`);
+    const latestData = latestRes.ok ? await safeJson(latestRes) : {rankings:[]};
+
+    // Load history (per keyword or all via latest)
+    let rows=[];
+    if(keyword){
+      const histRes = await fetch(`${API}/monitor/history?domain=${encodeURIComponent(domain)}&keyword=${encodeURIComponent(keyword)}&limit=60`);
+      if(histRes.ok){ const d=await safeJson(histRes); rows=d.history||[]; }
+    } else {
+      // No single-keyword filter — show latest per keyword as history
+      rows = (latestData.rankings||[]);
+    }
+
+    renderHistory(latestData.rankings||[], rows, !!keyword);
+  }catch(e){
+    document.getElementById('hist-empty').textContent=`Error: ${e.message}`;
+    document.getElementById('hist-empty').style.display='';
+  }finally{
+    document.getElementById('hist-bar').style.display='none';
+  }
+}
+
+function renderHistory(latest, rows, isKeywordFiltered){
+  // Latest snapshot cards
+  const latestEl=document.getElementById('hist-latest');
+  if(latest.length){
+    latestEl.innerHTML=latest.map(r=>{
+      const posColor=r.in_top_10?'var(--green)':r.in_top_30?'var(--yellow)':'var(--red)';
+      const posText=r.position!=null?`#${r.position}`:'—';
+      return `<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;min-width:130px">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${r.keyword}</div>
+        <div style="font-size:20px;font-weight:800;color:${posColor};font-family:var(--mono)">${posText}</div>
+        <div style="font-size:8px;color:var(--dim);margin-top:2px">${r.checked_at?new Date(r.checked_at).toLocaleDateString():''}</div>
+      </div>`;
+    }).join('');
+    latestEl.style.display='flex';
+  } else {
+    latestEl.style.display='none';
+  }
+
+  // History table
+  const tbody=document.getElementById('hist-tbody');
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">${isKeywordFiltered?'No history yet for this keyword. Wait for the first monitor run.':'No tracking data yet. Schedule a job and wait for it to run.'}</td></tr>`;
+  } else {
+    tbody.innerHTML=rows.map(r=>{
+      const posColor=r.in_top_10?'var(--green)':r.in_top_30?'var(--yellow)':'var(--red)';
+      const posText=r.position!=null?`#${r.position}`:'—';
+      const ts=r.checked_at?new Date(r.checked_at).toLocaleString():'—';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;color:var(--text)">${r.keyword}</td>
+        <td style="padding:7px 10px;text-align:center;font-weight:800;color:${posColor};font-family:var(--mono)">${posText}</td>
+        <td style="padding:7px 10px;text-align:center">${r.in_top_10?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--dim)">—</span>'}</td>
+        <td style="padding:7px 10px;text-align:center">${r.in_top_30?'<span style="color:var(--yellow)">✓</span>':'<span style="color:var(--dim)">—</span>'}</td>
+        <td style="padding:7px 10px;color:var(--dim);font-size:10px">${ts}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('hist-results').style.display='';
+  document.getElementById('hist-empty').style.display='none';
 }
 
 async function scheduleMonitor(){
