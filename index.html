@@ -1274,22 +1274,27 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
     <a href="#how-it-works">How It Works</a>
     <a href="#features">Features</a>
     <a href="#checklist-sec">Checklist</a>
-    <a href="#competitor-sec">Competitor</a>
+    <a href="#competitor-sec" style="color:var(--primary)">⚔ Competitor</a>
     <a href="#faq">FAQ</a>
   </div>
   <div class="nav-right">
-    <div class="ai-pill" onclick="openAiSetup()" title="Click to configure AI">
+    <button class="btn-ai-setup" onclick="openAiSetup()" title="Configure AI provider &amp; API key">
+      <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">settings</span> AI Setup
+    </button>
+    <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer" title="Click to configure AI">
       <div class="ai-pill-dot"></div>
       <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
     </div>
     <!-- Unauthenticated state -->
     <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
+      <button class="btn btn-green btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px">Free Sign Up</button>
       <a class="btn-nav-cta" href="#dash-sec">Analyze Site</a>
     </div>
     <!-- Authenticated state -->
     <div id="nav-auth-user" style="display:none;align-items:center;gap:8px">
-      <button class="btn btn-outline btn-sm" onclick="openProjects()" style="font-size:11px">Projects</button>
+      <button class="btn btn-outline btn-sm" onclick="openProjects()" style="font-size:11px">📁 Projects</button>
+      <button class="btn btn-outline btn-sm" onclick="openKwGap()" style="font-size:11px">🔍 Keyword Gap</button>
       <div class="user-chip" onclick="toggleUserMenu()">
         <div class="user-avatar" id="user-avatar-initials">U</div>
         <span id="user-display-name" style="font-size:12px;color:var(--text)">User</span>
@@ -1328,11 +1333,12 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
       <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
     </button>
   </div>
-  <p class="trust-text" style="margin-bottom:16px">No signup · No credit card · Open source</p>
+  <p class="trust-text" style="margin-bottom:16px">Free &amp; open-source · Hosted on HuggingFace · No signup required</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">⚡ Groq · Gemini · Claude</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">50 pages / session</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">Excel export</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">⚡ Groq · Gemini · Claude · OpenAI</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">🔓 Open Source on GitHub</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📊 50+ SEO Metrics</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📤 Excel Export (.xlsx)</span>
   </div>
   <div class="scroll-ind">
     <div class="scroll-mouse"><div class="scroll-dot"></div></div>
