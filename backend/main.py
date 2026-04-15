@@ -89,7 +89,7 @@ from urllib.parse import unquote, urlparse as _urlparse
 # ── Third-party ───────────────────────────────────────────────────────────────
 import aiohttp
 import pandas as pd
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Request as _FastAPIRequest, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
@@ -3225,7 +3225,6 @@ def _get_current_user(request) -> dict | None:
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
-from fastapi import Request as _FastAPIRequest, UploadFile, File
 import base64 as _base64
 
 class RegisterRequest(BaseModel):
