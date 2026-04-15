@@ -319,7 +319,19 @@ section{position:relative;z-index:1;padding:80px 24px;}
 .sec-hd p{font-size:15px;color:var(--dim);max-width:500px;margin:0 auto;}
 
 /* ── DASHBOARD SECTION ── */
-#dash-sec{padding:60px 24px;background:var(--bg);}
+#dash-sec{padding:60px 24px;}
+#how-it-works{padding:80px 24px;}
+#competitor-sec{padding:80px 24px;}
+/* Steps grid base */
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:1100px;margin:0 auto;}
+.step-card{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-2xl);
+  padding:24px 20px;transition:background .2s,transform .2s;}
+.step-card:hover{background:var(--surf3);transform:translateY(-3px);}
+.step-card--accent{border-color:rgba(99,102,241,.2);}
+.step-ico{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;flex-shrink:0;}
+.step-num{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono);}
+.step-title{font-size:15px;font-weight:800;color:white;margin-bottom:8px;font-family:var(--headline);}
+.step-desc{font-size:12px;color:var(--dim);line-height:1.7;}
 .dash-card{background:var(--surf);border:1px solid var(--ghost);border-radius:var(--r-2xl);
   overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5);}
 .dash-chrome{background:var(--surf-low);border-bottom:1px solid var(--ghost);padding:12px 20px;display:flex;align-items:center;gap:8px;}
@@ -753,7 +765,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 #cold-banner .cold-elapsed{color:rgba(245,158,11,.7);margin-left:auto;font-size:11px;}
 
 /* ── SEO CHECKLIST ── */
-#checklist-sec{padding:100px 60px;background:var(--bg);}
+#checklist-sec{padding:80px 60px;background:var(--bg);}
 .chk-progress-bar{max-width:1100px;margin:0 auto 24px;background:var(--surf-lowest);border:1px solid var(--ghost);
   border-radius:var(--r-xl);padding:16px 22px;display:flex;align-items:center;gap:20px;}
 .chk-score-big{font-size:36px;font-weight:900;color:var(--primary);line-height:1;min-width:48px;}
@@ -776,7 +788,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 .chk-item.checked label strong{color:var(--muted);text-decoration:line-through;}
 
 /* ── META ANALYZER ── */
-#analyzer-sec{padding:100px 60px;background:var(--surf-low);}
+#analyzer-sec{padding:80px 60px;background:var(--surf-low);}
 .analyzer-card{background:var(--surf);border:1px solid var(--ghost);border-radius:var(--r-2xl);
   padding:32px;max-width:900px;margin:0 auto;box-shadow:0 20px 40px -12px rgba(0,0,0,.4);}
 .analyzer-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
@@ -810,7 +822,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 .sb-note{font-size:11px;color:var(--dim);line-height:1.5;}
 
 /* ── BEFORE / AFTER ── */
-#example-sec{padding:100px 60px;background:var(--bg);}
+#example-sec{padding:80px 60px;background:var(--bg);}
 .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1000px;margin:0 auto;}
 .ba-card{border-radius:var(--r-2xl);padding:28px;border:1px solid;}
 .ba-before{background:rgba(255,107,107,.03);border-color:rgba(255,107,107,.15);}
@@ -844,28 +856,184 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 .bn-item .material-symbols-outlined{font-size:24px;}
 .bn-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-top:2px;font-family:var(--sans);}
 
-@media(max-width:900px){
-  nav{padding:0 16px;}
-  section{padding:60px 16px;}
+/* ══════════════════════════════════════════════
+   RESPONSIVE — 4 breakpoints
+   1200px → desktop (default)
+   1024px → laptop
+    768px → tablet
+    480px → mobile
+    360px → small mobile
+   ══════════════════════════════════════════════ */
+
+/* ── Laptop (≤1200px) ── */
+@media(max-width:1200px){
+  nav{padding:0 24px;}
+  section{padding:72px 32px;}
+  #dash-sec{padding:56px 32px;}
+  #checklist-sec{padding:72px 32px;}
+  #analyzer-sec{padding:72px 32px;}
+  #example-sec{padding:72px 32px;}
+  #competitor-sec{padding:72px 32px;}
+  #how-it-works{padding:72px 32px!important;}
+  .cta-wrap{margin:0 32px 80px;}
+  .hero{padding:90px 32px 56px;}
+  footer{padding:48px 32px 28px;}
+  .ft{grid-template-columns:180px repeat(3,1fr);gap:32px;}
+}
+
+/* ── Tablet (≤1024px) ── */
+@media(max-width:1024px){
+  /* Nav: hide text labels on AI setup, tighten */
+  .btn-ai-setup span.material-symbols-outlined{display:inline-block;}
+  .btn-ai-setup{padding:6px 10px;font-size:0;gap:0;}
+  .btn-ai-setup span.material-symbols-outlined{font-size:16px!important;margin:0;}
+  /* Grids */
+  .feat-grid{grid-template-columns:repeat(2,1fr);}
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .about-grid{grid-template-columns:1fr;}
+  .net-wrap{display:none;}
+  .stat-grid{grid-template-columns:repeat(3,1fr);}
+  .schema-grid{grid-template-columns:1fr;}
+  .steps-grid{grid-template-columns:repeat(2,1fr);}
+  .ft{grid-template-columns:1fr 1fr;gap:28px;}
+  /* Sections */
+  section{padding:64px 28px;}
+  #dash-sec{padding:48px 24px;}
+  #checklist-sec{padding:64px 28px;}
+  #analyzer-sec{padding:64px 28px;}
+  #example-sec{padding:64px 28px;}
+  #competitor-sec{padding:64px 28px;}
+  #how-it-works{padding:64px 28px!important;}
+  .hero{padding:88px 28px 52px;}
+  .cta-wrap{margin:0 24px 72px;padding:44px 28px;}
+}
+
+/* ── Tablet portrait (≤768px) ── */
+@media(max-width:768px){
+  /* Nav: hide links + AI setup, keep logo + auth */
+  .nav-links{display:none!important;}
+  .btn-ai-setup{display:none;}
+  .ai-pill{display:none;}
+  nav{padding:0 16px;gap:12px;height:60px;}
+  .nav-right{gap:8px;}
+  /* Hero */
+  .hero{padding:84px 20px 48px;}
+  .hero h1{font-size:clamp(32px,8vw,48px);letter-spacing:-2px;}
+  .hero-sub{font-size:15px;max-width:100%;}
+  .hero-input-row{border-radius:var(--r-xl);padding:6px;}
+  .hero-input-wrap input{font-size:14px;padding:13px 0;}
+  .hero-crawl-btn{padding:13px 22px;font-size:13px;}
+  /* Sections */
+  section{padding:56px 20px;}
   #dash-sec{padding:40px 16px;}
   #cold-banner{margin:0 16px 14px;}
-  .feat-grid,.schema-grid,.about-grid{grid-template-columns:1fr;}
-  .checklist-grid{grid-template-columns:1fr;}
+  #checklist-sec{padding:56px 20px;}
+  #analyzer-sec{padding:56px 20px;}
+  #example-sec{padding:56px 20px;}
+  #competitor-sec{padding:56px 20px;}
+  #how-it-works{padding:56px 20px!important;}
+  .sec-hd h2{font-size:clamp(22px,5vw,30px);}
+  /* Dashboard */
+  .metric-grid{grid-template-columns:repeat(2,1fr);gap:10px;padding:12px 14px 0;}
+  .dash-actions{padding:10px 14px 0;gap:6px;}
+  .btn{font-size:10px;padding:7px 12px;}
+  .summary{padding:8px 14px 0;}
+  .ibreak{margin:6px 14px 0;}
+  .progress-wrap{margin:6px 14px 0;}
+  .sbar{margin:6px 14px 0;}
+  .opt-panel{margin:6px 14px;}
+  .tseo-panel{margin:6px 14px;}
+  .sel-toolbar{margin:6px 14px 0;}
+  /* Cards */
+  .feat-grid{grid-template-columns:1fr;}
+  .schema-grid{grid-template-columns:1fr;}
+  .about-grid{grid-template-columns:1fr;}
+  .net-wrap{display:none;}
   .ba-grid{grid-template-columns:1fr;}
+  .checklist-grid{grid-template-columns:1fr;}
   .analyzer-form{grid-template-columns:1fr;}
-  .ft{grid-template-columns:1fr 1fr;}
-  .cta-wrap{margin:0 16px 60px;padding:36px 24px;}
-  .metric-grid{grid-template-columns:1fr 1fr;}
-  .ai-provider-grid{grid-template-columns:repeat(2,1fr);}
+  .stat-grid{grid-template-columns:repeat(3,1fr);}
   .steps-grid{grid-template-columns:1fr 1fr;}
+  /* Footer */
+  .ft{grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;}
+  footer{padding:40px 20px 24px;}
+  /* CTA */
+  .cta-wrap{margin:0 16px 60px;padding:36px 20px;}
+  .cta-btns{flex-direction:column;align-items:center;}
+  .cta-primary,.cta-outline{width:100%;max-width:320px;text-align:center;justify-content:center;}
+  /* Competitor charts */
+  .comp-charts{grid-template-columns:1fr;}
 }
+
+/* ── Mobile (≤480px) ── */
 @media(max-width:480px){
-  .ft{grid-template-columns:1fr;}
+  /* Nav */
+  nav{height:56px;}
+  .nav-logo-text{font-size:16px;}
+  .btn-nav-cta{font-size:12px;padding:7px 14px;}
+  .btn.btn-green.btn-sm,.btn.btn-outline.btn-sm{display:none;}/* hide Sign In / Sign Up — use auth from menu */
+  /* Hero */
+  .hero{padding:76px 16px 40px;}
+  .hero h1{font-size:32px;letter-spacing:-1.5px;}
+  .hero-sub{font-size:14px;margin-bottom:28px;}
+  .hero-input-row{flex-direction:column;border-radius:var(--r-xl);padding:8px;gap:8px;}
+  .hero-input-wrap{padding:0 14px;}
+  .hero-input-wrap input{padding:12px 0;font-size:14px;}
+  .hero-crawl-btn{border-radius:var(--r-lg);padding:14px;justify-content:center;font-size:14px;}
+  .hero-badge{font-size:11px;padding:5px 12px;}
+  .scroll-ind{display:none;}
+  /* Sections */
+  section{padding:48px 16px;}
+  #dash-sec{padding:32px 12px;}
+  #checklist-sec,#analyzer-sec,#example-sec,#competitor-sec{padding:48px 16px;}
+  #how-it-works{padding:48px 16px!important;}
+  .sec-hd{margin-bottom:36px;}
+  .sec-hd h2{font-size:22px;letter-spacing:-.5px;}
+  .sec-hd p{font-size:13px;}
+  /* Dashboard */
+  .metric-grid{grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 0;}
+  .mc-val{font-size:24px;}
+  .dash-chrome .tab{display:none;}
+  .dash-actions{gap:5px;padding:8px 12px 0;}
+  .btn{font-size:10px;padding:6px 10px;}
+  /* Features */
+  .feat-card{padding:20px 18px;}
+  .feat-chips{gap:6px;}
+  .feat-chip{padding:5px 12px;font-size:11px;}
+  /* Stats */
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .stat-card .sv{font-size:24px;}
+  /* Checklist */
+  .chk-progress-bar{flex-wrap:wrap;gap:10px;}
+  .chk-label{min-width:auto;}
+  /* Analyzer */
+  .analyzer-card{padding:20px 16px;}
+  .big-score-num{font-size:40px;}
+  /* Before/After */
+  .ba-card{padding:20px 16px;}
+  /* Steps */
   .steps-grid{grid-template-columns:1fr;}
-  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  /* Footer */
+  .ft{grid-template-columns:1fr;}
+  footer{padding:32px 16px 20px;}
+  .ft-bot{flex-direction:column;align-items:flex-start;gap:10px;}
+  .ft-badges{flex-wrap:wrap;}
+  /* CTA */
+  .cta-wrap{margin:0 12px 60px;padding:28px 16px;}
+  .cta-wrap h2{font-size:20px;}
+}
+
+/* ── Small mobile (≤360px) ── */
+@media(max-width:360px){
+  .hero h1{font-size:28px;}
+  .hero-crawl-btn{font-size:13px;}
+  .metric-grid{grid-template-columns:1fr;}
+  .stat-grid{grid-template-columns:1fr;}
+  .btn-nav-cta{padding:6px 10px;font-size:11px;}
+  nav{padding:0 12px;}
 }
 /* ── Competitor Analysis Section ── */
-#competitor-sec{padding:80px 60px;background:linear-gradient(180deg,var(--bg) 0%,rgba(0,255,255,.03) 50%,var(--bg) 100%);}
+#competitor-sec{background:linear-gradient(180deg,var(--bg) 0%,rgba(99,102,241,.03) 50%,var(--bg) 100%);}
 .comp-input-panel{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;}
 .comp-input-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px;}
 .comp-url-row{display:flex;gap:8px;align-items:center;}
@@ -1366,7 +1534,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 </div>
 
 <!-- DASHBOARD SECTION -->
-<section id="dash-sec" style="padding:80px 60px;background:linear-gradient(180deg,var(--bg) 0%,rgba(99,102,241,.04) 50%,var(--bg) 100%)">
+<section id="dash-sec" style="background:linear-gradient(180deg,var(--bg) 0%,rgba(99,102,241,.04) 50%,var(--bg) 100%)">
   <div class="sec-inner">
     <div class="sec-hd">
       <div class="sec-lbl lbl-i">AUDIT DASHBOARD</div>
@@ -1969,45 +2137,45 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 </section>
 
 <!-- HOW IT WORKS -->
-<section id="how-it-works" style="background:var(--surf-low);padding:80px 24px">
+<section id="how-it-works" style="background:var(--surf-low)">
   <div class="sec-inner">
     <div class="sec-hd">
       <div class="sec-lbl lbl-c">HOW IT WORKS</div>
       <h2>Four Steps from URL to Ranked</h2>
       <p>CrawlIQ runs a full SEO pipeline automatically — no configuration needed</p>
     </div>
-    <div class="steps-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1100px;margin:0 auto">
-      <div style="background:var(--surf);border:1px solid var(--border);border-radius:24px;padding:24px 20px;transition:background .2s,transform .2s" onmouseenter="this.style.background='var(--surf2)';this.style.transform='translateY(-3px)'" onmouseleave="this.style.background='var(--surf)';this.style.transform=''">
-        <div style="width:40px;height:40px;border-radius:14px;background:rgba(192,193,255,.12);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-ico" style="background:rgba(192,193,255,.12);color:var(--primary)">
           <span class="material-symbols-outlined" style="font-size:20px">language</span>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono)">Step 1</div>
-        <h3 style="font-size:15px;font-weight:800;color:white;margin-bottom:8px;font-family:var(--headline)">Enter Your URL</h3>
-        <p style="font-size:12px;color:var(--dim);line-height:1.7">Paste any website URL. BFS crawl discovers all internal links, handles SSL fallback, processes up to 50 pages.</p>
+        <div class="step-num">Step 1</div>
+        <h3 class="step-title">Enter Your URL</h3>
+        <p class="step-desc">Paste any website URL. BFS crawl discovers all internal links, handles SSL fallback, processes up to 50 pages.</p>
       </div>
-      <div style="background:var(--surf);border:1px solid var(--border);border-radius:24px;padding:24px 20px;border-color:rgba(99,102,241,.3);transition:background .2s,transform .2s" onmouseenter="this.style.background='var(--surf2)';this.style.transform='translateY(-3px)'" onmouseleave="this.style.background='var(--surf)';this.style.transform=''">
-        <div style="width:40px;height:40px;border-radius:14px;background:rgba(99,102,241,.12);color:var(--indigo);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+      <div class="step-card step-card--accent">
+        <div class="step-ico" style="background:rgba(99,102,241,.12);color:var(--indigo)">
           <span class="material-symbols-outlined" style="font-size:20px">manage_search</span>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono)">Step 2</div>
-        <h3 style="font-size:15px;font-weight:800;color:white;margin-bottom:8px;font-family:var(--headline)">Technical Audit</h3>
-        <p style="font-size:12px;color:var(--dim);line-height:1.7">Each page scored 0–100 across 9 dimensions: title, meta, canonical, headings, OG tags, content depth, URL, alt text, HTTP status.</p>
+        <div class="step-num">Step 2</div>
+        <h3 class="step-title">Technical Audit</h3>
+        <p class="step-desc">Each page scored 0–100 across 9 dimensions: title, meta, canonical, headings, OG tags, content depth, URL, alt text, HTTP status.</p>
       </div>
-      <div style="background:var(--surf);border:1px solid var(--border);border-radius:24px;padding:24px 20px;transition:background .2s,transform .2s" onmouseenter="this.style.background='var(--surf2)';this.style.transform='translateY(-3px)'" onmouseleave="this.style.background='var(--surf)';this.style.transform=''">
-        <div style="width:40px;height:40px;border-radius:14px;background:rgba(16,185,129,.12);color:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+      <div class="step-card">
+        <div class="step-ico" style="background:rgba(16,185,129,.12);color:var(--green)">
           <span class="material-symbols-outlined" style="font-size:20px">auto_fix_high</span>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono)">Step 3</div>
-        <h3 style="font-size:15px;font-weight:800;color:white;margin-bottom:8px;font-family:var(--headline)">AI Fix Generation</h3>
-        <p style="font-size:12px;color:var(--dim);line-height:1.7">Groq, Gemini, OpenAI, or Claude generates optimized titles, meta descriptions, H1 rewrites — ranked by impact, paste-ready.</p>
+        <div class="step-num">Step 3</div>
+        <h3 class="step-title">AI Fix Generation</h3>
+        <p class="step-desc">Groq, Gemini, OpenAI, or Claude generates optimized titles, meta descriptions, H1 rewrites — ranked by impact, paste-ready.</p>
       </div>
-      <div style="background:var(--surf);border:1px solid var(--border);border-radius:24px;padding:24px 20px;transition:background .2s,transform .2s" onmouseenter="this.style.background='var(--surf2)';this.style.transform='translateY(-3px)'" onmouseleave="this.style.background='var(--surf)';this.style.transform=''">
-        <div style="width:40px;height:40px;border-radius:14px;background:rgba(255,183,131,.12);color:var(--tertiary);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+      <div class="step-card">
+        <div class="step-ico" style="background:rgba(255,183,131,.12);color:var(--tertiary)">
           <span class="material-symbols-outlined" style="font-size:20px">download</span>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono)">Step 4</div>
-        <h3 style="font-size:15px;font-weight:800;color:white;margin-bottom:8px;font-family:var(--headline)">Export &amp; Ship</h3>
-        <p style="font-size:12px;color:var(--dim);line-height:1.7">Download a full Excel report: per-field issues, AI fixes, keyword scores, A–F grades, and a live optimization table.</p>
+        <div class="step-num">Step 4</div>
+        <h3 class="step-title">Export &amp; Ship</h3>
+        <p class="step-desc">Download a full Excel report: per-field issues, AI fixes, keyword scores, A–F grades, and a live optimization table.</p>
       </div>
     </div>
   </div>
