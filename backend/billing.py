@@ -13,7 +13,7 @@ Environment variables
   STRIPE_WEBHOOK_SECRET   — whsec_... (from Stripe dashboard)
   STRIPE_PRO_PRICE_ID     — price_... for Pro monthly plan
   STRIPE_AGENCY_PRICE_ID  — price_... for Agency monthly plan
-  APP_BASE_URL            — https://yourapp.com (for redirect URLs)
+  APP_BASE_URL            — https://crawliq.io (for redirect URLs)
 
 Public API
 ──────────

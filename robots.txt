@@ -4,4 +4,4 @@ Allow: /
 # Block access to backend API and Python source files
 Disallow: /backend/
 
-Sitemap: https://bhavani5a8.github.io/seo-project/sitemap.xml
+Sitemap: https://crawliq.io/sitemap.xml
