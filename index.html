@@ -6,7 +6,7 @@
 
 <!-- ── TITLE & CORE META ─────────────────────────────────────────────────── -->
 <title>CrawlIQ — Free AI SEO Crawler &amp; Technical Audit Tool</title>
-<meta name="description" content="CrawlIQ is a free AI-powered SEO crawler. Audit technical SEO issues, detect missing meta tags, analyze keywords, generate AI-optimized fixes, and export full Excel reports. No signup required."/>
+<meta name="description" content="CrawlIQ is a free AI-powered SEO crawler. Audit technical SEO issues, detect missing meta tags, analyze keywords, generate AI-optimized fixes, and export full Excel reports. No credit card required."/>
 <link rel="canonical" href="https://crawliq.io/"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="keywords" content="SEO crawler, technical SEO audit, AI SEO tool, free SEO checker, keyword analysis, meta tag optimizer, on-page SEO, website audit, indexability checker"/>
@@ -16,7 +16,7 @@
 <!-- ── OPEN GRAPH ────────────────────────────────────────────────────────── -->
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="CrawlIQ — Free AI SEO Crawler &amp; Technical Audit Tool"/>
-<meta property="og:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes, audit technical SEO, and export full reports. Free, no signup needed."/>
+<meta property="og:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes, audit technical SEO, and export full reports. Free, no credit card required."/>
 <meta property="og:url" content="https://crawliq.io/"/>
 <meta property="og:site_name" content="CrawlIQ"/>
 <meta property="og:locale" content="en_US"/>
@@ -24,7 +24,7 @@
 <!-- ── TWITTER CARD ──────────────────────────────────────────────────────── -->
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="CrawlIQ — Free AI SEO Crawler &amp; Audit Tool"/>
-<meta name="twitter:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes. Free, no signup needed."/>
+<meta name="twitter:description" content="Crawl any website, detect 15+ SEO issues, generate AI-powered fixes. Free, no credit card required."/>
 
 <!-- ── STRUCTURED DATA: WebApplication ──────────────────────────────────── -->
 <script type="application/ld+json">
@@ -45,7 +45,7 @@
     "@type": "Offer",
     "price": "0",
     "priceCurrency": "USD",
-    "description": "Free to use, no signup required"
+    "description": "Free to use, no credit card required"
   },
   "featureList": [
     "Technical SEO audit with scoring (0-100)",
@@ -128,7 +128,7 @@
       "name": "How many pages can I crawl with CrawlIQ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "CrawlIQ is completely free to use with no signup required. The default crawl limit is 50 pages per session, which covers most small to medium websites. The crawler performs a BFS crawl starting from your root URL, following internal links and handling SSL failures with automatic HTTP fallback."
+        "text": "CrawlIQ is free to use with no credit card required. Without an account you can crawl up to 50 pages per session. Creating a free account gives you 200 pages per month across saved projects. The crawler uses breadth-first search from your root URL, following internal links and handling SSL failures with automatic HTTP fallback."
       }
     },
     {
@@ -757,12 +757,17 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 
 /* ── COLD-START BANNER ── */
 #cold-banner{display:none;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);
-  border-radius:10px;padding:11px 18px;margin:0 60px 20px;font-size:12px;color:var(--yellow);
-  font-family:var(--mono);align-items:center;gap:10px;position:relative;z-index:1;}
+  border-radius:10px;padding:11px 18px 10px;margin:0 60px 20px;font-size:12px;color:var(--yellow);
+  font-family:var(--mono);flex-direction:column;gap:8px;position:relative;z-index:1;}
 #cold-banner.show{display:flex;}
+.cold-banner-row{display:flex;align-items:center;gap:10px;}
 .spin-sm{width:11px;height:11px;border:2px solid rgba(245,158,11,.25);border-top-color:var(--yellow);
   border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 #cold-banner .cold-elapsed{color:rgba(245,158,11,.7);margin-left:auto;font-size:11px;}
+.cold-progress-track{height:2px;background:rgba(245,158,11,.15);border-radius:1px;overflow:hidden;width:100%;}
+.cold-progress-fill{height:100%;width:40%;background:var(--yellow);border-radius:1px;
+  animation:coldSlide 1.6s ease-in-out infinite;}
+@keyframes coldSlide{0%{transform:translateX(-100%)}50%{transform:translateX(150%)}100%{transform:translateX(350%)}}
 
 /* ── SEO CHECKLIST ── */
 #checklist-sec{padding:80px 60px;background:var(--bg);}
@@ -1512,7 +1517,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
       <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
     </button>
   </div>
-  <p class="trust-text" style="margin-bottom:16px">Free &amp; open-source · Hosted on HuggingFace · No signup required</p>
+  <p class="trust-text" style="margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
     <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">⚡ Groq · Gemini · Claude · OpenAI</span>
     <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">🔓 Open Source on GitHub</span>
@@ -1527,9 +1532,12 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 
 <!-- COLD-START BANNER: shown when HF Space is waking up -->
 <div id="cold-banner">
-  <div class="spin-sm"></div>
-  <span id="cold-banner-text">Backend is waking up — HuggingFace free tier sleeps after 48h of inactivity. Usually takes 30–90 seconds.</span>
-  <span class="cold-elapsed" id="cold-elapsed"></span>
+  <div class="cold-banner-row">
+    <div class="spin-sm"></div>
+    <span id="cold-banner-text">Backend is waking up — HuggingFace sleeps after 48h of inactivity. Usually 30–90 seconds.</span>
+    <span class="cold-elapsed" id="cold-elapsed"></span>
+  </div>
+  <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
 </div>
 
 <!-- DASHBOARD SECTION -->
@@ -2475,7 +2483,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
           How many pages can I crawl?
           <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
         </div>
-        <div class="faq-a"><div class="faq-a-in">CrawlIQ is completely free with no signup required. The default limit is 50 pages per session, covering most small to medium websites. The crawler uses breadth-first search from your root URL, follows internal links, and handles SSL failures with automatic HTTP fallback.</div></div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ is free with no credit card required. As a guest you can crawl up to 50 pages per session — enough for most small to medium sites. Creating a free account raises this to 200 pages per month with project saving and rank monitoring. Pro and Agency plans are available for larger sites. The crawler uses breadth-first search from your root URL, follows internal links, and handles SSL failures with automatic HTTP fallback.</div></div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-q">
@@ -2500,7 +2508,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 <!-- CTA -->
 <div class="cta-wrap" id="pricing">
   <h2>Find out what's killing your rankings</h2>
-  <p>Enter any URL. Get a full technical SEO report in under 2 minutes. Free, no signup.</p>
+  <p>Enter any URL. Get a full technical SEO report in under 2 minutes. Free, no credit card required.</p>
   <div class="cta-btns">
     <a class="cta-primary" href="#dash-sec">
       <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">travel_explore</span>Start Free Crawl
@@ -2772,21 +2780,33 @@ function startCrawlHero() {
 }
 
 // ── Cold-start banner helpers (main crawl) ────────────────────────────────────
-let _coldStartTimer = null;
+let _coldStartTimer = null, _coldStartSecs = 0;
+const _coldSteps = [
+  [0,  'Waking up the backend — HuggingFace spaces sleep after 48h of inactivity…'],
+  [15, 'Loading Python environment and dependencies…'],
+  [35, 'Almost there — starting the FastAPI server…'],
+  [60, 'Taking a bit longer than usual. Still waiting…'],
+  [90, 'Still starting up — HF spaces can take up to 2 min on first wake…'],
+];
 function showColdBanner(msg) {
   const b = document.getElementById('cold-banner');
-  document.getElementById('cold-banner-text').textContent = msg || 'Backend is waking up — this takes 30–90 seconds on HuggingFace free tier.';
   b.classList.add('show');
-  let s = 0;
+  _coldStartSecs = 0;
   clearInterval(_coldStartTimer);
   _coldStartTimer = setInterval(() => {
-    s++;
-    document.getElementById('cold-elapsed').textContent = `${s}s elapsed`;
+    _coldStartSecs++;
+    document.getElementById('cold-elapsed').textContent = `${_coldStartSecs}s`;
+    if (!msg) {
+      const step = [..._coldSteps].reverse().find(([t]) => _coldStartSecs >= t);
+      if (step) document.getElementById('cold-banner-text').textContent = step[1];
+    }
   }, 1000);
+  document.getElementById('cold-banner-text').textContent = msg || _coldSteps[0][1];
 }
 function hideColdBanner() {
   document.getElementById('cold-banner').classList.remove('show');
   clearInterval(_coldStartTimer);
+  _coldStartSecs = 0;
   document.getElementById('cold-elapsed').textContent = '';
 }
 
@@ -2799,7 +2819,6 @@ async function waitForMainSpace(maxWaitMs = 300000) {
       if (r.ok && ct.includes('application/json')) return true;
     } catch (_) {}
     elapsed = Date.now() - start;
-    showColdBanner(`Backend waking up… ${Math.round(elapsed/1000)}s elapsed. Please wait.`);
     await new Promise(r => setTimeout(r, 4000));
     elapsed = Date.now() - start;
   }
@@ -2831,7 +2850,7 @@ async function startCrawl() {
     const probe = await fetch(`${API}/healthz`, { cache: 'no-store' });
     const ct = probe.headers.get('content-type') || '';
     if (!probe.ok || !ct.includes('application/json')) {
-      showColdBanner('Backend is waking up — HuggingFace free tier sleeps after 48h. Usually 30–90 seconds.');
+      showColdBanner();
       bar('c', true, 'Waiting for backend to wake up…');
       const ready = await waitForMainSpace();
       hideColdBanner();
