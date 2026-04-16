@@ -1008,6 +1008,12 @@ async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> No
     """Background task: runs the async crawler, logs errors, records quota usage."""
     try:
         await SEOCrawler(url, max_pages=max_pages).crawl_async()
+        # Assign priority from issues detected by crawl_async() → detect_issues().
+        # This must run here because the CLI parse() path is not called via the API.
+        from gemini_analysis import assign_priority
+        for page in crawl_results:
+            if not page.get("priority"):
+                page["priority"] = assign_priority(page.get("issues", []))
         # Record pages crawled against the user's monthly quota
         if user_id and _AUTH_MODULE:
             pages_done = len(crawl_results)

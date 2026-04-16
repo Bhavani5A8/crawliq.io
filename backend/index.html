@@ -1302,9 +1302,9 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
         </div>
         <div class="mc">
           <div class="mc-lbl">High Priority</div>
-          <div class="mc-val" id="s-high" style="color:var(--cyan)">0</div>
-          <div class="mc-sub" style="color:var(--cyan)" id="s-med-sub"></div>
-          <div class="mc-ico" style="background:rgba(34,211,238,.1)">🤖</div>
+          <div class="mc-val" id="s-high" style="color:var(--red)">0</div>
+          <div class="mc-sub" style="color:var(--muted)" id="s-med-sub"></div>
+          <div class="mc-ico" style="background:rgba(239,68,68,.1)">🔴</div>
         </div>
       </div>
 
@@ -1337,6 +1337,7 @@ footer{background:#080B12;border-top:1.5px solid var(--border);padding:60px 60px
       </div>
 
       <div class="summary" id="summary">
+        <div class="card" style="border-color:rgba(239,68,68,.3)"><span class="val" id="s-high-bar" style="color:var(--red)">0</span><span class="lbl">High</span></div>
         <div class="card warn"><span class="val" id="s-med">0</span><span class="lbl">Medium</span></div>
         <div class="card"><span class="val" id="s-low">0</span><span class="lbl">Low</span></div>
       </div>
@@ -2515,7 +2516,8 @@ function updateSummary(rows){
   const wi=rows.filter(r=>r.issues&&r.issues.length);
   const ok=rows.filter(r=>!r.issues||!r.issues.length).length;
   set('s-total',rows.length); set('s-issues',wi.length);
-  set('s-high',rows.filter(r=>r.priority==='High').length);
+  const nHigh=rows.filter(r=>r.priority==='High').length;
+  set('s-high',nHigh); set('s-high-bar',nHigh);
   set('s-med',rows.filter(r=>r.priority==='Medium').length);
   set('s-low',rows.filter(r=>r.priority==='Low').length);
   set('s-ok',ok);
