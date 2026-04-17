@@ -24,6 +24,7 @@ Public API
 
 import json
 import logging
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,8 +33,13 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # ── Database location ─────────────────────────────────────────────────────────
-# Stored next to main.py so Docker volume mounts work transparently.
-DB_PATH = Path(__file__).parent / "crawliq_competitor.db"
+# Use /data/ on HF Spaces (persistent storage) so accounts/data survive restarts.
+# Falls back to the local directory for local dev where /data/ doesn't exist.
+_PERSISTENT_DIR = Path("/data")
+if _PERSISTENT_DIR.exists() and os.access(str(_PERSISTENT_DIR), os.W_OK):
+    DB_PATH = _PERSISTENT_DIR / "crawliq.db"
+else:
+    DB_PATH = Path(__file__).parent / "crawliq_competitor.db"
 
 
 # ── Connection helper ─────────────────────────────────────────────────────────
