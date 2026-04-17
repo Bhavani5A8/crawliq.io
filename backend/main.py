@@ -3913,7 +3913,10 @@ _GSC_SCOPES     = ["https://www.googleapis.com/auth/webmasters.readonly"]
 
 
 def _gsc_client_config() -> dict:
-    redirect = os.getenv("GSC_REDIRECT_URI", "http://localhost:7860/gsc/callback")
+    redirect = os.getenv(
+        "GSC_REDIRECT_URI",
+        "https://bhavani7-seo-project.hf.space/gsc/callback",
+    )
     return {
         "web": {
             "client_id":     os.getenv("GSC_CLIENT_ID", ""),
