@@ -58,6 +58,7 @@ slowapi>=0.1.9,<1.0
 python-jose[cryptography]>=3.3.0,<4.0
 # Password hashing
 passlib[bcrypt]>=1.7.4,<2.0
+bcrypt>=3.2.0,<4.0
 # File uploads (multipart form data for logo upload)
 python-multipart>=0.0.9,<1.0
 # Async SMTP for email alerts (rank drop / issue notifications)
