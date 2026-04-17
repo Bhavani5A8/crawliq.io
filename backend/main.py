@@ -3917,9 +3917,16 @@ def _gsc_client_config() -> dict:
         "GSC_REDIRECT_URI",
         "https://bhavani7-seo-project.hf.space/gsc/callback",
     )
+    # GSC_CLIENT_ID may be stored as just the prefix (without .apps.googleusercontent.com)
+    # to avoid HF Spaces secret validation rejecting values with dots.
+    _raw_id = os.getenv("GSC_CLIENT_ID", "")
+    client_id = (
+        _raw_id if ".apps.googleusercontent.com" in _raw_id
+        else _raw_id + ".apps.googleusercontent.com"
+    )
     return {
         "web": {
-            "client_id":     os.getenv("GSC_CLIENT_ID", ""),
+            "client_id":     client_id,
             "client_secret": os.getenv("GSC_CLIENT_SECRET", ""),
             "redirect_uris": [redirect],
             "auth_uri":      "https://accounts.google.com/o/oauth2/auth",
@@ -3934,11 +3941,16 @@ def _gsc_load_creds():
     try:
         with open(_GSC_TOKEN_FILE) as f:
             data = json.load(f)
+        _raw_id = os.getenv("GSC_CLIENT_ID", "")
+        _full_id = (
+            _raw_id if ".apps.googleusercontent.com" in _raw_id
+            else _raw_id + ".apps.googleusercontent.com"
+        )
         creds = _GscCreds(
             token=data.get("token"),
             refresh_token=data.get("refresh_token"),
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=os.getenv("GSC_CLIENT_ID"),
+            client_id=_full_id,
             client_secret=os.getenv("GSC_CLIENT_SECRET"),
             scopes=_GSC_SCOPES,
         )
