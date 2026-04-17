@@ -3739,6 +3739,12 @@ async def sitemap_crawl(
     if crawl_status.get("running"):
         raise HTTPException(400, "A crawl is already running. Wait for it to finish.")
 
+    # SSRF guard — same blocklist as /crawl
+    _sm_parsed = _urlparse(sitemap_url)
+    _sm_host   = (_sm_parsed.hostname or "").lower()
+    if _sm_host in _SSRF_BLOCKED or _sm_host.startswith(("192.168.", "10.", "172.16.", "169.254.")):
+        raise HTTPException(400, "Private or reserved IP addresses are not allowed.")
+
     # Fetch and parse sitemap
     urls = []
     try:

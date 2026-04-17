@@ -1382,7 +1382,8 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
       <span id="usage-count" style="font-family:var(--mono)">0 / 200</span>
     </div>
     <div class="usage-bar-wrap"><div id="usage-bar" class="usage-bar" style="width:0%;background:var(--indigo)"></div></div>
-    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Free tier · <a href="#" style="color:var(--indigo)" onclick="alert('Upgrade coming soon!')">Upgrade to Pro →</a></div>
+    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Loading…</div>
+    <div id="billing-actions" style="margin-top:10px;display:none"></div>
   </div>
 
   <!-- Profile -->
@@ -4980,8 +4981,48 @@ async function loadUsage(){
     document.getElementById('usage-count').textContent = `${used} / ${limit}`;
     document.getElementById('usage-bar').style.width   = pct+'%';
     document.getElementById('usage-bar').style.background = pct>80?'var(--red)':pct>60?'var(--yellow)':'var(--indigo)';
-    document.getElementById('usage-tier').innerHTML     = `${(d.tier||'free').charAt(0).toUpperCase()+(d.tier||'free').slice(1)} tier${d.pages_limit!==-1?' · <a href="#" style="color:var(--indigo)" onclick="alert(\'Upgrade coming soon!\')">Upgrade →</a>':''}`;
+    const tier = (d.tier||'free').toLowerCase();
+    const tierLabel = tier.charAt(0).toUpperCase()+tier.slice(1);
+    document.getElementById('usage-tier').textContent = tierLabel+' tier';
+    renderBillingActions(tier);
   }catch(e){}
+}
+
+function renderBillingActions(tier){
+  const el = document.getElementById('billing-actions');
+  if(!el) return;
+  el.style.display='block';
+  if(tier==='free'){
+    el.innerHTML=`
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-green" style="font-size:11px" onclick="startCheckout('pro')">Upgrade to Pro</button>
+        <button class="btn btn-outline" style="font-size:11px" onclick="startCheckout('agency')">Upgrade to Agency</button>
+      </div>`;
+  } else {
+    el.innerHTML=`
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-outline" style="font-size:11px" onclick="openBillingPortal()">Manage / Cancel Subscription</button>
+        ${tier!=='agency'?'<button class="btn btn-green" style="font-size:11px" onclick="startCheckout(\'agency\')">Upgrade to Agency</button>':''}
+      </div>`;
+  }
+}
+
+async function startCheckout(tier){
+  try{
+    const res = await safeAuthFetch(`${API}/billing/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier})});
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Checkout failed');
+    if(d.checkout_url) window.open(d.checkout_url,'_blank');
+  }catch(e){ alert(e.message); }
+}
+
+async function openBillingPortal(){
+  try{
+    const res = await safeAuthFetch(`${API}/billing/portal`);
+    const d   = await safeJson(res);
+    if(!res.ok) throw new Error(d.detail||'Portal session failed');
+    if(d.portal_url) window.open(d.portal_url,'_blank');
+  }catch(e){ alert(e.message); }
 }
 function toggleApiKeyVisibility(){
   const el = document.getElementById('api-key-display');
