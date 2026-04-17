@@ -95,6 +95,13 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 import uvicorn
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    _SLOWAPI = True
+except ImportError:
+    _SLOWAPI = False
 
 # ── Project modules ───────────────────────────────────────────────────────────
 from crawler import SEOCrawler, crawl_results, crawl_status
@@ -872,6 +879,25 @@ def _run_cli(args: argparse.Namespace) -> None:
 # ════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(title="SEO Crawler API")
+
+# ── Rate limiter (brute force protection on auth endpoints) ──────────────────
+# slowapi is optional — if not installed the app still starts, auth just has
+# no per-IP throttle (acceptable for local dev, required for production).
+if _SLOWAPI:
+    _limiter = Limiter(key_func=get_remote_address)
+    app.state.limiter = _limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    logger.info("Rate limiter active (slowapi): auth endpoints limited to 5/minute per IP.")
+
+    def _rate_limit(limit_str: str):
+        """Apply slowapi rate limit decorator."""
+        return _limiter.limit(limit_str)
+else:
+    def _rate_limit(limit_str: str):  # type: ignore[misc]
+        """No-op when slowapi is not installed — passes through unchanged."""
+        def _noop(func):
+            return func
+        return _noop
 
 # BUG-006 / BUG-N16: restrict CORS — read from env so production can lock it down.
 # Default stays open for local dev / Hugging Face Space usage.
@@ -3276,7 +3302,8 @@ class ResetPasswordRequest(BaseModel):
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @app.post("/auth/register")
-def auth_register(req: RegisterRequest):
+@_rate_limit("5/minute")
+def auth_register(req: RegisterRequest, request: _FastAPIRequest):
     """Register a new user. Returns access token."""
     if not _AUTH_MODULE:
         raise HTTPException(503, "Auth module not available (install python-jose + passlib)")
@@ -3297,7 +3324,8 @@ def auth_register(req: RegisterRequest):
 
 
 @app.post("/auth/login")
-def auth_login(req: LoginRequest):
+@_rate_limit("5/minute")
+def auth_login(req: LoginRequest, request: _FastAPIRequest):
     """Login and return JWT access token."""
     if not _AUTH_MODULE:
         raise HTTPException(503, "Auth module not available")
@@ -3332,7 +3360,8 @@ def auth_rotate_api_key(request: _FastAPIRequest):
 
 
 @app.post("/auth/forgot-password")
-def auth_forgot_password(req: ForgotPasswordRequest):
+@_rate_limit("3/minute")
+def auth_forgot_password(req: ForgotPasswordRequest, request: _FastAPIRequest):
     """
     Initiate password reset. Sends a reset link to the registered email.
     Always returns 200 to avoid leaking whether the email is registered.
