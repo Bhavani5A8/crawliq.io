@@ -3892,44 +3892,205 @@ def export_pdf_branded(
     )
 
 
-# ── Google Search Console OAuth stub ─────────────────────────────────────────
+# ── Google Search Console OAuth + Data ───────────────────────────────────────
+try:
+    from google_auth_oauthlib.flow import Flow as _GscFlow
+    from google.oauth2.credentials import Credentials as _GscCreds
+    import google.auth.transport.requests as _GscTransport
+    from googleapiclient.discovery import build as _gsc_build
+    _GSC_AVAILABLE = True
+except ImportError:
+    _GSC_AVAILABLE = False
+
+_GSC_TOKEN_FILE = os.path.join(os.path.dirname(__file__), "gsc_token.json")
+_GSC_SCOPES     = ["https://www.googleapis.com/auth/webmasters.readonly"]
+
+
+def _gsc_client_config() -> dict:
+    redirect = os.getenv("GSC_REDIRECT_URI", "http://localhost:7860/gsc/callback")
+    return {
+        "web": {
+            "client_id":     os.getenv("GSC_CLIENT_ID", ""),
+            "client_secret": os.getenv("GSC_CLIENT_SECRET", ""),
+            "redirect_uris": [redirect],
+            "auth_uri":      "https://accounts.google.com/o/oauth2/auth",
+            "token_uri":     "https://oauth2.googleapis.com/token",
+        }
+    }
+
+
+def _gsc_load_creds():
+    if not _GSC_AVAILABLE or not os.path.exists(_GSC_TOKEN_FILE):
+        return None
+    try:
+        with open(_GSC_TOKEN_FILE) as f:
+            data = json.load(f)
+        creds = _GscCreds(
+            token=data.get("token"),
+            refresh_token=data.get("refresh_token"),
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.getenv("GSC_CLIENT_ID"),
+            client_secret=os.getenv("GSC_CLIENT_SECRET"),
+            scopes=_GSC_SCOPES,
+        )
+        if creds.expired and creds.refresh_token:
+            creds.refresh(_GscTransport.Request())
+            _gsc_save_creds(creds)
+        return creds
+    except Exception:
+        return None
+
+
+def _gsc_save_creds(creds) -> None:
+    with open(_GSC_TOKEN_FILE, "w") as f:
+        json.dump({"token": creds.token, "refresh_token": creds.refresh_token}, f)
+
 
 @app.get("/gsc/auth-url")
 def gsc_auth_url():
-    """
-    Returns the Google OAuth2 URL to connect Google Search Console.
-    Requires GSC_CLIENT_ID env var to be configured.
-    """
-    client_id = os.getenv("GSC_CLIENT_ID", "")
-    if not client_id:
+    """Return Google OAuth2 URL for Search Console. Requires GSC_CLIENT_ID + GSC_CLIENT_SECRET."""
+    client_id     = os.getenv("GSC_CLIENT_ID", "")
+    client_secret = os.getenv("GSC_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
         return {
             "available": False,
-            "message": "Set GSC_CLIENT_ID env var to enable Search Console integration.",
+            "message": "Set GSC_CLIENT_ID and GSC_CLIENT_SECRET env vars to enable Search Console.",
+        }
+    if not _GSC_AVAILABLE:
+        return {
+            "available": False,
+            "message": "Run: pip install google-auth google-auth-oauthlib google-api-python-client",
         }
     redirect = os.getenv("GSC_REDIRECT_URI", "http://localhost:7860/gsc/callback")
-    scope    = "https://www.googleapis.com/auth/webmasters.readonly"
-    url      = (
-        f"https://accounts.google.com/o/oauth2/v2/auth"
-        f"?client_id={client_id}"
-        f"&redirect_uri={redirect}"
-        f"&response_type=code"
-        f"&scope={scope}"
-        f"&access_type=offline"
-        f"&prompt=consent"
-    )
-    return {"available": True, "auth_url": url}
+    flow = _GscFlow.from_client_config(_gsc_client_config(), scopes=_GSC_SCOPES)
+    flow.redirect_uri = redirect
+    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+    return {"available": True, "auth_url": auth_url}
 
 
 @app.get("/gsc/callback")
-async def gsc_callback(code: str = Query(default="")):
-    """OAuth2 callback — exchange code for token (stub for now)."""
+async def gsc_callback(
+    code:  str = Query(default=""),
+    error: str = Query(default=""),
+):
+    """Exchange OAuth code for access + refresh tokens and persist them."""
+    if error:
+        raise HTTPException(400, f"OAuth error: {error}")
     if not code:
         raise HTTPException(400, "No OAuth code received")
-    return {
-        "status": "received",
-        "message": "GSC OAuth callback received. Full integration coming soon.",
-        "code_length": len(code),
-    }
+    if not _GSC_AVAILABLE:
+        raise HTTPException(503, "GSC libraries not installed — run pip install google-auth-oauthlib google-api-python-client")
+    redirect = os.getenv("GSC_REDIRECT_URI", "http://localhost:7860/gsc/callback")
+    try:
+        flow = _GscFlow.from_client_config(_gsc_client_config(), scopes=_GSC_SCOPES)
+        flow.redirect_uri = redirect
+        flow.fetch_token(code=code)
+        _gsc_save_creds(flow.credentials)
+    except Exception as exc:
+        raise HTTPException(500, f"Token exchange failed: {exc}")
+    return HTMLResponse("""
+    <html><body style="background:#0d0d0d;color:#fff;font-family:monospace;padding:40px;text-align:center">
+    <h2 style="color:#22c55e">&#10003; Connected to Google Search Console</h2>
+    <p style="color:#888">You can close this window. CrawlIQ will now pull real impressions and CTR data.</p>
+    <script>
+      if(window.opener){window.opener.postMessage({gsc:'connected'},'*');}
+      setTimeout(()=>window.close(), 2000);
+    </script>
+    </body></html>
+    """)
+
+
+@app.get("/gsc/status")
+def gsc_status():
+    """Return whether GSC is connected and tokens are valid."""
+    if not _GSC_AVAILABLE:
+        return {"connected": False, "reason": "libraries_missing"}
+    creds = _gsc_load_creds()
+    if not creds or not creds.valid:
+        return {"connected": False, "reason": "not_authenticated"}
+    return {"connected": True}
+
+
+@app.delete("/gsc/disconnect")
+def gsc_disconnect():
+    """Remove stored GSC tokens."""
+    if os.path.exists(_GSC_TOKEN_FILE):
+        os.remove(_GSC_TOKEN_FILE)
+    return {"disconnected": True}
+
+
+@app.get("/gsc/sites")
+def gsc_sites():
+    """List all GSC-verified properties for the connected account."""
+    if not _GSC_AVAILABLE:
+        raise HTTPException(503, "GSC libraries not installed")
+    creds = _gsc_load_creds()
+    if not creds:
+        raise HTTPException(401, "Not authenticated with GSC")
+    try:
+        svc   = _gsc_build("webmasters", "v3", credentials=creds, cache_discovery=False)
+        resp  = svc.sites().list().execute()
+        sites = [s["siteUrl"] for s in resp.get("siteEntry", [])]
+        return {"sites": sites}
+    except Exception as exc:
+        raise HTTPException(500, str(exc))
+
+
+@app.get("/gsc/data")
+async def gsc_data(
+    site_url: str = Query(..., description="GSC property URL e.g. https://example.com/"),
+    days:     int = Query(default=28, ge=7, le=90),
+):
+    """
+    Fetch clicks, impressions, CTR, and avg-position from Search Console.
+    Returns summary totals + top-25 keywords for the given date range.
+    GSC data has a ~3-day lag so end date is today-3.
+    """
+    if not _GSC_AVAILABLE:
+        raise HTTPException(503, "GSC libraries not installed")
+    creds = _gsc_load_creds()
+    if not creds:
+        raise HTTPException(401, "Not authenticated with GSC — connect Search Console first")
+    import datetime
+    end   = datetime.date.today() - datetime.timedelta(days=3)
+    start = end - datetime.timedelta(days=days)
+    try:
+        svc  = _gsc_build("webmasters", "v3", credentials=creds, cache_discovery=False)
+        body = {
+            "startDate":  start.isoformat(),
+            "endDate":    end.isoformat(),
+            "dimensions": ["query"],
+            "rowLimit":   25,
+        }
+        resp = svc.searchAnalytics().query(siteUrl=site_url, body=body).execute()
+        rows = resp.get("rows", [])
+        total_clicks = sum(r["clicks"]      for r in rows)
+        total_impr   = sum(r["impressions"] for r in rows)
+        avg_ctr      = (total_clicks / total_impr * 100) if total_impr else 0.0
+        avg_pos      = (sum(r["position"] for r in rows) / len(rows)) if rows else 0.0
+        keywords = [
+            {
+                "keyword":     r["keys"][0],
+                "clicks":      r["clicks"],
+                "impressions": r["impressions"],
+                "ctr":         round(r["ctr"] * 100, 2),
+                "position":    round(r["position"], 1),
+            }
+            for r in rows
+        ]
+        return {
+            "site_url":   site_url,
+            "date_range": {"start": start.isoformat(), "end": end.isoformat()},
+            "summary": {
+                "clicks":       total_clicks,
+                "impressions":  total_impr,
+                "ctr":          round(avg_ctr, 2),
+                "avg_position": round(avg_pos, 1),
+            },
+            "top_keywords": keywords,
+        }
+    except Exception as exc:
+        raise HTTPException(500, str(exc))
 
 
 # ── Crawl diff endpoint ───────────────────────────────────────────────────────

@@ -1423,8 +1423,20 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
   <!-- GSC Integration -->
   <div class="settings-section">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Google Search Console</div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Connect GSC to pull real impressions and CTR data.</div>
-    <button class="btn btn-outline" onclick="connectGSC()" id="gsc-connect-btn">Connect Google Search Console</button>
+    <div id="gsc-not-connected">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Connect GSC to pull real impressions, CTR, and ranking data.</div>
+      <button class="btn btn-outline" onclick="connectGSC()" id="gsc-connect-btn">Connect Google Search Console</button>
+    </div>
+    <div id="gsc-connected-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="color:var(--green);font-size:11px;font-weight:600">Connected</span>
+        <select id="gsc-site-select" class="serp-input" style="flex:1;font-size:11px" onchange="loadGscData()"></select>
+        <button class="btn btn-outline btn-sm" onclick="disconnectGSC()" style="font-size:10px;padding:4px 8px">Disconnect</button>
+      </div>
+      <div id="gsc-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px"></div>
+      <div id="gsc-kw-table" style="max-height:220px;overflow-y:auto"></div>
+      <div style="font-size:9px;color:var(--dim);margin-top:6px" id="gsc-date-range"></div>
+    </div>
     <div id="gsc-status" style="font-size:10px;color:var(--dim);margin-top:6px"></div>
   </div>
 </div>
@@ -4935,6 +4947,7 @@ function openSettings(){
     localStorage.setItem('ciq_brand_name', _ciqUser.name || '');
   }
   loadUsage();
+  checkGscStatus();
 }
 function closeSettings(){
   document.getElementById('settings-modal').style.display='none';
@@ -5000,16 +5013,118 @@ async function uploadLogo(input){
     else { statusEl.style.color='var(--red)'; statusEl.textContent=d.detail||'Upload failed'; }
   }catch(e){ statusEl.style.color='var(--red)'; statusEl.textContent=e.message; }
 }
-async function connectGSC(){
+async function checkGscStatus(){
   try{
-    const res  = await fetch(`${API}/gsc/auth-url`);
-    const d    = await safeJson(res);
-    if(d.available && d.auth_url){
-      window.open(d.auth_url, '_blank');
+    const res = await fetch(`${API}/gsc/status`);
+    const d   = await safeJson(res);
+    if(d.connected){
+      document.getElementById('gsc-not-connected').style.display='none';
+      document.getElementById('gsc-connected-panel').style.display='block';
+      await loadGscSites();
     } else {
-      document.getElementById('gsc-status').textContent = d.message || 'GSC not configured on this server.';
+      document.getElementById('gsc-not-connected').style.display='block';
+      document.getElementById('gsc-connected-panel').style.display='none';
     }
+  }catch(e){}
+}
+
+async function connectGSC(){
+  const statusEl = document.getElementById('gsc-status');
+  try{
+    const res = await fetch(`${API}/gsc/auth-url`);
+    const d   = await safeJson(res);
+    if(!d.available){
+      statusEl.style.color='var(--red)';
+      statusEl.textContent = d.message || 'GSC not configured on this server.';
+      return;
+    }
+    const popup = window.open(d.auth_url, 'gsc_oauth', 'width=520,height=640');
+    statusEl.style.color='var(--dim)';
+    statusEl.textContent = 'Waiting for Google authorization…';
+    window.addEventListener('message', async function handler(e){
+      if(e.data && e.data.gsc === 'connected'){
+        window.removeEventListener('message', handler);
+        statusEl.textContent = '';
+        await checkGscStatus();
+      }
+    });
+    // fallback poll if popup closes without postMessage
+    const poll = setInterval(async ()=>{
+      if(popup && popup.closed){
+        clearInterval(poll);
+        statusEl.textContent='';
+        await checkGscStatus();
+      }
+    }, 1000);
+  }catch(e){ statusEl.style.color='var(--red)'; statusEl.textContent=e.message; }
+}
+
+async function disconnectGSC(){
+  await fetch(`${API}/gsc/disconnect`, {method:'DELETE'});
+  document.getElementById('gsc-not-connected').style.display='block';
+  document.getElementById('gsc-connected-panel').style.display='none';
+  document.getElementById('gsc-status').textContent='';
+}
+
+async function loadGscSites(){
+  try{
+    const res   = await fetch(`${API}/gsc/sites`);
+    const d     = await safeJson(res);
+    const sel   = document.getElementById('gsc-site-select');
+    sel.innerHTML = (d.sites||[]).map(s=>`<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+    if(d.sites && d.sites.length) await loadGscData();
   }catch(e){ document.getElementById('gsc-status').textContent=e.message; }
+}
+
+async function loadGscData(){
+  const sel     = document.getElementById('gsc-site-select');
+  const siteUrl = sel.value;
+  if(!siteUrl) return;
+  const sumEl  = document.getElementById('gsc-summary');
+  const kwEl   = document.getElementById('gsc-kw-table');
+  const drEl   = document.getElementById('gsc-date-range');
+  sumEl.innerHTML = '<div style="grid-column:1/-1;color:var(--dim);font-size:11px">Loading…</div>';
+  kwEl.innerHTML  = '';
+  try{
+    const res = await fetch(`${API}/gsc/data?site_url=${encodeURIComponent(siteUrl)}&days=28`);
+    const d   = await safeJson(res);
+    if(d.detail){ sumEl.innerHTML=`<div style="grid-column:1/-1;color:var(--red);font-size:11px">${escHtml(d.detail)}</div>`; return; }
+    const s = d.summary;
+    sumEl.innerHTML = [
+      {label:'Clicks',      val:s.clicks.toLocaleString()},
+      {label:'Impressions', val:s.impressions.toLocaleString()},
+      {label:'CTR',         val:s.ctr+'%'},
+      {label:'Avg Position',val:'#'+s.avg_position},
+    ].map(m=>`
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:16px;font-weight:700;color:var(--text)">${escHtml(m.val)}</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:2px;text-transform:uppercase">${escHtml(m.label)}</div>
+      </div>`).join('');
+    if(d.top_keywords && d.top_keywords.length){
+      kwEl.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr style="color:var(--dim);text-align:left">
+            <th style="padding:4px 6px">Keyword</th>
+            <th style="padding:4px 6px;text-align:right">Clicks</th>
+            <th style="padding:4px 6px;text-align:right">Impr</th>
+            <th style="padding:4px 6px;text-align:right">CTR%</th>
+            <th style="padding:4px 6px;text-align:right">Pos</th>
+          </tr></thead>
+          <tbody>${d.top_keywords.map(k=>`
+            <tr style="border-top:1px solid var(--border)">
+              <td style="padding:4px 6px;color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(k.keyword)}</td>
+              <td style="padding:4px 6px;text-align:right;color:var(--green)">${k.clicks}</td>
+              <td style="padding:4px 6px;text-align:right;color:var(--dim)">${k.impressions}</td>
+              <td style="padding:4px 6px;text-align:right;color:var(--cyan)">${k.ctr}%</td>
+              <td style="padding:4px 6px;text-align:right;color:var(--yellow)">${k.position}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } else {
+      kwEl.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:8px">No keyword data yet — GSC needs a few days after verification to populate data.</div>';
+    }
+    drEl.textContent = `Data: ${d.date_range.start} → ${d.date_range.end} (last 28 days, 3-day lag)`;
+  }catch(e){ sumEl.innerHTML=`<div style="grid-column:1/-1;color:var(--red);font-size:11px">${escHtml(e.message)}</div>`; }
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────

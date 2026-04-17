@@ -45,6 +45,11 @@ reportlab>=4.0.0,<5.0  # PDF export (Phase 4) — pure Python, no system deps
 # Fails gracefully to sentence-length heuristic if not installed.
 textstat>=0.7.0,<1.0
 
+# ── Google Search Console OAuth + API ────────────────────────────────────────
+google-auth>=2.0.0,<3.0
+google-auth-oauthlib>=1.0.0,<2.0
+google-api-python-client>=2.0.0,<3.0
+
 # ── Rate limiting (security — brute force protection on auth endpoints) ──────
 slowapi>=0.1.9,<1.0
 
