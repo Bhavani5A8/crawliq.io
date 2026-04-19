@@ -1506,6 +1506,29 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 .clab-copy-btn{padding:7px 16px;border-radius:8px;border:1px solid #e2e8f0;background:white;color:#1e293b;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s;}
 .clab-copy-btn:hover{background:#f1f5f9;}
 
+/* ── APP CRAWL BAR (visible only in app mode, inside #dash-sec) ── */
+.app-crawl-bar{
+  display:none;
+  align-items:center;gap:10px;
+  background:white;border:1px solid rgba(148,163,184,.2);border-radius:14px;
+  padding:8px 8px 8px 16px;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+  margin-bottom:20px;
+}
+body.app-mode .app-crawl-bar{display:flex;}
+.app-crawl-wrap{flex:1;display:flex;align-items:center;gap:10px;}
+.app-crawl-icon{color:#94a3b8;font-size:20px;flex-shrink:0;}
+.app-crawl-input{flex:1;border:none;outline:none;font-size:14px;font-family:var(--sans);color:#1e293b;background:transparent;padding:8px 0;}
+.app-crawl-input::placeholder{color:rgba(148,163,184,.7);}
+.app-crawl-btn{
+  background:linear-gradient(135deg,#4f46e5,#6366f1);color:white;border:none;
+  border-radius:10px;padding:12px 22px;font-family:var(--headline);font-weight:700;font-size:13px;
+  cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  box-shadow:0 4px 14px rgba(79,70,229,.25);transition:opacity .15s,transform .1s;
+}
+.app-crawl-btn:hover{opacity:.9;transform:translateY(-1px);}
+.app-crawl-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
 /* ════════════════════════════════════════════════
    APP-MODE: light theme + hide landing sections
    ════════════════════════════════════════════════ */
@@ -1598,7 +1621,7 @@ body.app-mode #panel-schema-intel.panel-hidden,
 body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </style>
 </head>
-<body>
+<body class="app-mode">
 
 <!-- ══ SIDEBAR (app shell navigation) ══════════════════════════════════════ -->
 <aside class="sidebar" id="app-sidebar" aria-label="App navigation">
@@ -2042,12 +2065,18 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </div>
 
 <!-- DASHBOARD SECTION -->
-<section id="dash-sec" style="background:linear-gradient(180deg,var(--bg) 0%,rgba(99,102,241,.04) 50%,var(--bg) 100%)">
+<section id="dash-sec" style="background:var(--bg)">
   <div class="sec-inner">
-    <div class="sec-hd">
-      <div class="sec-lbl lbl-i">AUDIT DASHBOARD</div>
-      <h2>Your SEO Audit Results</h2>
-      <p>Real-time crawl data with per-page scoring, issue detection, and AI-generated fixes</p>
+    <!-- App-mode crawl bar (replaces hero input when sidebar is active) -->
+    <div class="app-crawl-bar" id="app-crawl-bar">
+      <div class="app-crawl-wrap">
+        <span class="material-symbols-outlined app-crawl-icon">language</span>
+        <input id="url-input-app" type="text" class="app-crawl-input" placeholder="Enter website URL… e.g. mysite.com" oninput="document.getElementById('url-input').value=this.value" onkeydown="if(event.key==='Enter')startCrawlHero()"/>
+      </div>
+      <button class="app-crawl-btn" onclick="document.getElementById('url-input').value=document.getElementById('url-input-app').value;startCrawlHero()">
+        <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
+        Run SEO Audit
+      </button>
     </div>
     <div class="dash-card">
       <div class="dash-chrome">
@@ -6101,7 +6130,14 @@ function enterAppMode() {
 
 function exitAppMode() {
   document.body.classList.remove('app-mode');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function enterAppMode() {
+  document.body.classList.add('app-mode');
+  showPanel('dashboard');
+  syncTopbarAuth();
+  syncSidebarAI();
 }
 
 function syncTopbarAuth() {
@@ -6132,15 +6168,14 @@ function syncSidebarAI() {
   }
 }
 
-/* ── Override startCrawlHero to enter app mode ───────────────────────────── */
-const _origStartCrawlHero = window.startCrawlHero;
+/* ── Override startCrawlHero — already in app-mode by default ───────────── */
 window.startCrawlHero = function() {
-  enterAppMode();
-  setTimeout(() => {
-    const el = document.getElementById('dash-sec');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-    if (typeof startCrawl === 'function') startCrawl();
-  }, 320);
+  /* Sync the app crawl bar input to the hidden hero input */
+  const appInput = document.getElementById('url-input-app');
+  const heroInput = document.getElementById('url-input');
+  if (appInput && heroInput && appInput.value) heroInput.value = appInput.value;
+  showPanel('dashboard');
+  if (typeof startCrawl === 'function') startCrawl();
 };
 
 /* ── Override openSerpPanel / closeSerpPanel ─────────────────────────────── */
@@ -6421,11 +6456,18 @@ window.loadResults = async function() {
 
 /* ── Init ─────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  /* Hide all panels except dashboard by default */
+  /* body already has app-mode class — just ensure panel state is correct */
   Object.entries(_PANELS).forEach(([k, cfg]) => {
     const el = document.getElementById(cfg.el);
     if (el && k !== 'dashboard') el.classList.add('panel-hidden');
   });
+  syncTopbarAuth();
+  /* Sync crawl bar input → hero input on change */
+  const appInp = document.getElementById('url-input-app');
+  const heroInp = document.getElementById('url-input');
+  if (appInp && heroInp) {
+    appInp.addEventListener('input', () => { heroInp.value = appInp.value; });
+  }
 });
 </script>
 
