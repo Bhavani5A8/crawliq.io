@@ -1329,6 +1329,84 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 #builder-badge svg{opacity:.6;}
 @media(max-width:480px){#builder-badge{bottom:80px;right:12px;font-size:9px;padding:5px 10px;}}
 
+/* ══════════════════════════════════════════════════
+   APP SHELL — responsive (sidebar + topbar + panels)
+   ══════════════════════════════════════════════════ */
+
+/* ── Tablet ≤1024px: tighten panel padding ── */
+@media(max-width:1024px){
+  body.app-mode #dash-sec{padding-top:80px;padding-left:20px;padding-right:20px;}
+  body.app-mode #competitor-sec{padding-top:80px;padding-left:20px;padding-right:20px;}
+  body.app-mode #panel-schema-intel{padding-top:64px;}
+  body.app-mode #panel-content-lab{padding-top:64px;}
+  .si-summary-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ── Mobile ≤768px: sidebar becomes drawer, topbar full-width ── */
+@media(max-width:768px){
+  /* Remove sidebar offset — sidebar overlays content */
+  body.app-mode{padding-left:0 !important;}
+
+  /* Topbar spans full width */
+  .app-topbar{left:0 !important;}
+
+  /* Show hamburger */
+  .app-hamburger{display:flex;}
+
+  /* Show sidebar backdrop */
+  .sidebar-backdrop{display:block;}
+
+  /* Sidebar hidden by default on mobile — regardless of app-mode */
+  body.app-mode .sidebar{transform:translateX(-256px) !important;}
+
+  /* Sidebar open state (class toggled by JS) */
+  body.app-mode.sidebar-open .sidebar{transform:translateX(0) !important;}
+  body.app-mode.sidebar-open .sidebar-backdrop{opacity:1;pointer-events:auto;}
+
+  /* Panel padding: account for topbar height only (no left sidebar) */
+  body.app-mode #dash-sec{padding-top:72px;padding-left:16px;padding-right:16px;}
+  body.app-mode #competitor-sec{padding-top:72px;padding-left:16px;padding-right:16px;}
+  body.app-mode #serp-intel-sec{padding-top:0;}
+  body.app-mode #monitor-sec{padding-top:0;}
+  body.app-mode #panel-schema-intel{padding-top:64px;}
+  body.app-mode #panel-content-lab{padding-top:64px;}
+
+  /* Schema & Content Lab panels: stack single column */
+  .si-summary-grid{grid-template-columns:1fr !important;padding:16px 16px;}
+  .si-matrix{margin:0 16px 16px;}
+  .si-head{flex-direction:column;align-items:flex-start;gap:12px;padding:16px 16px 14px;}
+  .si-head-btns{width:100%;justify-content:flex-end;}
+  .clab-body{grid-template-columns:1fr !important;padding:16px;}
+  .clab-generate-row{grid-column:1 !important;}
+  .clab-result{grid-column:1 !important;}
+
+  /* Topbar: hide AI pill text on small screens */
+  .app-topbar .ai-pill .ai-pill-dot ~ span{display:none;}
+  .app-topbar-title{font-size:13px;}
+  .app-topbar{padding:0 14px;gap:10px;}
+
+  /* App crawl bar: full-width comfortable */
+  .app-crawl-bar{border-radius:16px;padding:6px 6px 6px 14px;}
+  .app-crawl-btn{padding:10px 16px;font-size:12px;border-radius:12px;}
+}
+
+/* ── Small mobile ≤480px ── */
+@media(max-width:480px){
+  body.app-mode #dash-sec{padding-top:64px;padding-left:12px;padding-right:12px;}
+  body.app-mode #panel-schema-intel,
+  body.app-mode #panel-content-lab{padding-top:56px;}
+  .si-summary-grid{padding:12px 12px;}
+  .si-matrix{margin:0 12px 12px;}
+  .si-head{padding:14px 12px 12px;}
+  .clab-body{padding:12px;}
+  .app-topbar{height:56px;}
+  .app-topbar-title{font-size:12px;}
+  /* Hide guest auth buttons in topbar on very small screens */
+  #nav-auth-guest-topbar .btn-outline{display:none;}
+  /* Builder badge above bottom-nav */
+  #builder-badge{bottom:76px;}
+}
+
 /* ════════════════════════════════════════════════
    SIDEBAR LAYOUT — Obsidian dark nav rail
    ════════════════════════════════════════════════ */
@@ -1376,6 +1454,20 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 .app-topbar-title{font-size:15px;font-weight:800;color:var(--text);font-family:var(--headline);letter-spacing:-.3px;}
 .app-topbar-spacer{flex:1;}
 .app-topbar-actions{display:flex;align-items:center;gap:10px;}
+/* Hamburger — hidden on desktop, shown on mobile */
+.app-hamburger{
+  display:none;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+  background:none;cursor:pointer;color:var(--dim);flex-shrink:0;
+  transition:background .15s,color .15s;
+}
+.app-hamburger:hover{background:rgba(255,255,255,.06);color:var(--text);}
+/* Sidebar backdrop — mobile overlay */
+.sidebar-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
+  z-index:115;opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.sidebar-backdrop.open{opacity:1;pointer-events:auto;}
 
 /* ── AI DRAWER ── */
 #ai-drawer{
@@ -1711,8 +1803,14 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </aside>
 
+<!-- ══ SIDEBAR BACKDROP (mobile) ═════════════════════════════════════════════ -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+
 <!-- ══ APP TOPBAR ════════════════════════════════════════════════════════════ -->
 <div class="app-topbar" id="app-topbar">
+  <button class="app-hamburger" id="app-hamburger" onclick="toggleMobileSidebar()" aria-label="Menu">
+    <span class="material-symbols-outlined" style="font-size:20px">menu</span>
+  </button>
   <span class="app-topbar-title" id="app-topbar-title">Audit Dashboard</span>
   <div class="app-topbar-spacer"></div>
   <div class="app-topbar-actions">
@@ -6499,6 +6597,24 @@ document.addEventListener('DOMContentLoaded', () => {
    ANIMATION SYSTEM v2 — scroll-reveal · stat counters · panel fade
                         · metric roll · row stagger · progress glow
    ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 0. MOBILE SIDEBAR TOGGLE ────────────────────────────────────────────── */
+function toggleMobileSidebar() {
+  document.body.classList.toggle('sidebar-open');
+}
+function closeMobileSidebar() {
+  document.body.classList.remove('sidebar-open');
+}
+/* Close sidebar when a nav item is clicked on mobile */
+document.querySelectorAll('.sn-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (window.innerWidth <= 768) closeMobileSidebar();
+  });
+});
+/* Close on resize back to desktop */
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) closeMobileSidebar();
+});
 
 /* ── 1. SCROLL-REVEAL (IntersectionObserver) ─────────────────────────────── */
 (function initReveal() {
