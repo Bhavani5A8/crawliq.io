@@ -716,6 +716,31 @@ td.check-cell{width:28px;padding:7px 6px;}
 .net-wrap{position:relative;}
 .net-wrap svg{width:100%;height:auto;}
 
+/* ── STATS COUNTER STRIP ── */
+.stats-strip{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);border-bottom:1px solid rgba(70,69,84,.12);padding:56px 24px;}
+.stats-strip-inner{max-width:960px;margin:0 auto;display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:0;align-items:center;}
+.stat-strip-item{text-align:center;padding:0 24px;}
+.stat-strip-val{font-size:clamp(40px,5vw,64px);font-weight:800;color:white;line-height:1;margin-bottom:8px;font-family:var(--headline);letter-spacing:-.04em;}
+.stat-strip-label{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.stat-strip-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.stat-strip-divider{width:1px;height:60px;background:rgba(70,69,84,.25);flex-shrink:0;}
+@media(max-width:768px){
+  .stats-strip-inner{grid-template-columns:1fr 1fr;gap:32px 16px;}
+  .stat-strip-divider{display:none;}
+}
+
+/* ── AI PROVIDER CARDS ── */
+.ai-providers-sec{padding:56px 24px;background:var(--bg);}
+.ai-providers-label{text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:28px;font-family:var(--mono);}
+.ai-providers-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+.ai-prov-card{background:var(--surf-low);border:1px solid rgba(70,69,84,.15);border-radius:24px;padding:28px 32px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;min-width:160px;
+  transition:background .25s,border-color .25s,transform .25s;}
+.ai-prov-card:hover{background:var(--surf2);border-color:rgba(192,193,255,.15);transform:translateY(-4px);}
+.ai-prov-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:4px;}
+.ai-prov-name{font-size:15px;font-weight:800;color:white;font-family:var(--headline);letter-spacing:-.3px;}
+.ai-prov-model{font-size:10px;color:var(--muted);font-family:var(--mono);text-align:center;}
+
 /* ── FAQ — tonal stacking, ghost borders ── */
 .faq-list{max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:10px;}
 .faq-item{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-xl);overflow:hidden;transition:border-color .2s,background .2s;}
@@ -1434,14 +1459,31 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
   border:none;background:none;width:100%;text-align:left;transition:all .15s;font-family:var(--sans);}
 .sidebar-back:hover{background:rgba(255,255,255,.04);color:var(--dim);}
 
-/* ── APP TOPBAR ── */
+/* ── APP TOPBAR — two-row: brand+input+auth / panel tabs ── */
 .app-topbar{
-  display:none;position:fixed;top:0;left:0;right:0;height:64px;
-  background:rgba(15,19,29,.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(70,69,84,.25);
-  z-index:110;align-items:center;padding:0 28px;gap:16px;
-  box-shadow:0 20px 40px -12px rgba(0,0,0,.4);
+  display:none;position:fixed;top:0;left:0;right:0;
+  flex-direction:column;
+  background:rgba(15,19,29,.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid rgba(70,69,84,.2);
+  z-index:110;
+  box-shadow:0 20px 40px -12px rgba(0,0,0,.5);
 }
+.app-topbar-main{
+  display:flex;align-items:center;padding:0 24px;gap:14px;height:64px;
+}
+/* Panel tab row */
+.app-panel-tabs{
+  display:flex;align-items:center;gap:2px;padding:0 24px 10px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.app-panel-tabs::-webkit-scrollbar{display:none;}
+.apt{
+  background:none;border:none;color:var(--muted);font-family:var(--mono);
+  font-size:11px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer;
+  white-space:nowrap;transition:color .15s,background .15s;letter-spacing:.02em;
+}
+.apt:hover{color:var(--text);background:rgba(255,255,255,.04);}
+.apt.active{color:var(--primary);background:rgba(192,193,255,.1);}
 .app-topbar-title{font-size:15px;font-weight:800;color:var(--text);font-family:var(--headline);letter-spacing:-.3px;}
 .app-topbar-spacer{flex:1;}
 .app-topbar-actions{display:flex;align-items:center;gap:10px;}
@@ -1595,16 +1637,13 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
 
 /* ── APP CRAWL BAR (visible only in app mode, inside #dash-sec) ── */
 .app-crawl-bar{
-  display:none;
+  display:flex;
   align-items:center;gap:10px;
-  background:var(--surf-lowest);border:1px solid var(--ghost);border-radius:32px;
-  padding:8px 8px 8px 20px;
-  box-shadow:0 20px 60px rgba(0,0,0,.4);
-  margin-bottom:24px;
+  background:rgba(10,14,24,.6);border:1px solid rgba(70,69,84,.3);border-radius:32px;
+  padding:6px 6px 6px 16px;
   transition:border-color .25s,box-shadow .25s;
 }
-.app-crawl-bar:focus-within{border-color:rgba(192,193,255,.3);box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 0 2px rgba(192,193,255,.12);}
-body.app-mode .app-crawl-bar{display:flex;}
+.app-crawl-bar:focus-within{border-color:rgba(192,193,255,.35);box-shadow:0 0 0 2px rgba(192,193,255,.1);}
 .app-crawl-wrap{flex:1;display:flex;align-items:center;gap:10px;}
 .app-crawl-icon{color:var(--muted);font-size:20px;flex-shrink:0;}
 .app-crawl-input{flex:1;border:none;outline:none;font-size:14px;font-family:var(--sans);color:var(--text);background:transparent;padding:10px 0;}
@@ -1625,17 +1664,22 @@ body.app-mode{
   background:var(--bg);
 }
 
-/* Dashboard padding when in app mode (no sidebar, just top padding for nav) */
-body.app-mode #dash-sec{padding-top:80px;}
+/* Topbar visible in app mode */
+body.app-mode .app-topbar{display:flex!important;}
+
+/* Dashboard padding when in app mode (topbar = 64px main + ~40px tabs = 112px total) */
+body.app-mode #dash-sec{padding-top:116px;}
 body.app-mode #serp-intel-sec{padding-top:0;}
 body.app-mode #monitor-sec{padding-top:0;}
-body.app-mode #competitor-sec{padding-top:80px;}
-body.app-mode #panel-schema-intel{display:block;padding-top:64px;}
-body.app-mode #panel-content-lab{display:block;padding-top:64px;}
+body.app-mode #competitor-sec{padding-top:116px;}
+body.app-mode #panel-schema-intel{display:block;padding-top:108px;}
+body.app-mode #panel-content-lab{display:block;padding-top:108px;}
 
 /* Hide landing sections in app mode */
 body.app-mode .landing-nav,
 body.app-mode .hero,
+body.app-mode .stats-strip,
+body.app-mode .ai-providers-sec,
 body.app-mode #how-it-works,
 body.app-mode #features,
 body.app-mode #about,
@@ -1724,28 +1768,71 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 <body>
 
 
-<!-- ══ APP TOPBAR ════════════════════════════════════════════════════════════ -->
+<!-- ══ APP TOPBAR (shown only in app-mode) ════════════════════════════════ -->
 <div class="app-topbar" id="app-topbar">
-  <button class="app-hamburger" id="app-hamburger" onclick="toggleMobileSidebar()" aria-label="Menu">
-    <span class="material-symbols-outlined" style="font-size:20px">menu</span>
-  </button>
-  <span class="app-topbar-title" id="app-topbar-title">Audit Dashboard</span>
-  <div class="app-topbar-spacer"></div>
-  <div class="app-topbar-actions">
-    <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer;">
-      <div class="ai-pill-dot"></div>
-      <span id="gemini-pill-topbar" class="gemini-pill">Checking AI…</span>
+  <!-- Row 1: Brand + URL input + auth -->
+  <div class="app-topbar-main">
+    <a class="nav-logo" href="#" onclick="exitAppMode();return false;" style="text-decoration:none;flex-shrink:0">
+      <span class="material-symbols-outlined nav-logo-icon" style="font-size:20px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
+      <span class="nav-logo-text" style="font-size:15px">Crawl<em>IQ</em></span>
+    </a>
+    <!-- URL input (inline, replaces hero input in app mode) -->
+    <div class="app-crawl-bar" id="app-crawl-bar" style="margin:0;flex:1;max-width:580px">
+      <div class="app-crawl-wrap">
+        <span class="material-symbols-outlined app-crawl-icon">language</span>
+        <input id="url-input-app" type="text" class="app-crawl-input" placeholder="Enter website URL… e.g. mysite.com"
+          oninput="document.getElementById('url-input').value=this.value"
+          onkeydown="if(event.key==='Enter'){document.getElementById('url-input').value=this.value;startCrawlHero();}"/>
+      </div>
+      <button class="app-crawl-btn" onclick="document.getElementById('url-input').value=document.getElementById('url-input-app').value;startCrawlHero()">
+        <span class="material-symbols-outlined" style="font-size:16px">bolt</span>
+        Audit
+      </button>
     </div>
-    <div id="nav-auth-user-topbar" style="display:none;align-items:center;gap:8px">
-      <div class="user-chip" onclick="toggleUserMenu()">
-        <div class="user-avatar" id="user-avatar-initials-tb">U</div>
-        <span id="user-display-name-tb" style="font-size:12px;color:var(--text)">User</span>
+    <div class="app-topbar-spacer"></div>
+    <div class="app-topbar-actions">
+      <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer;" title="AI Setup">
+        <div class="ai-pill-dot"></div>
+        <span id="gemini-pill-topbar" class="gemini-pill" style="display:none">AI</span>
+      </div>
+      <div id="nav-auth-user-topbar" style="display:none;align-items:center;gap:8px">
+        <div class="user-chip" onclick="toggleUserMenu()">
+          <div class="user-avatar" id="user-avatar-initials-tb">U</div>
+          <span id="user-display-name-tb" style="font-size:12px;color:var(--text)">User</span>
+        </div>
+      </div>
+      <div id="nav-auth-guest-topbar" style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
+        <button class="btn btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px;background:var(--primary);color:#1a1c40;border:none;font-weight:700">Sign Up</button>
       </div>
     </div>
-    <div id="nav-auth-guest-topbar" style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px;">Sign In</button>
-      <button class="btn btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px;background:var(--primary);color:#292b5e;border:none;font-weight:700;">Free Sign Up</button>
-    </div>
+  </div>
+  <!-- Row 2: Panel navigation tabs -->
+  <div class="app-panel-tabs">
+    <button class="apt active" id="sn-dashboard"   onclick="showPanel('dashboard')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">dashboard</span>Dashboard
+    </button>
+    <button class="apt" id="sn-serp"        onclick="showPanel('serp')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bar_chart</span>SERP Intel
+    </button>
+    <button class="apt" id="sn-monitor"     onclick="showPanel('monitor')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">notifications</span>Rank Monitor
+    </button>
+    <button class="apt" id="sn-competitors" onclick="showPanel('competitors')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">compare_arrows</span>Competitors
+    </button>
+    <button class="apt" id="sn-schema"      onclick="showPanel('schema')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">data_object</span>Schema
+    </button>
+    <button class="apt" id="sn-content-lab" onclick="showPanel('content-lab')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">auto_fix_high</span>Content Lab
+    </button>
+    <button class="apt" onclick="openKwGap()" style="margin-left:auto">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">search</span>Keyword Gap
+    </button>
+    <button class="apt" onclick="openSettings()">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">settings</span>Settings
+    </button>
   </div>
 </div>
 
@@ -2098,6 +2185,64 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
+<!-- ── STATS COUNTER STRIP ── -->
+<section class="stats-strip" id="stats-strip">
+  <div class="stats-strip-inner">
+    <div class="stat-strip-item reveal">
+      <div class="stat-strip-val" data-target="50">0<span style="color:var(--primary)">+</span></div>
+      <div class="stat-strip-label">SEO Metrics Tracked</div>
+      <div class="stat-strip-sub">per page audit</div>
+    </div>
+    <div class="stat-strip-divider"></div>
+    <div class="stat-strip-item reveal" style="transition-delay:.08s">
+      <div class="stat-strip-val"><span data-target="4">0</span></div>
+      <div class="stat-strip-label">AI Providers</div>
+      <div class="stat-strip-sub">Groq · Gemini · Claude · OpenAI</div>
+    </div>
+    <div class="stat-strip-divider"></div>
+    <div class="stat-strip-item reveal" style="transition-delay:.16s">
+      <div class="stat-strip-val"><span data-target="200">0</span><span style="color:var(--tertiary)">/mo</span></div>
+      <div class="stat-strip-label">Pages — Free Plan</div>
+      <div class="stat-strip-sub">no credit card needed</div>
+    </div>
+    <div class="stat-strip-divider"></div>
+    <div class="stat-strip-item reveal" style="transition-delay:.24s">
+      <div class="stat-strip-val" style="color:var(--green)">Free</div>
+      <div class="stat-strip-label">Always Free</div>
+      <div class="stat-strip-sub">open-source on GitHub</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AI PROVIDER CARDS ── -->
+<section class="ai-providers-sec">
+  <div class="sec-inner">
+    <div class="ai-providers-label reveal">Powered by leading AI models</div>
+    <div class="ai-providers-row reveal" style="transition-delay:.06s">
+      <div class="ai-prov-card">
+        <div class="ai-prov-icon" style="background:rgba(78,222,163,.1);color:#4edea3">⚡</div>
+        <div class="ai-prov-name">Groq</div>
+        <div class="ai-prov-model">Llama 3 · Ultra-fast</div>
+      </div>
+      <div class="ai-prov-card">
+        <div class="ai-prov-icon" style="background:rgba(66,133,244,.1);color:#4285F4">✦</div>
+        <div class="ai-prov-name">Gemini</div>
+        <div class="ai-prov-model">Gemini Pro · Google AI</div>
+      </div>
+      <div class="ai-prov-card">
+        <div class="ai-prov-icon" style="background:rgba(192,193,255,.1);color:var(--primary)">◆</div>
+        <div class="ai-prov-name">Claude</div>
+        <div class="ai-prov-model">Anthropic · Reasoning</div>
+      </div>
+      <div class="ai-prov-card">
+        <div class="ai-prov-icon" style="background:rgba(16,163,127,.1);color:#10a37f">◉</div>
+        <div class="ai-prov-name">OpenAI</div>
+        <div class="ai-prov-model">GPT-4 · Advanced</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- COLD-START BANNER: shown when HF Space is waking up -->
 <div id="cold-banner">
   <div class="cold-banner-row">
@@ -2112,17 +2257,6 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 <!-- DASHBOARD SECTION -->
 <section id="dash-sec" style="background:var(--bg)">
   <div class="sec-inner">
-    <!-- App-mode crawl bar (replaces hero input when sidebar is active) -->
-    <div class="app-crawl-bar" id="app-crawl-bar">
-      <div class="app-crawl-wrap">
-        <span class="material-symbols-outlined app-crawl-icon">language</span>
-        <input id="url-input-app" type="text" class="app-crawl-input" placeholder="Enter website URL… e.g. mysite.com" oninput="document.getElementById('url-input').value=this.value" onkeydown="if(event.key==='Enter')startCrawlHero()"/>
-      </div>
-      <button class="app-crawl-btn" onclick="document.getElementById('url-input').value=document.getElementById('url-input-app').value;startCrawlHero()">
-        <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
-        Run SEO Audit
-      </button>
-    </div>
     <div class="dash-card">
       <div class="dash-chrome">
         <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
@@ -6178,7 +6312,25 @@ function exitAppMode() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function syncTopbarAuth() {}
+function syncTopbarAuth() {
+  const userLanding = document.getElementById('nav-auth-user');
+  const guestTb     = document.getElementById('nav-auth-guest-topbar');
+  const userTb      = document.getElementById('nav-auth-user-topbar');
+  if (!guestTb || !userTb) return;
+  const loggedIn = userLanding && userLanding.style.display !== 'none';
+  guestTb.style.display = loggedIn ? 'none' : 'flex';
+  userTb.style.display  = loggedIn ? 'flex' : 'none';
+  const nameEl = document.getElementById('user-display-name');
+  const nameTb = document.getElementById('user-display-name-tb');
+  if (nameEl && nameTb) nameTb.textContent = nameEl.textContent;
+  const avEl = document.getElementById('user-avatar-initials');
+  const avTb = document.getElementById('user-avatar-initials-tb');
+  if (avEl && avTb) avTb.textContent = avEl.textContent;
+  /* sync app-url-input with hero input value */
+  const heroInput = document.getElementById('url-input');
+  const appInput  = document.getElementById('url-input-app');
+  if (heroInput && appInput && heroInput.value && !appInput.value) appInput.value = heroInput.value;
+}
 function syncSidebarAI() {}
 
 /* ── Override startCrawlHero — enter app mode then crawl ────────────────── */
