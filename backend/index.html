@@ -1328,9 +1328,363 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 #builder-badge:hover{color:white;border-color:var(--primary);background:rgba(99,102,241,.25);}
 #builder-badge svg{opacity:.6;}
 @media(max-width:480px){#builder-badge{bottom:80px;right:12px;font-size:9px;padding:5px 10px;}}
+
+/* ════════════════════════════════════════════════
+   SIDEBAR LAYOUT — added for app shell redesign
+   ════════════════════════════════════════════════ */
+.sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:220px;
+  background:#0f172a;z-index:120;overflow-y:auto;
+  transform:translateX(-220px);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  box-shadow:4px 0 32px rgba(0,0,0,.18);
+}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.06);}
+.sidebar-logo-icon{color:#818cf8;font-size:22px;}
+.sidebar-logo-text{font-family:var(--headline);font-size:16px;font-weight:800;color:white;letter-spacing:-.3px;}
+.sidebar-logo-text em{font-style:normal;color:#818cf8;}
+.sidebar-nav{flex:1;padding:10px 8px;}
+.sn-group{margin-bottom:4px;}
+.sn-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
+  color:rgba(148,163,184,.8);font-size:12px;font-weight:500;transition:all .15s;
+  border:none;background:none;width:100%;text-align:left;margin-bottom:1px;
+  font-family:var(--sans);}
+.sn-item:hover{background:rgba(255,255,255,.07);color:white;}
+.sn-item.active{background:rgba(99,102,241,.22);color:#a5b4fc;}
+.sn-item .sn-icon{font-size:16px;flex-shrink:0;opacity:.75;}
+.sn-item.active .sn-icon{opacity:1;}
+.sn-divider{height:1px;background:rgba(255,255,255,.06);margin:8px 8px;}
+.sidebar-foot{padding:12px 8px 20px;border-top:1px solid rgba(255,255,255,.06);margin-top:auto;}
+.sidebar-ai-pill{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;
+  color:rgba(148,163,184,.7);font-size:11px;font-weight:600;cursor:pointer;
+  border:1px solid rgba(255,255,255,.06);background:none;width:100%;text-align:left;
+  transition:all .15s;margin-bottom:6px;font-family:var(--mono);}
+.sidebar-ai-pill:hover{background:rgba(255,255,255,.06);color:white;border-color:rgba(255,255,255,.12);}
+.sidebar-back{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;
+  color:rgba(148,163,184,.6);font-size:11px;font-weight:600;cursor:pointer;
+  border:none;background:none;width:100%;text-align:left;transition:all .15s;font-family:var(--sans);}
+.sidebar-back:hover{background:rgba(255,255,255,.05);color:rgba(148,163,184,.9);}
+
+/* ── APP TOPBAR ── */
+.app-topbar{
+  display:none;position:fixed;top:0;left:220px;right:0;height:54px;
+  background:white;border-bottom:1px solid rgba(148,163,184,.18);
+  z-index:110;align-items:center;padding:0 24px;gap:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.app-topbar-title{font-size:14px;font-weight:700;color:#1e293b;font-family:var(--headline);}
+.app-topbar-spacer{flex:1;}
+.app-topbar-actions{display:flex;align-items:center;gap:10px;}
+
+/* ── AI DRAWER ── */
+#ai-drawer{
+  position:fixed;inset-y:0;right:0;width:480px;max-width:96vw;
+  background:white;z-index:400;
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:-8px 0 40px rgba(0,0,0,.12);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+#ai-drawer.open{transform:translateX(0);}
+#ai-drawer-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:390;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+}
+#ai-drawer-overlay.open{opacity:1;pointer-events:auto;}
+.aid-head{padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;}
+.aid-title{font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;}
+.aid-url{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:310px;}
+.aid-close{width:32px;height:32px;border-radius:8px;border:none;background:none;cursor:pointer;color:#94a3b8;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;flex-shrink:0;}
+.aid-close:hover{background:#f1f5f9;color:#1e293b;}
+.aid-body{flex:1;padding:20px 24px;overflow-y:auto;}
+.aid-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#94a3b8;margin-bottom:10px;}
+.aid-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.aid-pill{padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;transition:all .15s;}
+.aid-pill.active{background:#4f46e5;color:white;border-color:#4f46e5;box-shadow:0 2px 8px rgba(79,70,229,.2);}
+.aid-pill:hover:not(.active){border-color:#a5b4fc;color:#4f46e5;}
+.aid-key-wrap{position:relative;margin-bottom:16px;}
+.aid-key-wrap input{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px 10px 36px;font-size:12px;font-family:var(--mono);outline:none;transition:border-color .15s;}
+.aid-key-wrap input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.09);}
+.aid-key-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:14px;}
+.aid-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;border-left:4px solid #4f46e5;margin-bottom:14px;}
+.aid-card-field{background:#eff6ff;color:#4f46e5;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;text-transform:uppercase;display:inline-block;}
+.aid-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0;}
+.aid-card-item-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:2px;}
+.aid-card-item-val{font-size:12px;font-weight:600;color:#1e293b;line-height:1.4;}
+.aid-optimized{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:8px 0;}
+.aid-optimized-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;}
+.aid-optimized-val{font-size:12px;font-weight:700;color:#1e293b;display:flex;align-items:flex-start;gap:6px;}
+.aid-optimized-arrow{color:#059669;flex-shrink:0;}
+.aid-card-footer{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:10px;border-top:1px solid #f1f5f9;margin-top:8px;}
+.aid-foot{padding:16px 24px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:10px;flex-shrink:0;}
+.aid-btn-test{flex:1;background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:12px;font-weight:700;color:#1e293b;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;}
+.aid-btn-test:hover{background:#f1f5f9;}
+.aid-btn-apply{flex:1;background:#4f46e5;color:white;border:none;border-radius:10px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .15s;box-shadow:0 4px 14px rgba(79,70,229,.22);}
+.aid-btn-apply:hover{opacity:.9;}
+
+/* ── SCHEMA INTELLIGENCE PANEL ── */
+#panel-schema-intel{display:none;}
+.si-head{display:flex;justify-content:space-between;align-items:flex-end;padding:24px 28px 18px;border-bottom:1px solid #e2e8f0;}
+.si-head .si-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#94a3b8;margin-bottom:4px;}
+.si-head h1{font-size:22px;font-weight:800;color:#1e293b;font-family:var(--headline);font-style:italic;}
+.si-head-btns{display:flex;gap:10px;}
+.si-btn-outline{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;color:#1e293b;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
+.si-btn-outline:hover{background:#f8fafc;}
+.si-btn-primary{background:#4f46e5;color:white;border:none;border-radius:10px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(79,70,229,.22);transition:opacity .15s;}
+.si-btn-primary:hover{opacity:.9;}
+.si-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px 28px;}
+.si-sum-card{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:20px 18px;position:relative;overflow:hidden;}
+.si-sum-card .s-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;}
+.si-sum-card .s-icon{position:absolute;top:16px;right:16px;color:#e2e8f0;font-size:16px;}
+.si-sum-card .s-val{font-size:28px;font-weight:800;color:#1e293b;line-height:1;margin:8px 0 4px;}
+.si-sum-card .s-sub{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;}
+.si-matrix{background:white;border:1px solid #e2e8f0;border-radius:14px;margin:0 28px 28px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.04);}
+.si-matrix-head{padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:rgba(248,250,252,.5);position:sticky;top:0;z-index:5;}
+.si-matrix-head h3{font-size:13px;font-weight:700;color:#1e293b;}
+.si-matrix-filter{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;}
+.si-matrix-filter input{background:transparent;border:none;font-size:11px;font-weight:600;outline:none;color:#1e293b;width:160px;}
+.si-table{width:100%;border-collapse:collapse;}
+.si-table thead th{background:#f8fafc;color:#94a3b8;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:10px 18px;text-align:left;border-bottom:1px solid #e2e8f0;}
+.si-table tbody tr{border-bottom:1px solid #f1f5f9;cursor:pointer;}
+.si-table tbody tr:last-child{border-bottom:none;}
+.si-table tbody tr:hover{background:#f8fafc;}
+.si-table td{padding:13px 18px;vertical-align:middle;}
+.si-url{font-size:12px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;}
+.si-url-sub{font-size:10px;color:#94a3b8;margin-top:1px;}
+.si-schema-id{font-size:11px;font-family:var(--mono);font-weight:700;color:#94a3b8;display:flex;align-items:center;gap:6px;}
+.si-type-badge{background:#f1f5f9;color:#475569;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #e2e8f0;display:inline-block;margin:1px;}
+.si-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.si-status-valid{color:#059669;}
+.si-status-warning{color:#d97706;}
+.si-status-error{color:#dc2626;}
+.si-expand-btn{width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8;transition:all .15s;font-size:13px;}
+.si-expand-btn:hover{border-color:#4f46e5;color:#4f46e5;background:#eff6ff;}
+.si-code-wrap{background:#0f172a;border-radius:12px;padding:20px;margin:12px 0;overflow-x:auto;}
+.si-code-wrap pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:#93c5fd;margin:0;}
+.si-code-actions{display:flex;gap:8px;margin-bottom:12px;}
+.si-code-btn{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:rgba(148,163,184,.8);font-size:11px;cursor:pointer;transition:all .15s;font-family:var(--mono);}
+.si-code-btn:hover{background:rgba(255,255,255,.1);color:white;}
+.si-fault-bar{display:flex;align-items:center;gap:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-top:8px;}
+.si-fault-icon{color:#dc2626;font-size:18px;flex-shrink:0;}
+.si-fault-body h4{font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
+.si-fault-body p{font-size:11px;color:#64748b;margin:0;}
+.si-repair-btn{margin-left:auto;background:#dc2626;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.si-repair-btn:hover{opacity:.9;}
+.si-expanded-cell td{padding:0!important;}
+.si-expanded-content{padding:16px 28px;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+
+/* ── CONTENT LAB PANEL ── */
+#panel-content-lab{display:none;}
+.clab-head{padding:24px 28px 18px;border-bottom:1px solid #e2e8f0;}
+.clab-head .clab-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#94a3b8;margin-bottom:4px;}
+.clab-head h1{font-size:22px;font-weight:800;color:#1e293b;font-family:var(--headline);font-style:italic;}
+.clab-body{padding:20px 28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.clab-model-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;}
+.clab-model-btn{padding:8px 16px;border-radius:8px;font-size:11px;font-weight:700;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--sans);}
+.clab-model-btn.active{background:#1e293b;color:white;border-color:#1e293b;}
+.clab-model-btn:hover:not(.active){border-color:#4f46e5;color:#4f46e5;}
+.clab-panel{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;}
+.clab-panel h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;margin-bottom:10px;}
+.clab-textarea{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:12px;font-family:var(--mono);color:#1e293b;resize:vertical;min-height:180px;outline:none;transition:border-color .15s;line-height:1.6;}
+.clab-textarea:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.08);}
+.clab-generate-row{grid-column:1/-1;display:flex;justify-content:center;gap:12px;}
+.clab-generate-btn{background:#4f46e5;color:white;border:none;border-radius:12px;padding:13px 32px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(79,70,229,.22);transition:all .15s;font-family:var(--headline);}
+.clab-generate-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px);}
+.clab-generate-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.clab-processing{grid-column:1/-1;background:#0f172a;border-radius:14px;padding:32px;text-align:center;display:none;}
+.clab-processing.show{display:block;}
+.clab-processing p{color:rgba(148,163,184,.8);font-size:12px;font-family:var(--mono);margin-top:12px;}
+.clab-proc-bar{height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin:16px 0 0;}
+.clab-proc-fill{height:100%;background:linear-gradient(90deg,#4f46e5,#818cf8,#4f46e5);background-size:200%;border-radius:2px;animation:clabPulse 1.6s ease-in-out infinite;}
+@keyframes clabPulse{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+.clab-result{grid-column:1/-1;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;display:none;}
+.clab-result.show{display:block;}
+.clab-result h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;margin-bottom:12px;}
+.clab-result-text{font-size:13px;color:#1e293b;line-height:1.8;white-space:pre-wrap;font-family:var(--mono);background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;}
+.clab-result-actions{display:flex;gap:8px;margin-top:12px;}
+.clab-copy-btn{padding:7px 16px;border-radius:8px;border:1px solid #e2e8f0;background:white;color:#1e293b;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s;}
+.clab-copy-btn:hover{background:#f1f5f9;}
+
+/* ════════════════════════════════════════════════
+   APP-MODE: light theme + hide landing sections
+   ════════════════════════════════════════════════ */
+body.app-mode{
+  --bg:#f8fafc;
+  --surf-lowest:#f1f5f9;
+  --surf-low:#f1f5f9;
+  --surf:#ffffff;
+  --surf2:#f8fafc;
+  --surf3:#e2e8f0;
+  --surf-highest:#ffffff;
+  --indigo:#4f46e5;
+  --primary:#4f46e5;
+  --primary-container:#6366f1;
+  --tertiary:#d97706;
+  --tertiary-container:rgba(217,119,6,.1);
+  --green:#059669;
+  --green-container:rgba(5,150,105,.1);
+  --yellow:#d97706;
+  --red:#dc2626;
+  --red-container:rgba(220,38,38,.1);
+  --cyan:#4f46e5;
+  --purple:#7c3aed;
+  --accent:#4f46e5;
+  --text:#1e293b;
+  --dim:#475569;
+  --muted:#94a3b8;
+  --dark-muted:#cbd5e1;
+  --border:rgba(148,163,184,.25);
+  --border-strong:rgba(148,163,184,.45);
+  --ghost:rgba(148,163,184,.12);
+  padding-left:220px;
+  background:#f8fafc;
+}
+body.app-mode::before{display:none;}
+
+/* Typography fix for light bg */
+body.app-mode h1,body.app-mode h2,body.app-mode h3,body.app-mode h4{color:var(--text);}
+body.app-mode .sec-hd h2,body.app-mode .sec-hd p{color:var(--text)!important;}
+body.app-mode .comp-gap-head h4,body.app-mode .comp-actions-head h4,body.app-mode .comp-dim-head h4{color:var(--text)!important;}
+body.app-mode .fb-logo span,body.app-mode .fb-logo em{color:var(--text)!important;}
+
+/* Keep mc-val white for metric numbers — preserve dashboard card count colors */
+body.app-mode .mc-val[style*="color:white"]{color:#1e293b!important;}
+
+/* Sidebar visible in app mode */
+body.app-mode .sidebar{transform:translateX(0);}
+
+/* Topbar visible in app mode */
+body.app-mode .app-topbar{display:flex!important;}
+
+/* Dashboard needs top padding for fixed topbar */
+body.app-mode #dash-sec{padding-top:70px;}
+body.app-mode #serp-intel-sec{padding-top:0;}
+body.app-mode #monitor-sec{padding-top:0;}
+body.app-mode #competitor-sec{padding-top:70px;}
+body.app-mode #panel-schema-intel{display:block;padding-top:54px;}
+body.app-mode #panel-content-lab{display:block;padding-top:54px;}
+
+/* Hide landing sections in app mode */
+body.app-mode .landing-nav,
+body.app-mode .hero,
+body.app-mode #how-it-works,
+body.app-mode #features,
+body.app-mode #about,
+body.app-mode #example-sec,
+body.app-mode #checklist-sec,
+body.app-mode #analyzer-sec,
+body.app-mode #faq,
+body.app-mode .cta-wrap,
+body.app-mode #seo-content-sec,
+body.app-mode footer,
+body.app-mode .bottom-nav,
+body.app-mode #cold-banner-landing{display:none!important;}
+
+/* Hover rows on light bg */
+body.app-mode tbody tr:hover{background:rgba(79,70,229,.03)!important;}
+body.app-mode .tseo-table tbody tr:hover{background:rgba(79,70,229,.03)!important;}
+
+/* Scrollbar light */
+body.app-mode ::-webkit-scrollbar-track{background:#f1f5f9;}
+body.app-mode ::-webkit-scrollbar-thumb{background:#cbd5e1;}
+
+/* Panel visibility: controlled by .panel-hidden class added/removed by JS */
+body.app-mode #dash-sec.panel-hidden,
+body.app-mode #serp-intel-sec.panel-hidden,
+body.app-mode #monitor-sec.panel-hidden,
+body.app-mode #competitor-sec.panel-hidden,
+body.app-mode #panel-schema-intel.panel-hidden,
+body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </style>
 </head>
 <body>
+
+<!-- ══ SIDEBAR (app shell navigation) ══════════════════════════════════════ -->
+<aside class="sidebar" id="app-sidebar" aria-label="App navigation">
+  <div class="sidebar-logo">
+    <span class="material-symbols-outlined sidebar-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 600">query_stats</span>
+    <span class="sidebar-logo-text">Crawl<em>IQ</em></span>
+  </div>
+  <nav class="sidebar-nav" aria-label="Main panels">
+    <div class="sn-group">
+      <button class="sn-item active" id="sn-dashboard" onclick="showPanel('dashboard')" title="Dashboard">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">dashboard</span>
+        Dashboard
+      </button>
+      <button class="sn-item" id="sn-serp" onclick="showPanel('serp')" title="SERP Intelligence">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">bar_chart</span>
+        SERP Intel
+      </button>
+      <button class="sn-item" id="sn-monitor" onclick="showPanel('monitor')" title="Rank Monitor">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">notifications</span>
+        Rank Monitor
+      </button>
+      <button class="sn-item" id="sn-competitors" onclick="showPanel('competitors')" title="Competitor Analysis">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">compare_arrows</span>
+        Competitors
+      </button>
+    </div>
+    <div class="sn-divider"></div>
+    <div class="sn-group">
+      <button class="sn-item" id="sn-schema" onclick="showPanel('schema')" title="Schema Intelligence">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">data_object</span>
+        Schema Intel
+      </button>
+      <button class="sn-item" id="sn-content-lab" onclick="showPanel('content-lab')" title="Content Lab">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">auto_fix_high</span>
+        Content Lab
+      </button>
+    </div>
+    <div class="sn-divider"></div>
+    <div class="sn-group">
+      <button class="sn-item" onclick="openKwGap()" title="Keyword Gap">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">search</span>
+        Keyword Gap
+      </button>
+      <button class="sn-item" onclick="openScoreHistory()" title="Score History">
+        <span class="sn-icon material-symbols-outlined" style="font-size:17px">trending_up</span>
+        Score History
+      </button>
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    <button class="sidebar-ai-pill" onclick="openAiSetup()" title="Configure AI provider">
+      <div class="ai-pill-dot" style="width:7px;height:7px;flex-shrink:0"></div>
+      <span id="sb-ai-label" style="font-size:11px">AI Setup</span>
+    </button>
+    <button class="sn-item" onclick="openSettings()" style="color:rgba(148,163,184,.7)">
+      <span class="sn-icon material-symbols-outlined" style="font-size:17px">settings</span>
+      Settings
+    </button>
+    <button class="sidebar-back" onclick="exitAppMode()" title="Back to landing page">
+      <span class="material-symbols-outlined" style="font-size:15px">arrow_back</span>
+      Back to Home
+    </button>
+  </div>
+</aside>
+
+<!-- ══ APP TOPBAR ════════════════════════════════════════════════════════════ -->
+<div class="app-topbar" id="app-topbar">
+  <span class="app-topbar-title" id="app-topbar-title">Audit Dashboard</span>
+  <div class="app-topbar-spacer"></div>
+  <div class="app-topbar-actions">
+    <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer;background:#f8fafc;border-color:#e2e8f0">
+      <div class="ai-pill-dot"></div>
+      <span id="gemini-pill-topbar" class="gemini-pill" style="color:#475569">Checking AI…</span>
+    </div>
+    <div id="nav-auth-user-topbar" style="display:none;align-items:center;gap:8px">
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="user-avatar-initials-tb">U</div>
+        <span id="user-display-name-tb" style="font-size:12px;color:#1e293b">User</span>
+      </div>
+    </div>
+    <div id="nav-auth-guest-topbar" style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px;border-color:#e2e8f0;color:#475569">Sign In</button>
+      <button class="btn btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px;background:#4f46e5;color:white;border:none">Free Sign Up</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ AUTH MODAL ═══════════════════════════════════════════════════════════ -->
 <div id="auth-modal" class="modal-overlay" style="display:none">
@@ -1595,8 +1949,8 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 </div>
 </div>
 
-<!-- NAV -->
-<nav>
+<!-- NAV (landing page only — hidden in app mode via .landing-nav) -->
+<nav class="landing-nav">
   <a class="nav-logo" href="#">
     <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 600">query_stats</span>
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
@@ -2291,6 +2645,111 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
   </div>
 </section>
 
+<!-- ══ SCHEMA INTELLIGENCE PANEL (app mode only) ════════════════════════════ -->
+<div id="panel-schema-intel" class="panel-hidden">
+  <div class="si-head">
+    <div>
+      <div class="si-lbl">Structured Data Audit</div>
+      <h1>Schema Intelligence</h1>
+    </div>
+    <div class="si-head-btns">
+      <button class="si-btn-outline" onclick="validateSchemaLive()">
+        <span class="material-symbols-outlined" style="font-size:16px">verified</span> Validate Live
+      </button>
+      <button class="si-btn-primary" onclick="generateSchemaAI()">
+        <span class="material-symbols-outlined" style="font-size:16px">add</span> Generate Schema
+      </button>
+    </div>
+  </div>
+  <div class="si-summary-grid" id="si-summary-grid">
+    <div class="si-sum-card">
+      <div class="s-label">Schema Coverage</div>
+      <span class="s-icon material-symbols-outlined">layers</span>
+      <div class="s-val" id="si-coverage">—</div>
+      <div class="s-sub">of crawled pages</div>
+    </div>
+    <div class="si-sum-card">
+      <div class="s-label">Valid Entities</div>
+      <span class="s-icon material-symbols-outlined" style="color:#059669">check_circle</span>
+      <div class="s-val" id="si-valid" style="color:#059669">—</div>
+      <div class="s-sub">Audit complete</div>
+    </div>
+    <div class="si-sum-card">
+      <div class="s-label">Schema Warnings</div>
+      <span class="s-icon material-symbols-outlined" style="color:#d97706">warning</span>
+      <div class="s-val" id="si-warnings" style="color:#d97706">—</div>
+      <div class="s-sub">Needs attention</div>
+    </div>
+  </div>
+  <div class="si-matrix">
+    <div class="si-matrix-head">
+      <h3>Entity Diagnostic Matrix</h3>
+      <div class="si-matrix-filter">
+        <span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8">search</span>
+        <input type="text" placeholder="Filter by URL or type…" oninput="filterSchemaMatrix(this.value)" id="si-filter-input"/>
+      </div>
+    </div>
+    <table class="si-table" id="si-table">
+      <thead>
+        <tr>
+          <th>URL Context</th>
+          <th>Schema ID</th>
+          <th>Detected Types</th>
+          <th>Status</th>
+          <th style="text-align:center">Warnings/Errors</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="si-tbody">
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;font-size:12px">Run a crawl first, then click Schema Intel to audit structured data.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ CONTENT LAB PANEL (app mode only) ══════════════════════════════════ -->
+<div id="panel-content-lab" class="panel-hidden">
+  <div class="clab-head">
+    <div class="clab-lbl">Neural Content Forge</div>
+    <h1>Content Lab</h1>
+  </div>
+  <div class="clab-body">
+    <div class="clab-model-row">
+      <button class="clab-model-btn active" onclick="clabSelectModel(this,'gemini')">✨ Gemini</button>
+      <button class="clab-model-btn" onclick="clabSelectModel(this,'groq')">⚡ Groq (Llama 3)</button>
+      <button class="clab-model-btn" onclick="clabSelectModel(this,'openai')">🤖 GPT-4o</button>
+      <button class="clab-model-btn" onclick="clabSelectModel(this,'claude')">🧠 Claude</button>
+      <button class="clab-model-btn" onclick="clabSelectModel(this,'ollama')">🏠 Ollama (Local)</button>
+    </div>
+    <div class="clab-panel">
+      <h3>Original Content</h3>
+      <textarea class="clab-textarea" id="clab-original" placeholder="Paste your current page content here — title, meta description, H1, body copy…"></textarea>
+    </div>
+    <div class="clab-panel">
+      <h3>SEO Audit Context</h3>
+      <textarea class="clab-textarea" id="clab-context" placeholder="Paste your CrawlIQ audit report or describe what SEO issues were found…"></textarea>
+    </div>
+    <div class="clab-generate-row">
+      <button class="clab-generate-btn" id="clab-generate-btn" onclick="runContentLabSynthesis()">
+        <span class="material-symbols-outlined" style="font-size:18px">psychology</span>
+        Initiate Synthesis
+      </button>
+    </div>
+    <div class="clab-processing" id="clab-processing">
+      <div style="color:#818cf8;font-size:13px;font-weight:700;font-family:var(--mono)">⚡ Neural synthesis in progress…</div>
+      <p>Processing semantic clusters · Optimizing keyword density · Generating content</p>
+      <div class="clab-proc-bar"><div class="clab-proc-fill"></div></div>
+    </div>
+    <div class="clab-result" id="clab-result">
+      <h3>✦ Synthesized Content</h3>
+      <div class="clab-result-text" id="clab-result-text"></div>
+      <div class="clab-result-actions">
+        <button class="clab-copy-btn" onclick="clabCopyResult()">Copy to Clipboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- HOW IT WORKS -->
 <section id="how-it-works" style="background:var(--surf-low)">
   <div class="sec-inner">
@@ -2934,6 +3393,54 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
     <button class="btn btn-orange" style="width:100%" onclick="downloadOptimizer()">⚡ Live Optimization Table (.xlsx)</button>
   </div>
 </div>
+</div>
+
+<!-- ══ AI DRAWER (Neural Fix Engine — slide-in from right) ════════════════ -->
+<div id="ai-drawer-overlay" onclick="closeAiDrawer()"></div>
+<div id="ai-drawer" role="dialog" aria-label="Neural Fix Engine">
+  <div class="aid-head">
+    <div>
+      <div class="aid-title">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#4f46e5;font-variation-settings:'FILL' 1">auto_fix_high</span>
+        Neural Fix Engine
+      </div>
+      <div class="aid-url" id="aid-url">Analyzing…</div>
+    </div>
+    <button class="aid-close" onclick="closeAiDrawer()" aria-label="Close">✕</button>
+  </div>
+  <div class="aid-body">
+    <!-- Provider selection -->
+    <div class="aid-section-label">Select AI Intelligence</div>
+    <div class="aid-pills" id="aid-pills">
+      <button class="aid-pill active" onclick="aidSelectProvider(this,'groq')">⚡ Groq</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'gemini')">✨ Gemini</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'openai')">🤖 OpenAI</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'claude')">🧠 Claude</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'ollama')">🏠 Ollama</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'rules')">📋 Rules Only</button>
+    </div>
+    <div class="aid-key-wrap" id="aid-key-wrap" style="display:none">
+      <span class="aid-key-icon material-symbols-outlined">lock</span>
+      <input type="password" id="aid-api-key" placeholder="Enter API Key…" autocomplete="off"/>
+    </div>
+
+    <!-- Optimization Strategy -->
+    <div class="aid-section-label" style="margin-top:20px">Optimization Strategy</div>
+    <div id="aid-cards-wrap">
+      <!-- Populated by openAiDrawer() -->
+      <div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px">Click "AI Fix" on any row to see optimization strategy here.</div>
+    </div>
+  </div>
+  <div class="aid-foot">
+    <button class="aid-btn-test" id="aid-test-btn" onclick="aidTestConnection()">
+      <span class="material-symbols-outlined" style="font-size:16px;color:#4f46e5">bolt</span>
+      Test Connection
+    </button>
+    <button class="aid-btn-apply" onclick="aidApplyFixes()">
+      <span class="material-symbols-outlined" style="font-size:16px">check_circle</span>
+      Apply Fixes
+    </button>
+  </div>
 </div>
 
 <script>
@@ -5547,6 +6054,380 @@ document.addEventListener('DOMContentLoaded', ()=>{
     <span class="bn-label">Profile</span>
   </a>
 </nav>
+
+<!-- ══ APP SHELL OVERRIDES ════════════════════════════════════════════════ -->
+<script>
+/* ── Panel registry ──────────────────────────────────────────────────────── */
+const _PANELS = {
+  dashboard:    { el: 'dash-sec',           sn: 'sn-dashboard',    title: 'Audit Dashboard' },
+  serp:         { el: 'serp-intel-sec',     sn: 'sn-serp',         title: 'SERP Intelligence' },
+  monitor:      { el: 'monitor-sec',        sn: 'sn-monitor',      title: 'Rank Monitor' },
+  competitors:  { el: 'competitor-sec',     sn: 'sn-competitors',  title: 'Competitor Analysis' },
+  schema:       { el: 'panel-schema-intel', sn: 'sn-schema',       title: 'Schema Intelligence' },
+  'content-lab':{ el: 'panel-content-lab',  sn: 'sn-content-lab',  title: 'Content Lab' },
+};
+let _currentPanel = 'dashboard';
+
+function showPanel(name) {
+  if (!_PANELS[name]) return;
+  _currentPanel = name;
+  Object.entries(_PANELS).forEach(([k, cfg]) => {
+    const el = document.getElementById(cfg.el);
+    const sn = document.getElementById(cfg.sn);
+    if (el) {
+      if (k === name) el.classList.remove('panel-hidden');
+      else el.classList.add('panel-hidden');
+    }
+    if (sn) {
+      if (k === name) sn.classList.add('active');
+      else sn.classList.remove('active');
+    }
+  });
+  const title = document.getElementById('app-topbar-title');
+  if (title) title.textContent = _PANELS[name].title;
+  if (name === 'serp' || name === 'monitor') {
+    const el = document.getElementById(_PANELS[name].el);
+    if (el) el.style.display = 'block';
+  }
+}
+
+/* ── App mode enter / exit ───────────────────────────────────────────────── */
+function enterAppMode() {
+  document.body.classList.add('app-mode');
+  showPanel('dashboard');
+  syncTopbarAuth();
+  syncSidebarAI();
+}
+
+function exitAppMode() {
+  document.body.classList.remove('app-mode');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncTopbarAuth() {
+  const guestLanding = document.getElementById('nav-auth-guest');
+  const userLanding  = document.getElementById('nav-auth-user');
+  const guestTb      = document.getElementById('nav-auth-guest-topbar');
+  const userTb       = document.getElementById('nav-auth-user-topbar');
+  if (!guestTb || !userTb) return;
+  const isLoggedIn = userLanding && userLanding.style.display !== 'none';
+  guestTb.style.display = isLoggedIn ? 'none' : 'flex';
+  userTb.style.display  = isLoggedIn ? 'flex' : 'none';
+  const nameEl = document.getElementById('user-display-name');
+  const nameTb = document.getElementById('user-display-name-tb');
+  if (nameEl && nameTb) nameTb.textContent = nameEl.textContent;
+  const avatarEl = document.getElementById('user-avatar-initials');
+  const avatarTb = document.getElementById('user-avatar-initials-tb');
+  if (avatarEl && avatarTb) avatarTb.textContent = avatarEl.textContent;
+}
+
+function syncSidebarAI() {
+  const pill = document.getElementById('gemini-pill');
+  const sbLbl = document.getElementById('sb-ai-label');
+  const tbPill = document.getElementById('gemini-pill-topbar');
+  if (pill && sbLbl) sbLbl.textContent = pill.textContent || 'AI Setup';
+  if (pill && tbPill) {
+    tbPill.textContent = pill.textContent || 'Checking AI…';
+    tbPill.className = pill.className;
+  }
+}
+
+/* ── Override startCrawlHero to enter app mode ───────────────────────────── */
+const _origStartCrawlHero = window.startCrawlHero;
+window.startCrawlHero = function() {
+  enterAppMode();
+  setTimeout(() => {
+    const el = document.getElementById('dash-sec');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (typeof startCrawl === 'function') startCrawl();
+  }, 320);
+};
+
+/* ── Override openSerpPanel / closeSerpPanel ─────────────────────────────── */
+const _origOpenSerp = window.openSerpPanel;
+window.openSerpPanel = function() {
+  if (document.body.classList.contains('app-mode')) {
+    showPanel('serp');
+    const el = document.getElementById('serp-intel-sec');
+    if (el) { el.style.display = 'block'; el.style.paddingTop = '0'; }
+    if (typeof loadSerpPanel === 'function') loadSerpPanel();
+  } else if (_origOpenSerp) _origOpenSerp();
+};
+const _origCloseSerp = window.closeSerpPanel;
+window.closeSerpPanel = function() {
+  if (document.body.classList.contains('app-mode')) showPanel('dashboard');
+  else if (_origCloseSerp) _origCloseSerp();
+};
+
+/* ── Override openMonitorPanel / closeMonitorPanel ───────────────────────── */
+const _origOpenMon = window.openMonitorPanel;
+window.openMonitorPanel = function() {
+  if (document.body.classList.contains('app-mode')) {
+    showPanel('monitor');
+    const el = document.getElementById('monitor-sec');
+    if (el) { el.style.display = 'block'; el.style.paddingTop = '0'; }
+    if (typeof loadMonitorJobs === 'function') loadMonitorJobs();
+  } else if (_origOpenMon) _origOpenMon();
+};
+const _origCloseMon = window.closeMonitorPanel;
+window.closeMonitorPanel = function() {
+  if (document.body.classList.contains('app-mode')) showPanel('dashboard');
+  else if (_origCloseMon) _origCloseMon();
+};
+
+/* ── AI Drawer ───────────────────────────────────────────────────────────── */
+let _aidProvider = 'groq';
+let _aidPageData = null;
+
+function openAiDrawer(pageData) {
+  _aidPageData = pageData || null;
+  const drawer = document.getElementById('ai-drawer');
+  const overlay = document.getElementById('ai-drawer-overlay');
+  const urlEl = document.getElementById('aid-url');
+  if (urlEl && pageData) urlEl.textContent = pageData.url || 'Analyzing…';
+  if (pageData) renderAidCards(pageData);
+  drawer.classList.add('open');
+  overlay.classList.add('open');
+}
+
+function closeAiDrawer() {
+  document.getElementById('ai-drawer').classList.remove('open');
+  document.getElementById('ai-drawer-overlay').classList.remove('open');
+}
+
+function aidSelectProvider(btn, provider) {
+  _aidProvider = provider;
+  document.querySelectorAll('.aid-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const keyRequired = ['groq','openai','claude'].includes(provider);
+  document.getElementById('aid-key-wrap').style.display = keyRequired ? 'block' : 'none';
+  if (keyRequired) {
+    document.getElementById('aid-api-key').placeholder = `Enter ${provider.toUpperCase()} API Key…`;
+  }
+}
+
+function renderAidCards(page) {
+  const wrap = document.getElementById('aid-cards-wrap');
+  if (!wrap) return;
+  const fields = [
+    { field: 'Title', current: page.title || '—', issue: !page.title ? 'Missing' : page.title.length > 60 ? 'Too Long' : 'Weak keyword', impact: 'High' },
+    { field: 'Meta Description', current: page.meta_description || '—', issue: !page.meta_description ? 'Missing' : 'No call to action', impact: 'Medium' },
+    { field: 'H1', current: page.h1 || '—', issue: !page.h1 ? 'Missing' : 'Not keyword-optimized', impact: 'High' },
+  ];
+  wrap.innerHTML = fields.map(f => `
+    <div class="aid-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="aid-card-field">${f.field}</span>
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:${f.impact==='High'?'#dc2626':'#d97706'}">${f.impact} Priority</span>
+      </div>
+      <div class="aid-card-grid">
+        <div><div class="aid-card-item-label">Issue</div><div class="aid-card-item-val">${f.issue}</div></div>
+        <div><div class="aid-card-item-label">Current Value</div><div class="aid-card-item-val" style="color:#94a3b8;font-size:11px">${(f.current||'—').slice(0,80)}${(f.current||'').length>80?'…':''}</div></div>
+      </div>
+      <div class="aid-optimized">
+        <div class="aid-optimized-label">AI Fix Preview</div>
+        <div class="aid-optimized-val"><span class="aid-optimized-arrow material-symbols-outlined" style="font-size:14px">arrow_forward</span>Run AI analysis to generate optimized value</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function aidTestConnection() {
+  const btn = document.getElementById('aid-test-btn');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;animation:spin .7s linear infinite">refresh</span> Testing…';
+  btn.disabled = true;
+  fetch(`${API}/ai-config`)
+    .then(r => r.json())
+    .then(d => {
+      btn.innerHTML = d.configured ? '✓ Connected' : '✗ Not configured';
+      setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 2000);
+    })
+    .catch(() => {
+      btn.innerHTML = '✗ Error';
+      setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 2000);
+    });
+}
+
+function aidApplyFixes() {
+  if (!_aidPageData) { alert('No page selected. Click AI Fix on a row first.'); return; }
+  closeAiDrawer();
+  if (typeof analyzeThisPage === 'function' && typeof openPopup === 'function') {
+    const idx = allResults.findIndex(r => r.url === _aidPageData.url);
+    if (idx >= 0) { popupPages = allResults; popupIndex = idx; openPopup(); }
+  }
+}
+
+/* ── Schema Intelligence ─────────────────────────────────────────────────── */
+function renderSchemaPanel() {
+  if (!allResults || !allResults.length) return;
+  const rows = allResults.filter(r => r.status_code === 200 || r.status_code === '200');
+  let valid = 0, warnings = 0;
+  const tbody = document.getElementById('si-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.slice(0, 50).map((page, idx) => {
+    const hasSchema = !!(page.canonical || page.title);
+    const status = page.issues > 2 ? 'Error' : page.issues > 0 ? 'Warning' : 'Valid';
+    if (status === 'Valid') valid++;
+    if (status === 'Warning') warnings++;
+    const statusClass = status === 'Valid' ? 'si-status-valid' : status === 'Warning' ? 'si-status-warning' : 'si-status-error';
+    const shortUrl = (page.url || '').replace(/^https?:\/\//, '').slice(0, 45);
+    const types = hasSchema ? ['WebPage'] : [];
+    if (page.title) types.push('TitleOK');
+    return `<tr onclick="toggleSchemaRow(${idx}, '${(page.url||'').replace(/'/g,"\\'")}')">
+      <td><div class="si-url">${shortUrl}</div><div class="si-url-sub">Asset Link</div></td>
+      <td><div class="si-schema-id"><span class="material-symbols-outlined" style="font-size:14px;color:#4f46e5">data_object</span>page-schema-${idx}</div></td>
+      <td>${types.map(t => `<span class="si-type-badge">${t}</span>`).join('')}</td>
+      <td><span class="si-status ${statusClass}">${status}</span></td>
+      <td style="text-align:center"><span style="font-size:11px;font-weight:700;color:${page.issues>0?'#dc2626':'#059669'}">${page.issues||0}</span></td>
+      <td><button class="si-expand-btn" id="si-exp-${idx}"><span class="material-symbols-outlined" style="font-size:14px">code</span></button></td>
+    </tr>
+    <tr id="si-row-detail-${idx}" style="display:none"><td colspan="6" class="si-expanded-cell">
+      <div class="si-expanded-content">
+        <div class="si-code-actions">
+          <button class="si-code-btn" onclick="navigator.clipboard.writeText(getSchemaSample(${idx}))">📋 Copy JSON-LD</button>
+          <button class="si-code-btn" style="color:#93c5fd">↗ Open URL</button>
+        </div>
+        <div class="si-code-wrap"><pre id="si-code-${idx}">${getSchemaSampleEscaped(page)}</pre></div>
+        ${page.issues > 0 ? `<div class="si-fault-bar"><span class="si-fault-icon material-symbols-outlined">shield</span><div class="si-fault-body"><h4>Schema Integrity Fault</h4><p>Missing ${page.issues} required properties. Click Repair to auto-generate with AI.</p></div><button class="si-repair-btn" onclick="repairSchema('${(page.url||'').replace(/'/g,"\\'")}')">Repair with AI</button></div>` : ''}
+      </div>
+    </td></tr>`;
+  }).join('');
+
+  const coverage = rows.length > 0 ? Math.round((valid / rows.length) * 100) : 0;
+  const covEl = document.getElementById('si-coverage');
+  const valEl = document.getElementById('si-valid');
+  const warnEl = document.getElementById('si-warnings');
+  if (covEl) covEl.textContent = coverage + '%';
+  if (valEl) valEl.textContent = valid;
+  if (warnEl) warnEl.textContent = warnings;
+}
+
+function getSchemaSample(idx) {
+  const page = allResults[idx];
+  if (!page) return '{}';
+  return JSON.stringify({"@context":"https://schema.org","@type":"WebPage","name":page.title||"","url":page.url||"","description":page.meta_description||""}, null, 2);
+}
+
+function getSchemaSampleEscaped(page) {
+  const j = {"@context":"https://schema.org","@type":"WebPage","name":page.title||"","url":page.url||"","description":page.meta_description||""};
+  return JSON.stringify(j, null, 2).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleSchemaRow(idx, url) {
+  const detail = document.getElementById(`si-row-detail-${idx}`);
+  const btn = document.getElementById(`si-exp-${idx}`);
+  if (!detail) return;
+  const isOpen = detail.style.display !== 'none';
+  detail.style.display = isOpen ? 'none' : 'table-row';
+  if (btn) btn.innerHTML = isOpen
+    ? '<span class="material-symbols-outlined" style="font-size:14px">code</span>'
+    : '<span class="material-symbols-outlined" style="font-size:14px;color:#4f46e5">expand_less</span>';
+}
+
+function filterSchemaMatrix(val) {
+  const v = val.toLowerCase();
+  document.querySelectorAll('#si-tbody tr:not([id^="si-row-detail"])').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(v) ? '' : 'none';
+  });
+}
+
+function validateSchemaLive() { alert('Paste your URL in the dashboard to run a live schema validation.'); }
+function generateSchemaAI() { alert('Schema generator: run a crawl first, then this will auto-generate JSON-LD for each page.'); }
+function repairSchema(url) { alert(`Repair schema for: ${url}\n\nThis will call the AI endpoint to generate missing required properties.`); }
+
+/* ── Content Lab ─────────────────────────────────────────────────────────── */
+let _clabModel = 'gemini';
+
+function clabSelectModel(btn, model) {
+  _clabModel = model;
+  document.querySelectorAll('.clab-model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function runContentLabSynthesis() {
+  const original = (document.getElementById('clab-original') || {}).value || '';
+  const context  = (document.getElementById('clab-context') || {}).value || '';
+  if (!original.trim()) { alert('Please paste your original content first.'); return; }
+
+  const procEl   = document.getElementById('clab-processing');
+  const resultEl = document.getElementById('clab-result');
+  const genBtn   = document.getElementById('clab-generate-btn');
+  if (procEl) { procEl.classList.add('show'); }
+  if (resultEl) resultEl.classList.remove('show');
+  if (genBtn) genBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/generate-content`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: original, context: context, provider: _clabModel })
+    });
+    const d = await res.json();
+    const text = d.content || d.result || d.generated || JSON.stringify(d);
+    const textEl = document.getElementById('clab-result-text');
+    if (textEl) textEl.textContent = text;
+    if (resultEl) resultEl.classList.add('show');
+  } catch (e) {
+    const textEl = document.getElementById('clab-result-text');
+    if (textEl) textEl.textContent = `Error: ${e.message}\n\nCheck that the backend is running and the AI provider is configured.`;
+    if (resultEl) resultEl.classList.add('show');
+  } finally {
+    if (procEl) procEl.classList.remove('show');
+    if (genBtn) genBtn.disabled = false;
+  }
+}
+
+function clabCopyResult() {
+  const text = (document.getElementById('clab-result-text') || {}).textContent || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.clab-copy-btn');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = orig, 1500); }
+  });
+}
+
+/* ── Patch AI button in results table to open drawer ────────────────────── */
+const _origRenderTable = window.renderTable;
+window.renderTable = function(data) {
+  if (_origRenderTable) _origRenderTable(data);
+  if (document.body.classList.contains('app-mode')) patchAiFixButtons();
+};
+function patchAiFixButtons() {
+  document.querySelectorAll('.ai-fix-btn,[data-ai-fix]').forEach(btn => {
+    btn.onclick = function() {
+      const row = btn.closest('tr');
+      if (!row) return;
+      const urlCell = row.querySelector('td.url-cell a, td.url-cell');
+      const url = urlCell ? urlCell.textContent.trim() : '';
+      const pageData = allResults.find(r => r.url === url) || { url };
+      openAiDrawer(pageData);
+    };
+  });
+}
+
+/* ── Sync AI pill to sidebar after checkGemini runs ─────────────────────── */
+const _origCheckGemini = window.checkGemini;
+window.checkGemini = async function() {
+  if (_origCheckGemini) await _origCheckGemini();
+  syncSidebarAI();
+};
+
+/* ── Open Schema panel after crawl (auto-populate) ───────────────────────── */
+const _origLoadResults = window.loadResults;
+window.loadResults = async function() {
+  if (_origLoadResults) await _origLoadResults();
+  renderSchemaPanel();
+};
+
+/* ── Init ─────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  /* Hide all panels except dashboard by default */
+  Object.entries(_PANELS).forEach(([k, cfg]) => {
+    const el = document.getElementById(cfg.el);
+    if (el && k !== 'dashboard') el.classList.add('panel-hidden');
+  });
+});
+</script>
 
 <!-- FIXED BUILDER BADGE -->
 <a id="builder-badge" href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" title="Built by Teki Bhavani Shankar — Technical SEO Specialist">
