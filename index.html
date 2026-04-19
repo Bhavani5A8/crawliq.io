@@ -6706,6 +6706,13 @@ window.addEventListener('resize', () => {
         io.observe(el);
       });
     });
+    /* Also observe elements that already carry reveal classes in HTML (e.g. hero section) */
+    document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el => {
+      if (!el.classList.contains('visible') && !el.dataset.revObserved) {
+        el.dataset.revObserved = '1';
+        io.observe(el);
+      }
+    });
   }
 
   /* Run after DOM is ready */

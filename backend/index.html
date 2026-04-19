@@ -2155,25 +2155,25 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 <!-- HERO -->
 <section class="hero">
   <div class="orb1"></div><div class="orb2"></div><div class="orb3"></div>
-  <div class="hero-badge reveal">
+  <div class="hero-badge" style="animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .05s both">
     <span class="hero-badge-dot"></span>
     AI-Powered Precision SEO Platform
     <span class="hero-badge-new">Free</span>
   </div>
-  <h1 class="reveal" style="animation-delay:.05s">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
-  <p class="hero-sub reveal" style="animation-delay:.1s">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
-  <div class="hero-input-row reveal" id="hero-input-row" style="animation-delay:.15s">
+  <h1 style="animation:fadeUp .6s cubic-bezier(.22,.61,.36,1) .12s both">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
+  <p class="hero-sub" style="animation:fadeUp .6s cubic-bezier(.22,.61,.36,1) .2s both">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
+  <div class="hero-input-row" id="hero-input-row" style="animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) .28s both">
     <div class="hero-input-wrap">
       <span class="material-symbols-outlined hero-input-icon">language</span>
-      <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com"/>
+      <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com" autocomplete="off"/>
     </div>
     <button class="hero-crawl-btn" id="crawl-btn" onclick="startCrawlHero()">
       <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
       <span>Start Audit</span>
     </button>
   </div>
-  <p class="trust-text reveal" style="animation-delay:.2s;margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
-  <div class="reveal" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;animation-delay:.25s">
+  <p class="trust-text" style="animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .36s both;margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .42s both">
     <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">⚡ Groq · Gemini · Claude · OpenAI</span>
     <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">🔓 Open Source</span>
     <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">📊 50+ SEO Metrics</span>
@@ -6705,6 +6705,13 @@ window.addEventListener('resize', () => {
         el.dataset.revDelay = String(i * 75); /* stagger per group */
         io.observe(el);
       });
+    });
+    /* Also observe elements that already carry reveal classes in HTML (e.g. hero section) */
+    document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el => {
+      if (!el.classList.contains('visible') && !el.dataset.revObserved) {
+        el.dataset.revObserved = '1';
+        io.observe(el);
+      }
     });
   }
 
