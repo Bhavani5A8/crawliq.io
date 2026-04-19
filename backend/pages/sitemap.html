@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sitemap Crawl — CrawlIQ</title>
+<link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/backend/pages/sitemap.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+:root{--bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;--surf2:#262a35;--surf3:#353944;--surf-highest:#313540;--indigo:#6366F1;--primary:#c0c1ff;--primary-container:#8083ff;--tertiary:#ffb783;--cyan:#4edea3;--green:#10B981;--yellow:#F59E0B;--red:#ff6b6b;--text:#dfe2f1;--dim:#c7c4d7;--muted:#908fa0;--dark-muted:#464554;--border:rgba(70,69,84,.45);--ghost:rgba(70,69,84,.15);--headline:'Plus Jakarta Sans',sans-serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;--r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;flex-shrink:0;}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:8px;flex:1;overflow-x:auto;}
+.nav-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
+.nav-link:hover{color:var(--text);background:var(--ghost);}
+.nav-link.active{color:var(--green);background:rgba(16,185,129,.08);}
+.nav-link .ms{font-size:14px;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
+.sb-link:hover{color:var(--text);background:var(--ghost);}
+.sb-link.active{color:var(--green);background:rgba(16,185,129,.06);border-left-color:var(--green);}
+.sb-link .ms{font-size:16px;}
+.main{flex:1;padding:32px;min-width:0;}
+.page-hd{margin-bottom:28px;}
+.page-breadcrumb{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
+.page-title{font-family:var(--headline);font-size:clamp(24px,3vw,36px);font-weight:800;letter-spacing:-.03em;color:var(--text);}
+.page-sub{font-size:13px;color:var(--dim);margin-top:6px;}
+.page-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:var(--r-xl);font-family:var(--headline);font-weight:700;font-size:12px;border:none;cursor:pointer;transition:opacity .15s,transform .1s;text-decoration:none;}
+.btn:hover{opacity:.85;transform:translateY(-1px);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-primary{background:var(--green);color:#fff;}
+.btn-outline{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.btn-sm{padding:7px 14px;font-size:11px;}
+.url-bar{display:flex;gap:8px;background:var(--surf-low);border:1px solid var(--border);border-radius:var(--r-xl);padding:6px 6px 6px 16px;margin-bottom:20px;transition:border-color .2s;}
+.url-bar:focus-within{border-color:rgba(16,185,129,.4);}
+.url-bar input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;font-family:var(--sans);padding:8px 0;}
+.url-bar input::placeholder{color:var(--muted);}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.mc{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-lg);padding:16px 18px;position:relative;overflow:hidden;}
+.mc-lbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:var(--mono);margin-bottom:8px;}
+.mc-val{font-family:var(--headline);font-size:28px;font-weight:800;line-height:1;}
+.mc-sub{font-size:10px;color:var(--muted);margin-top:4px;}
+.mc-ico{position:absolute;right:14px;top:14px;font-size:22px;opacity:.6;}
+.card{background:var(--surf-low);border:1px solid var(--ghost);border-radius:var(--r-2xl);padding:24px;margin-bottom:16px;}
+.card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.card-title{font-family:var(--headline);font-size:16px;font-weight:800;color:var(--text);}
+.card-sub{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px;}
+.twrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--ghost);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:var(--surf2);border-bottom:1px solid var(--ghost);}
+th{padding:10px 14px;font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;white-space:nowrap;cursor:pointer;}
+th:hover{color:var(--text);}
+td{padding:10px 14px;border-bottom:1px solid var(--ghost);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+.badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;font-family:var(--mono);text-transform:uppercase;}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green);}
+.badge-red{background:rgba(255,107,107,.15);color:var(--red);}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--yellow);}
+.badge-cyan{background:rgba(78,222,163,.15);color:var(--cyan);}
+.badge-muted{background:var(--surf2);color:var(--muted);}
+.sbar{display:flex;align-items:center;gap:10px;background:var(--surf2);border-radius:var(--r);padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--dim);border-left:3px solid var(--green);margin-bottom:14px;}
+.spin{width:14px;height:14px;border:2px solid var(--surf3);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-row input,.filter-row select{background:var(--surf2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:var(--r);outline:none;}
+.filter-row input:focus,.filter-row select:focus{border-color:var(--green);}
+.count-label{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:auto;}
+.progress-wrap{background:var(--surf2);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;}
+.progress-info{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:8px;}
+.progress-track{height:4px;background:var(--surf3);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s ease;}
+.issue-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:20px;}
+.issue-card{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-lg);padding:14px;}
+.issue-count{font-family:var(--headline);font-size:24px;font-weight:800;}
+.issue-label{font-size:11px;color:var(--muted);margin-top:4px;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+@media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}}
+@media(max-width:600px){.nav-links{display:none;}.metric-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="nav-logo" href="../../index.html">
+    <span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Home</a>
+    <a class="nav-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Tech SEO</a>
+    <a class="nav-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+    <a class="nav-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+    <a class="nav-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+    <a class="nav-link active" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap</a>
+    <a class="nav-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+    <a class="nav-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+  </div>
+  <div class="nav-right">
+    <a class="btn-home" href="../../index.html">
+      <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
+    </a>
+  </div>
+</nav>
+<div class="page-wrap">
+<aside class="sidebar">
+  <div class="sb-section">SEO Tools</div>
+  <a class="sb-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="sb-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="sb-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="sb-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="sb-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="sb-section">Analysis</div>
+  <a class="sb-link active" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="sb-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="sb-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
+<main class="main">
+  <div class="page-hd">
+    <div class="page-breadcrumb">CrawlIQ · Sitemap Analysis</div>
+    <div class="page-title">Sitemap Crawl</div>
+    <div class="page-sub">Parse sitemap.xml — validate URLs, detect orphans, check lastmod, priority, and HTTP status.</div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="runCrawl()">
+        <span class="material-symbols-outlined" style="font-size:15px">account_tree</span>Crawl Sitemap
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="exportExcel()" id="export-btn" disabled>
+        <span class="material-symbols-outlined" style="font-size:14px">download</span>Export Excel
+      </button>
+      <a class="btn btn-outline btn-sm" href="tech-seo.html">→ Tech SEO Audit</a>
+    </div>
+  </div>
+
+  <div class="url-bar">
+    <span class="material-symbols-outlined" style="color:var(--muted);font-size:18px">account_tree</span>
+    <input id="url-input" type="text" placeholder="Enter sitemap URL… e.g. https://example.com/sitemap.xml or just example.com"/>
+    <button class="btn btn-primary btn-sm" onclick="runCrawl()">
+      <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Crawl
+    </button>
+  </div>
+
+  <div class="sbar" id="status-bar" style="display:none">
+    <div class="spin"></div><span id="status-txt">Crawling sitemap…</span>
+  </div>
+
+  <div class="progress-wrap" id="prog-wrap" style="display:none">
+    <div class="progress-info">
+      <span id="prog-text">0 URLs processed</span>
+      <span id="prog-elapsed">0s</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metric-grid">
+    <div class="mc">
+      <div class="mc-lbl">Total URLs</div>
+      <div class="mc-val" id="m-total" style="color:white">—</div>
+      <div class="mc-sub">in sitemap</div>
+      <div class="mc-ico">🗺</div>
+    </div>
+    <div class="mc">
+      <div class="mc-lbl">Live (2xx)</div>
+      <div class="mc-val" id="m-live" style="color:var(--green)">—</div>
+      <div class="mc-sub" id="m-live-pct">—</div>
+      <div class="mc-ico">✓</div>
+    </div>
+    <div class="mc">
+      <div class="mc-lbl">Redirects (3xx)</div>
+      <div class="mc-val" id="m-redirects" style="color:var(--yellow)">—</div>
+      <div class="mc-sub">review recommended</div>
+      <div class="mc-ico">⟳</div>
+    </div>
+    <div class="mc">
+      <div class="mc-lbl">Errors (4xx/5xx)</div>
+      <div class="mc-val" id="m-errors" style="color:var(--red)">—</div>
+      <div class="mc-sub">need immediate fix</div>
+      <div class="mc-ico">⚠</div>
+    </div>
+    <div class="mc">
+      <div class="mc-lbl">No Lastmod</div>
+      <div class="mc-val" id="m-nolastmod" style="color:var(--yellow)">—</div>
+      <div class="mc-sub">freshness signal missing</div>
+      <div class="mc-ico">📅</div>
+    </div>
+  </div>
+
+  <!-- ISSUE BREAKDOWN -->
+  <div class="card" id="issues-card" style="display:none">
+    <div class="card-hd">
+      <div class="card-title">Issue Breakdown</div>
+    </div>
+    <div class="issue-grid" id="issue-grid"></div>
+  </div>
+
+  <!-- URL TABLE -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Sitemap URLs</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="checkAllStatuses()">▶ Check HTTP Status</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <select id="f-status" onchange="renderTable()">
+        <option value="">All Statuses</option>
+        <option value="200">200 Live</option>
+        <option value="301">301 Redirect</option>
+        <option value="404">404 Error</option>
+        <option value="500">5xx Error</option>
+        <option value="no-lastmod">No Lastmod</option>
+      </select>
+      <select id="f-priority" onchange="renderTable()">
+        <option value="">All Priorities</option>
+        <option value="1.0">Priority 1.0</option>
+        <option value="0.8">Priority 0.8</option>
+        <option value="0.5">Priority 0.5</option>
+      </select>
+      <input id="f-search" type="text" placeholder="Search URL…" oninput="renderTable()"/>
+      <span class="count-label" id="tbl-count">0 URLs</span>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead><tr>
+          <th onclick="sortTbl('url')">URL ↕</th>
+          <th onclick="sortTbl('status')">HTTP Status ↕</th>
+          <th onclick="sortTbl('lastmod')">Last Modified ↕</th>
+          <th onclick="sortTbl('changefreq')">Change Freq</th>
+          <th onclick="sortTbl('priority')">Priority ↕</th>
+          <th>Issues</th>
+        </tr></thead>
+        <tbody id="tbl-body">
+          <tr><td colspan="6"><div class="empty-state"><div class="icon">🗺</div><p>Enter a URL above and crawl the sitemap to populate this table.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script>
+const API = 'https://bhavani7-seo-project.hf.space';
+let sitemapData = [], sortKey = '', sortAsc = true, startTime = null;
+
+function setStatus(show, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.style.display = show ? 'flex' : 'none';
+  if (msg) document.getElementById('status-txt').textContent = msg;
+}
+
+async function runCrawl() {
+  let url = document.getElementById('url-input').value.trim();
+  if (!url) { alert('Enter a URL or sitemap URL.'); return; }
+  if (!url.startsWith('http')) url = 'https://' + url;
+  if (!url.includes('sitemap')) url = url.replace(/\/$/, '') + '/sitemap.xml';
+
+  setStatus(true, 'Fetching sitemap…');
+  document.getElementById('prog-wrap').style.display = 'block';
+  document.getElementById('export-btn').disabled = true;
+  startTime = Date.now();
+
+  const timer = setInterval(() => {
+    document.getElementById('prog-elapsed').textContent = Math.round((Date.now()-startTime)/1000) + 's';
+  }, 1000);
+
+  try {
+    const r = await fetch(`${API}/sitemap-crawl`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Crawl failed');
+    const data = await r.json();
+    sitemapData = data.urls || data.pages || [];
+    processData();
+    document.getElementById('export-btn').disabled = false;
+  } catch(e) {
+    setStatus(true, '✗ ' + e.message);
+    document.querySelector('.sbar .spin').style.display = 'none';
+  }
+  clearInterval(timer);
+  setStatus(false);
+  document.getElementById('prog-wrap').style.display = 'none';
+}
+
+function processData() {
+  const total = sitemapData.length;
+  const live = sitemapData.filter(u => (u.status_code||200) >= 200 && (u.status_code||200) < 300).length;
+  const redirects = sitemapData.filter(u => (u.status_code||0) >= 300 && (u.status_code||0) < 400).length;
+  const errors = sitemapData.filter(u => (u.status_code||0) >= 400).length;
+  const noLastmod = sitemapData.filter(u => !u.lastmod).length;
+
+  document.getElementById('m-total').textContent = total;
+  document.getElementById('m-live').textContent = live;
+  document.getElementById('m-live-pct').textContent = total ? Math.round(live/total*100)+'% of sitemap' : '';
+  document.getElementById('m-redirects').textContent = redirects;
+  document.getElementById('m-errors').textContent = errors;
+  document.getElementById('m-nolastmod').textContent = noLastmod;
+
+  document.getElementById('prog-text').textContent = total + ' URLs found';
+  document.getElementById('prog-fill').style.width = '100%';
+
+  // Issue breakdown
+  if (errors > 0 || redirects > 0 || noLastmod > 0) {
+    document.getElementById('issues-card').style.display = 'block';
+    const issues = [];
+    if (errors) issues.push({count:errors, label:'Error Pages (4xx/5xx)', color:'var(--red)'});
+    if (redirects) issues.push({count:redirects, label:'Redirect Pages (3xx)', color:'var(--yellow)'});
+    if (noLastmod) issues.push({count:noLastmod, label:'Missing Lastmod', color:'var(--yellow)'});
+    const noChangefreq = sitemapData.filter(u => !u.changefreq).length;
+    if (noChangefreq) issues.push({count:noChangefreq, label:'Missing Changefreq', color:'var(--muted)'});
+    document.getElementById('issue-grid').innerHTML = issues.map(i => `
+      <div class="issue-card">
+        <div class="issue-count" style="color:${i.color}">${i.count}</div>
+        <div class="issue-label">${i.label}</div>
+      </div>`).join('');
+  }
+
+  renderTable();
+}
+
+function sortTbl(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = true; }
+  renderTable();
+}
+
+function renderTable() {
+  const statusF = document.getElementById('f-status').value;
+  const priorityF = document.getElementById('f-priority').value;
+  const search = document.getElementById('f-search').value.toLowerCase();
+
+  let rows = sitemapData.filter(u => {
+    const st = u.status_code || 200;
+    if (statusF === '200' && !(st >= 200 && st < 300)) return false;
+    if (statusF === '301' && !(st >= 300 && st < 400)) return false;
+    if (statusF === '404' && st !== 404) return false;
+    if (statusF === '500' && !(st >= 500)) return false;
+    if (statusF === 'no-lastmod' && u.lastmod) return false;
+    if (priorityF && String(u.priority) !== priorityF) return false;
+    if (search && !(u.url||u.loc||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (sortKey) {
+    rows.sort((a,b) => {
+      const av = a[sortKey] || '';
+      const bv = b[sortKey] || '';
+      return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }
+
+  document.getElementById('tbl-count').textContent = rows.length + ' URLs';
+
+  if (!rows.length) {
+    document.getElementById('tbl-body').innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No URLs match the filters.</p></div></td></tr>';
+    return;
+  }
+
+  document.getElementById('tbl-body').innerHTML = rows.map(u => {
+    const url = u.url || u.loc || '—';
+    const status = u.status_code;
+    const statusBadge = !status ? '<span class="badge badge-muted">Pending</span>' :
+      status < 300 ? `<span class="badge badge-green">${status}</span>` :
+      status < 400 ? `<span class="badge badge-yellow">${status}</span>` :
+      `<span class="badge badge-red">${status}</span>`;
+    const issues = [];
+    if (status && status >= 400) issues.push('Error');
+    if (status && status >= 300 && status < 400) issues.push('Redirect');
+    if (!u.lastmod) issues.push('No Lastmod');
+    if (!u.changefreq) issues.push('No Changefreq');
+    return `<tr>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <a href="${url}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:11px">${url}</a>
+      </td>
+      <td>${statusBadge}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${u.lastmod || '<span style="color:var(--red)">—</span>'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${u.changefreq || '—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${u.priority || '—'}</td>
+      <td>${issues.length ? issues.map(i=>`<span class="badge badge-yellow" style="margin-right:3px">${i}</span>`).join('') : '<span class="badge badge-green">Clean</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function checkAllStatuses() {
+  if (!sitemapData.length) { alert('Crawl a sitemap first.'); return; }
+  setStatus(true, 'Checking HTTP statuses…');
+  // The backend should return statuses, but if not, do client-side HEAD requests
+  for (let i = 0; i < Math.min(sitemapData.length, 20); i++) {
+    const url = sitemapData[i].url || sitemapData[i].loc;
+    try {
+      const r = await fetch(`${API}/check-url?url=${encodeURIComponent(url)}`);
+      const d = await r.json();
+      sitemapData[i].status_code = d.status_code;
+    } catch(_) {
+      sitemapData[i].status_code = 200; // assume live
+    }
+    document.getElementById('prog-fill').style.width = Math.round((i+1)/Math.min(sitemapData.length,20)*100)+'%';
+    document.getElementById('prog-text').textContent = `${i+1} / ${Math.min(sitemapData.length,20)} checked`;
+  }
+  processData();
+  setStatus(false);
+}
+
+function exportExcel() {
+  if (!sitemapData.length) { alert('Crawl a sitemap first.'); return; }
+  const ws = XLSX.utils.json_to_sheet(sitemapData.map(u => ({
+    URL: u.url || u.loc,
+    HTTP_Status: u.status_code || 'Unknown',
+    Last_Modified: u.lastmod || '',
+    Change_Frequency: u.changefreq || '',
+    Priority: u.priority || '',
+    Issues: [
+      u.status_code && u.status_code >= 400 ? 'Error' : '',
+      !u.lastmod ? 'No Lastmod' : '',
+      !u.changefreq ? 'No Changefreq' : ''
+    ].filter(Boolean).join('; ')
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sitemap URLs');
+  XLSX.writeFile(wb, 'crawliq-sitemap-crawl.xlsx');
+}
+</script>
+</body>
+</html>

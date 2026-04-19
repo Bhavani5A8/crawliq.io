@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Rank Monitor — CrawlIQ</title>
+<link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/backend/pages/monitor.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+:root{--bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;--surf2:#262a35;--surf3:#353944;--surf-highest:#313540;--indigo:#6366F1;--primary:#c0c1ff;--primary-container:#8083ff;--tertiary:#ffb783;--cyan:#4edea3;--green:#10B981;--yellow:#F59E0B;--red:#ff6b6b;--text:#dfe2f1;--dim:#c7c4d7;--muted:#908fa0;--dark-muted:#464554;--border:rgba(70,69,84,.45);--ghost:rgba(70,69,84,.15);--headline:'Plus Jakarta Sans',sans-serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;--r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;flex-shrink:0;}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:8px;flex:1;overflow-x:auto;}
+.nav-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
+.nav-link:hover{color:var(--text);background:var(--ghost);}
+.nav-link.active{color:var(--tertiary);background:rgba(255,183,131,.08);}
+.nav-link .ms{font-size:14px;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
+.sb-link:hover{color:var(--text);background:var(--ghost);}
+.sb-link.active{color:var(--tertiary);background:rgba(255,183,131,.06);border-left-color:var(--tertiary);}
+.sb-link .ms{font-size:16px;}
+.main{flex:1;padding:32px;min-width:0;}
+.page-hd{margin-bottom:28px;}
+.page-breadcrumb{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
+.page-title{font-family:var(--headline);font-size:clamp(24px,3vw,36px);font-weight:800;letter-spacing:-.03em;color:var(--text);}
+.page-sub{font-size:13px;color:var(--dim);margin-top:6px;}
+.page-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:var(--r-xl);font-family:var(--headline);font-weight:700;font-size:12px;border:none;cursor:pointer;transition:opacity .15s,transform .1s;text-decoration:none;}
+.btn:hover{opacity:.85;transform:translateY(-1px);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-primary{background:var(--tertiary);color:#1a1c40;}
+.btn-outline{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.btn-sm{padding:7px 14px;font-size:11px;}
+.btn-green{background:var(--green);color:#fff;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.tab-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:600;padding:10px 18px;cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--tertiary);border-bottom-color:var(--tertiary);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.card{background:var(--surf-low);border:1px solid var(--ghost);border-radius:var(--r-2xl);padding:24px;margin-bottom:16px;}
+.card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.card-title{font-family:var(--headline);font-size:16px;font-weight:800;color:var(--text);}
+.card-sub{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px;}
+.grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
+.field-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;}
+.form-input{background:var(--surf-lowest);border:1.5px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:10px 14px;border-radius:var(--r);outline:none;transition:border-color .15s;width:100%;}
+.form-input:focus{border-color:var(--tertiary);}
+.form-input::placeholder{color:var(--dark-muted);}
+textarea.form-input{resize:vertical;}
+.form-group{margin-bottom:14px;}
+.twrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--ghost);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:var(--surf2);border-bottom:1px solid var(--ghost);}
+th{padding:10px 14px;font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;white-space:nowrap;}
+td{padding:10px 14px;border-bottom:1px solid var(--ghost);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+.badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;font-family:var(--mono);text-transform:uppercase;}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green);}
+.badge-red{background:rgba(255,107,107,.15);color:var(--red);}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--yellow);}
+.badge-tertiary{background:rgba(255,183,131,.15);color:var(--tertiary);}
+.badge-primary{background:rgba(192,193,255,.15);color:var(--primary);}
+.badge-muted{background:var(--surf2);color:var(--muted);}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.sbar{display:flex;align-items:center;gap:10px;background:var(--surf2);border-radius:var(--r);padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--dim);border-left:3px solid var(--tertiary);margin-bottom:14px;}
+.spin{width:14px;height:14px;border:2px solid var(--surf3);border-top-color:var(--tertiary);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.chart-area{position:relative;height:200px;border-bottom:1px solid var(--ghost);margin-bottom:16px;}
+.pulse{animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}.grid-2{grid-template-columns:1fr;}}
+@media(max-width:600px){.nav-links{display:none;}}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="nav-logo" href="../../index.html">
+    <span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Home</a>
+    <a class="nav-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Tech SEO</a>
+    <a class="nav-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+    <a class="nav-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+    <a class="nav-link active" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+    <a class="nav-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap</a>
+    <a class="nav-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+    <a class="nav-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+  </div>
+  <div class="nav-right">
+    <a class="btn-home" href="../../index.html">
+      <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
+    </a>
+  </div>
+</nav>
+<div class="page-wrap">
+<aside class="sidebar">
+  <div class="sb-section">SEO Tools</div>
+  <a class="sb-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="sb-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="sb-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="sb-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="sb-link active" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="sb-section">Analysis</div>
+  <a class="sb-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="sb-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="sb-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
+<main class="main">
+  <div class="page-hd">
+    <div class="page-breadcrumb">CrawlIQ · SERP Monitor</div>
+    <div class="page-title">Rank Monitor</div>
+    <div class="page-sub">Schedule automated position tracking · View job history · Export position data to Excel.</div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="switchTab('schedule')">
+        <span class="material-symbols-outlined" style="font-size:15px">add_task</span>New Job
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="loadJobs()">
+        <span class="material-symbols-outlined" style="font-size:14px">refresh</span>Refresh Jobs
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="exportExcel()" id="export-btn" disabled>
+        <span class="material-symbols-outlined" style="font-size:14px">download</span>Export Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="sbar" id="status-bar" style="display:none">
+    <div class="spin"></div><span id="status-txt">Processing…</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('schedule')">+ Schedule</button>
+    <button class="tab-btn" onclick="switchTab('jobs')">Active Jobs</button>
+    <button class="tab-btn" onclick="switchTab('history')">📈 Position History</button>
+    <button class="tab-btn" onclick="switchTab('alerts')">🔔 Alert Log</button>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="tab-pane active" id="tab-schedule">
+    <div class="grid-2">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <div style="width:36px;height:36px;border-radius:var(--r);background:rgba(255,183,131,.1);display:flex;align-items:center;justify-content:center">
+                <span class="material-symbols-outlined" style="color:var(--tertiary);font-size:18px">add_task</span>
+              </div>
+              <div class="card-title">Schedule Monitor Job</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="field-label">Target Domain</div>
+          <input class="form-input" id="mon-domain" type="text" placeholder="example.com"/>
+        </div>
+        <div class="form-group">
+          <div class="field-label">Keywords (one per line)</div>
+          <textarea class="form-input" id="mon-keywords" rows="5" placeholder="seo audit tool&#10;technical seo checker&#10;site crawl software"></textarea>
+        </div>
+        <div class="form-group">
+          <div class="field-label">Refresh Interval</div>
+          <select class="form-input" id="mon-interval">
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24" selected>Daily (24h)</option>
+            <option value="48">Every 2 days</option>
+            <option value="168">Weekly</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="scheduleJob()">
+          <span class="material-symbols-outlined" style="font-size:15px">bolt</span>Schedule Job
+        </button>
+        <div id="sched-msg" style="font-size:11px;margin-top:10px;display:none;padding:8px 12px;border-radius:var(--r);font-family:var(--mono)"></div>
+      </div>
+      <div class="card" style="margin-bottom:0;background:var(--surf-lowest)">
+        <div class="card-title" style="margin-bottom:12px">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,183,131,.1);color:var(--tertiary);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;flex-shrink:0">1</div>
+            <div style="font-size:12px;color:var(--dim);line-height:1.6">Enter your domain and target keywords you want to track over time.</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,183,131,.1);color:var(--tertiary);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;flex-shrink:0">2</div>
+            <div style="font-size:12px;color:var(--dim);line-height:1.6">Choose a refresh interval — the backend checks Google positions automatically.</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,183,131,.1);color:var(--tertiary);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;flex-shrink:0">3</div>
+            <div style="font-size:12px;color:var(--dim);line-height:1.6">View trends in Position History. Export to Excel for client reports.</div>
+          </div>
+        </div>
+        <div style="margin-top:20px;padding:12px;background:var(--surf2);border-radius:var(--r);font-size:11px;color:var(--muted);font-family:var(--mono)">
+          ⚠ Backend uses HuggingFace free tier — monitor jobs run when the space is active.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVE JOBS -->
+  <div class="tab-pane" id="tab-jobs">
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">Active Monitor Jobs</div>
+          <div class="card-sub" id="jobs-count">0 jobs total</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadJobs()">↻ Refresh</button>
+      </div>
+      <div class="twrap">
+        <table>
+          <thead><tr>
+            <th>Domain</th><th>Keywords</th><th>Interval</th><th>Runs</th>
+            <th>Status</th><th>Next Run</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="jobs-tbody">
+            <tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><p>No monitoring jobs yet.<br>Go to <b>Schedule</b> tab to add one.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSITION HISTORY -->
+  <div class="tab-pane" id="tab-history">
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">Position History</div>
+          <div class="card-sub">Aggregate Keyword Performance (Inverted Y-Axis)</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="hist-domain" type="text" placeholder="domain to query" style="width:180px;padding:6px 10px"/>
+          <button class="btn btn-primary btn-sm" onclick="loadHistory()">Load</button>
+          <button class="btn btn-outline btn-sm" style="border-color:var(--tertiary);color:var(--tertiary)" onclick="exportHistoryExcel()">↓ Excel</button>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div class="chart-area" id="chart-area">
+        <svg width="100%" height="100%" viewBox="0 0 700 200" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stop-color="var(--primary)"/>
+              <stop offset="100%" stop-color="var(--primary-container)"/>
+            </linearGradient>
+            <linearGradient id="g2" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stop-color="var(--cyan)"/>
+              <stop offset="100%" stop-color="#00885d"/>
+            </linearGradient>
+          </defs>
+          <!-- Grid -->
+          <line x1="0" y1="50" x2="700" y2="50" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <line x1="0" y1="100" x2="700" y2="100" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <line x1="0" y1="150" x2="700" y2="150" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <!-- Primary line -->
+          <path id="hist-line1" d="M0,180 Q100,80 200,140 T400,60 T700,80" fill="none" stroke="url(#g1)" stroke-width="3" stroke-linecap="round"/>
+          <!-- Secondary line (dashed) -->
+          <path id="hist-line2" d="M0,160 Q150,120 300,100 T550,130 T700,100" fill="none" stroke="url(#g2)" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 3"/>
+          <!-- Tooltip -->
+          <rect id="hist-tooltip" x="550" y="30" width="120" height="48" rx="6" fill="rgba(38,42,53,.9)" stroke="rgba(70,69,84,.3)" stroke-width="1"/>
+          <text id="hist-tooltip-date" x="560" y="50" fill="var(--muted)" font-size="9" font-family="IBM Plex Mono">Latest</text>
+          <text id="hist-tooltip-val" x="560" y="68" fill="var(--primary)" font-size="12" font-family="Plus Jakarta Sans" font-weight="800">Avg Pos: 4.2</text>
+        </svg>
+      </div>
+      <div style="display:flex;gap:20px;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)">
+          <span style="width:16px;height:3px;background:var(--primary);display:inline-block;border-radius:2px"></span>Core Keywords
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)">
+          <span style="width:16px;height:3px;background:var(--cyan);display:inline-block;border-radius:2px;opacity:.6"></span>Long Tail
+        </div>
+      </div>
+      <!-- History table -->
+      <div class="twrap" style="margin-top:20px">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Keyword</th><th>Position</th><th>Change</th><th>Top 10?</th>
+          </tr></thead>
+          <tbody id="hist-tbody">
+            <tr><td colspan="5"><div class="empty-state"><div class="icon">📈</div><p>Enter a domain and click Load to see history.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERT LOG -->
+  <div class="tab-pane" id="tab-alerts">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">Alert Log</div>
+        <div class="card-sub">Significant position changes</div>
+      </div>
+      <div class="twrap">
+        <table>
+          <thead><tr>
+            <th>Timestamp</th><th>Domain</th><th>Keyword</th>
+            <th>Old Position</th><th>New Position</th><th>Change</th><th>Severity</th>
+          </tr></thead>
+          <tbody id="alerts-tbody">
+            <tr><td colspan="7"><div class="empty-state"><div class="icon">🔔</div><p>No alerts yet. Schedule monitoring jobs to track changes.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script>
+const API = 'https://bhavani7-seo-project.hf.space';
+let jobsData = [], historyData = [];
+
+function switchTab(name) {
+  const tabs = ['schedule','jobs','history','alerts'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i]===name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'jobs') loadJobs();
+}
+
+function setStatus(show, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.style.display = show ? 'flex' : 'none';
+  if (msg) document.getElementById('status-txt').textContent = msg;
+}
+
+async function scheduleJob() {
+  const domain = document.getElementById('mon-domain').value.trim();
+  const kws = document.getElementById('mon-keywords').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const interval = parseInt(document.getElementById('mon-interval').value);
+  if (!domain) { alert('Enter a domain.'); return; }
+  if (!kws.length) { alert('Enter at least one keyword.'); return; }
+
+  setStatus(true, 'Scheduling job…');
+  const msg = document.getElementById('sched-msg');
+  try {
+    const r = await fetch(`${API}/monitor/schedule`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ domain, keywords: kws, interval_hours: interval })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to schedule');
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(16,185,129,.1)';
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✓ Job scheduled! Tracking ' + kws.length + ' keywords for ' + domain;
+    document.getElementById('export-btn').disabled = false;
+  } catch(e) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,107,107,.1)';
+    msg.style.color = 'var(--red)';
+    msg.textContent = '✗ ' + e.message;
+  }
+  setStatus(false);
+}
+
+async function loadJobs() {
+  setStatus(true, 'Loading jobs…');
+  try {
+    const r = await fetch(`${API}/monitor/jobs`);
+    if (!r.ok) throw new Error('Failed to load jobs');
+    const data = await r.json();
+    jobsData = data.jobs || [];
+    renderJobs();
+    document.getElementById('export-btn').disabled = false;
+  } catch(e) {
+    document.getElementById('jobs-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px;font-family:var(--mono)">✗ ${e.message}</td></tr>`;
+  }
+  setStatus(false);
+}
+
+function renderJobs() {
+  document.getElementById('jobs-count').textContent = jobsData.length + ' jobs total';
+  if (!jobsData.length) {
+    document.getElementById('jobs-tbody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><p>No active monitoring jobs.</p></div></td></tr>';
+    return;
+  }
+  document.getElementById('jobs-tbody').innerHTML = jobsData.map(j => {
+    const status = j.status || 'idle';
+    const statusBadge = status === 'running' ? '<span class="status-dot pulse" style="background:var(--primary)"></span><span class="badge badge-primary">Running</span>' :
+      status === 'idle' ? '<span class="status-dot" style="background:var(--cyan)"></span><span class="badge badge-green">Idle</span>' :
+      '<span class="status-dot" style="background:var(--muted)"></span><span class="badge badge-muted">Paused</span>';
+    return `<tr>
+      <td style="font-weight:600">${j.domain}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${(j.keywords||[]).length} terms</td>
+      <td style="font-family:var(--mono);font-size:11px">Every ${j.interval_hours||24}h</td>
+      <td style="font-family:var(--mono);font-size:11px">${j.run_count||0}</td>
+      <td>${statusBadge}</td>
+      <td style="font-family:var(--mono);font-size:11px">${j.next_run ? new Date(j.next_run).toLocaleString() : '—'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="deleteJob(${j.id})" style="font-size:10px;padding:4px 10px;color:var(--red);border-color:rgba(255,107,107,.3)">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteJob(id) {
+  if (!confirm('Delete this monitoring job?')) return;
+  try {
+    await fetch(`${API}/monitor/jobs/${id}`, { method:'DELETE' });
+    await loadJobs();
+  } catch(e) { alert('Delete failed: ' + e.message); }
+}
+
+async function loadHistory() {
+  const domain = document.getElementById('hist-domain').value.trim();
+  if (!domain) { alert('Enter a domain.'); return; }
+  setStatus(true, 'Loading position history…');
+  try {
+    const r = await fetch(`${API}/monitor/history?domain=${encodeURIComponent(domain)}`);
+    if (!r.ok) throw new Error('Failed to load history');
+    const data = await r.json();
+    historyData = data.history || [];
+    renderHistory();
+    document.getElementById('export-btn').disabled = false;
+  } catch(e) {
+    document.getElementById('hist-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px">✗ ${e.message}</td></tr>`;
+  }
+  setStatus(false);
+}
+
+function renderHistory() {
+  if (!historyData.length) {
+    document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No history found for this domain.</p></div></td></tr>';
+    return;
+  }
+  document.getElementById('hist-tbody').innerHTML = historyData.map(h => {
+    const change = h.old_position ? h.position - h.old_position : 0;
+    const changeTxt = change === 0 ? '→ 0' : change < 0 ? `↑ ${Math.abs(change)}` : `↓ ${change}`;
+    const changeColor = change < 0 ? 'var(--green)' : change > 0 ? 'var(--red)' : 'var(--muted)';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px">${new Date(h.checked_at).toLocaleString()}</td>
+      <td style="font-weight:600">${h.keyword}</td>
+      <td><span class="badge ${h.position<=10?'badge-green':h.position<=30?'badge-yellow':'badge-red'}">#${h.position}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;color:${changeColor}">${changeTxt}</td>
+      <td><span class="badge ${h.position<=10?'badge-green':'badge-red'}">${h.position<=10?'✓':'✗'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function exportHistoryExcel() { exportExcel(); }
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  if (jobsData.length) {
+    const ws = XLSX.utils.json_to_sheet(jobsData.map(j => ({
+      Domain: j.domain, Keywords: (j.keywords||[]).join(', '),
+      Interval_Hours: j.interval_hours, Runs: j.run_count||0,
+      Status: j.status, Next_Run: j.next_run||''
+    })));
+    XLSX.utils.book_append_sheet(wb, ws, 'Active Jobs');
+  }
+  if (historyData.length) {
+    const ws2 = XLSX.utils.json_to_sheet(historyData.map(h => ({
+      Date: h.checked_at, Keyword: h.keyword, Position: h.position,
+      Old_Position: h.old_position||'', Change: h.old_position ? h.position-h.old_position : 0,
+      Top10: h.position<=10?'Yes':'No'
+    })));
+    XLSX.utils.book_append_sheet(wb, ws2, 'Position History');
+  }
+  if (!jobsData.length && !historyData.length) { alert('No data to export. Load jobs or history first.'); return; }
+  XLSX.writeFile(wb, 'crawliq-rank-monitor.xlsx');
+}
+</script>
+</body>
+</html>

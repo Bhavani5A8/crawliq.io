@@ -2111,8 +2111,9 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
   <div class="nav-links">
     <a href="#dash-sec">SEO Audit</a>
+    <a href="#tools-suite">Tools</a>
     <a href="#features">Features</a>
-    <a href="#checklist-sec">Tools</a>
+    <a href="#checklist-sec">Checklist</a>
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-right">
@@ -2485,478 +2486,97 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
-<!-- ══ SERP INTEL PANEL ══════════════════════════════════════════════════ -->
-<section id="serp-intel-sec" style="display:none;padding:0 60px 40px">
-<div class="sec-inner">
-<div class="dash-card" id="serp-panel-card">
-  <div class="dash-chrome">
-    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-    <span class="tab">SERP Intelligence — Position &amp; Keyword Difficulty</span>
-    <button onclick="closeSerpPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
-  </div>
-
-  <!-- Tab bar -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surf2)">
-    <button id="serp-tab-pos"   class="serp-tab serp-tab-active" onclick="serpTab('pos')">📍 Position Check</button>
-    <button id="serp-tab-diff"  class="serp-tab" onclick="serpTab('diff')">🎯 Keyword Difficulty</button>
-    <button id="serp-tab-vis"   class="serp-tab" onclick="serpTab('vis')">👁 Visibility Score</button>
-  </div>
-
-  <!-- Position Check -->
-  <div id="serp-pane-pos" class="serp-pane" style="padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <input id="serp-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:180px"/>
-      <textarea id="serp-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="3" style="flex:2;min-width:220px;resize:vertical"></textarea>
-      <button class="btn btn-green" onclick="runBulkSerp()" id="serp-run-btn">▶ Check Positions</button>
-    </div>
-    <div id="serp-pos-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span id="serp-pos-txt">Checking positions…</span></div>
-    <div id="serp-pos-results" style="display:none">
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="serp-pos-summary"></div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-            <th style="padding:8px 10px;text-align:left">Keyword</th>
-            <th style="padding:8px 10px;text-align:center">Position</th>
-            <th style="padding:8px 10px;text-align:center">Top 10?</th>
-            <th style="padding:8px 10px;text-align:center">Top 30?</th>
-          </tr></thead>
-          <tbody id="serp-pos-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Keyword Difficulty -->
-  <div id="serp-pane-diff" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <textarea id="diff-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="4" style="flex:2;min-width:220px;resize:vertical"></textarea>
-      <button class="btn btn-green" onclick="runDifficulty()" id="diff-run-btn" style="align-self:flex-start">▶ Check Difficulty</button>
-    </div>
-    <div id="diff-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span>Checking difficulty…</span></div>
-    <div id="diff-results" style="display:none;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:8px 10px;text-align:left">Keyword</th>
-          <th style="padding:8px 10px;text-align:center">Difficulty</th>
-          <th style="padding:8px 10px;text-align:center">Label</th>
-          <th style="padding:8px 10px;text-align:left">Top Domains</th>
-        </tr></thead>
-        <tbody id="diff-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Visibility Score -->
-  <div id="serp-pane-vis" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
-      <button class="btn btn-green" onclick="loadVisibility()">↻ Refresh Visibility</button>
-      <span style="font-size:11px;color:var(--muted)">Uses positions from the Position Check tab</span>
-    </div>
-    <div id="vis-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px"></div>
-    <div id="vis-results" style="display:none;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:8px 10px;text-align:left">Keyword</th>
-          <th style="padding:8px 10px;text-align:center">Position</th>
-          <th style="padding:8px 10px;text-align:left">Page</th>
-          <th style="padding:8px 10px;text-align:center">Expected CTR</th>
-        </tr></thead>
-        <tbody id="vis-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-</div>
-</section>
-
-<!-- ══ SCHEDULED MONITOR PANEL ═══════════════════════════════════════════ -->
-<section id="monitor-sec" style="display:none;padding:0 60px 40px">
-<div class="sec-inner">
-<div class="dash-card">
-  <div class="dash-chrome">
-    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-    <span class="tab">🔔 SERP Monitor — Scheduled Position Tracking</span>
-    <button onclick="closeMonitorPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
-  </div>
-
-  <!-- Tab bar -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px">
-    <button class="serp-tab serp-tab-active" id="mon-tab-schedule" onclick="monTab('schedule')">+ Schedule</button>
-    <button class="serp-tab" id="mon-tab-jobs"     onclick="monTab('jobs')">Active Jobs</button>
-    <button class="serp-tab" id="mon-tab-history"  onclick="monTab('history')">📈 Position History</button>
-  </div>
-
-  <!-- Pane: Schedule -->
-  <div id="mon-pane-schedule" class="serp-pane" style="padding:16px 20px">
-    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px">Schedule New Tracking Job</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <input id="mon-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:160px"/>
-        <textarea id="mon-keywords" class="serp-input" placeholder="Keywords (one per line)" rows="3" style="flex:2;min-width:200px;resize:vertical"></textarea>
-        <div style="display:flex;flex-direction:column;gap:8px;align-self:flex-start">
-          <select id="mon-interval" class="serp-input">
-            <option value="6">Every 6 hours</option>
-            <option value="12">Every 12 hours</option>
-            <option value="24" selected>Daily (24h)</option>
-            <option value="48">Every 2 days</option>
-            <option value="168">Weekly</option>
-          </select>
-          <button class="btn btn-green" onclick="scheduleMonitor()">+ Schedule Job</button>
-        </div>
-      </div>
-      <div id="mon-sched-msg" style="font-size:10px;margin-top:8px;display:none"></div>
-    </div>
-    <div style="font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6">
-      <b style="color:var(--muted)">How it works:</b> After scheduling, the monitor checks each keyword's Google position on the chosen interval and saves results to the database. Click <b>Position History</b> tab to see tracked data over time.
-    </div>
-  </div>
-
-  <!-- Pane: Active Jobs -->
-  <div id="mon-pane-jobs" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)">Active Jobs</span>
-      <button class="btn btn-outline btn-sm" onclick="loadMonitorJobs()" style="margin-left:4px">↻ Refresh</button>
-    </div>
-    <div id="mon-jobs-wrap" style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:7px 10px;text-align:left">Domain</th>
-          <th style="padding:7px 10px;text-align:left">Keywords</th>
-          <th style="padding:7px 10px;text-align:center">Interval</th>
-          <th style="padding:7px 10px;text-align:center">Runs</th>
-          <th style="padding:7px 10px;text-align:center">Status</th>
-          <th style="padding:7px 10px;text-align:left">Next Run</th>
-          <th style="padding:7px 10px"></th>
-        </tr></thead>
-        <tbody id="mon-jobs-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet. Go to Schedule tab to add one.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Pane: Position History -->
-  <div id="mon-pane-history" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
-      <div>
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">DOMAIN</div>
-        <input id="hist-domain" class="serp-input" placeholder="e.g. example.com" style="width:200px"/>
-      </div>
-      <div>
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">KEYWORD (optional — blank = all)</div>
-        <input id="hist-keyword" class="serp-input" placeholder="e.g. ielts mock test" style="width:220px"/>
-      </div>
-      <button class="btn btn-green" onclick="loadHistory()">▶ Load History</button>
-    </div>
-    <div id="hist-bar" class="sbar" style="display:none;margin-bottom:10px"><div class="spin g"></div><span>Loading…</span></div>
-    <div id="hist-results" style="display:none">
-      <!-- Latest snapshot cards -->
-      <div id="hist-latest" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
-      <!-- History table -->
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-            <th style="padding:7px 10px;text-align:left">Keyword</th>
-            <th style="padding:7px 10px;text-align:center">Position</th>
-            <th style="padding:7px 10px;text-align:center">Top 10</th>
-            <th style="padding:7px 10px;text-align:center">Top 30</th>
-            <th style="padding:7px 10px;text-align:left">Checked At</th>
-          </tr></thead>
-          <tbody id="hist-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div id="hist-empty" style="color:var(--dim);font-size:11px;text-align:center;padding:20px">
-      Enter a domain above and click Load History to see tracked positions.
-    </div>
-  </div>
-
-</div>
-</div>
-</section>
-
-<!-- COMPETITOR ANALYSIS SECTION -->
-<section id="competitor-sec">
+<!-- TOOLS SUITE -->
+<section id="tools-suite" style="background:var(--bg);padding:60px 0">
   <div class="sec-inner">
     <div class="sec-hd">
-      <div class="sec-lbl" style="background:rgba(0,255,255,.12);color:var(--cyan)">COMPETITOR INTELLIGENCE</div>
-      <h2>⚔ Competitor Analysis</h2>
-      <p>Compare your site against up to 5 competitors across 7 SEO dimensions — on-page, technical, content, E-E-A-T, CTR, keywords, and page speed</p>
+      <div class="sec-lbl lbl-i">TOOLS SUITE</div>
+      <h2>Seven Precision SEO Tools &#8212; Each Standalone</h2>
+      <p>Every tool opens in its own dedicated workspace. Full power, zero clutter.</p>
     </div>
-    <div class="dash-card" style="padding:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:32px">
 
-      <!-- Input panel -->
-      <div class="comp-input-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div>
-            <div style="font-family:var(--sans);font-size:14px;font-weight:700;color:var(--cyan)">Enter URLs to compare</div>
-            <div style="font-size:10px;color:var(--dim);margin-top:2px">Crawls all sites + fetches Core Web Vitals in ~30–90 seconds</div>
-          </div>
-          <button class="btn btn-outline btn-sm" style="border-color:var(--dim);color:var(--dim);font-family:var(--mono)" onclick="loadCompHistory()" title="View past analyses">↺ History</button>
+      <a href="backend/pages/tech-seo.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--primary),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(192,193,255,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--primary)">health_and_safety</span>
         </div>
-        <div class="comp-input-grid" id="comp-input-grid">
-          <div class="comp-url-row target-row">
-            <span class="comp-url-label">Your Site</span>
-            <input id="comp-target" type="text" placeholder="https://yoursite.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 1</span>
-            <input class="comp-input" type="text" placeholder="https://competitor1.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 2</span>
-            <input class="comp-input" type="text" placeholder="https://competitor2.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 3</span>
-            <input class="comp-input" type="text" placeholder="https://competitor3.com (optional)" />
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-green" id="comp-analyze-btn" onclick="startCompAnalysis()">⚔ Analyze</button>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono)" onclick="addCompetitorRow()">+ Add Competitor</button>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono);margin-left:auto" id="comp-export-btn" onclick="exportCompExcel()" disabled>↓ Export (.xlsx)</button>
-        </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">Technical SEO Audit</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Site health ring, indexability funnel, Core Web Vitals, per-page grades and issue timeline.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--primary)">CWV</span><span class="feat-tag" style="color:var(--primary)">Indexability</span></div>
+        <span style="color:var(--primary);font-size:12px;font-family:var(--mono)">Open Tech SEO &#8594;</span>
+      </a>
 
-      <!-- Status bar -->
-      <div class="comp-sbar" id="comp-sbar">
-        <div class="spin g" id="comp-spin"></div>
-        <span id="comp-status-txt">Starting analysis…</span>
-      </div>
+      <a href="backend/pages/competitor.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--cyan),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(78,222,163,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--cyan)">compare_arrows</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">Competitor Analysis</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">5-axis radar chart, share of voice donut, content gap matrix and dimension scoring.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--cyan)">Radar Chart</span><span class="feat-tag" style="color:var(--cyan)">Gap Matrix</span></div>
+        <span style="color:var(--cyan);font-size:12px;font-family:var(--mono)">Open Competitor &#8594;</span>
+      </a>
 
-      <!-- Results -->
-      <div id="comp-results" style="display:none">
-        <div class="comp-scores" id="comp-scores"></div>
-        <div class="comp-charts">
-          <div class="comp-chart-box">
-            <h4>7-Dimension Radar Comparison</h4>
-            <div class="comp-chart-canvas" id="radar-chart"></div>
-          </div>
-          <div class="comp-chart-box">
-            <h4>Core Web Vitals — Performance Score</h4>
-            <div class="comp-chart-canvas" id="cwv-chart"></div>
-          </div>
+      <a href="backend/pages/serp-intel.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#818cf8,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.12)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#818cf8">leaderboard</span>
         </div>
-        <div class="comp-dim-panel">
-          <div class="comp-dim-head"><h4>Dimension Breakdown</h4></div>
-          <div style="overflow-x:auto">
-            <table class="dim-table" id="dim-table">
-              <thead><tr id="dim-thead-row"></tr></thead>
-              <tbody id="dim-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="comp-gap-panel">
-          <div class="comp-gap-head">
-            <h4>⬆ Keyword Gaps <span id="comp-gap-count" style="font-size:10px;color:var(--dim)"></span></h4>
-          </div>
-          <div class="comp-gap-wrap">
-            <table class="gtable">
-              <thead><tr><th>Keyword</th><th>Opportunity</th><th>Competitors</th><th>Found In</th></tr></thead>
-              <tbody id="comp-gap-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="comp-actions-panel">
-          <div class="comp-actions-head"><h4>⚡ Priority Action Plan</h4></div>
-          <div class="comp-action-list" id="comp-action-list"></div>
-        </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">SERP Intelligence</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Bulk position checker, keyword difficulty gauge, visibility scoring, and CTR curve projection.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#818cf8">Positions</span><span class="feat-tag" style="color:#818cf8">CTR Curve</span></div>
+        <span style="color:#818cf8;font-size:12px;font-family:var(--mono)">Open SERP Intel &#8594;</span>
+      </a>
 
-      <!-- History panel -->
-      <div id="comp-hist-panel" class="comp-hist-panel" style="display:none">
-        <div class="comp-hist-head">
-          <h4>Analysis History</h4>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono)" onclick="document.getElementById('comp-hist-panel').style.display='none'">✕ Close</button>
+      <a href="backend/pages/monitor.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--tertiary),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(255,183,131,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--tertiary)">notifications_active</span>
         </div>
-        <div style="overflow-x:auto">
-          <table class="htable">
-            <thead><tr><th>Target</th><th>Competitors</th><th>Score</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
-            <tbody id="comp-hist-tbody">
-              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No history yet.</td></tr>
-            </tbody>
-          </table>
+        <h3 style="color:var(--text);margin:0">Rank Monitor</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Schedule keyword tracking jobs, view position history charts, and receive alert logs.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--tertiary)">Scheduled</span><span class="feat-tag" style="color:var(--tertiary)">Alerts</span></div>
+        <span style="color:var(--tertiary);font-size:12px;font-family:var(--mono)">Open Monitor &#8594;</span>
+      </a>
+
+      <a href="backend/pages/sitemap.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#10B981,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(16,185,129,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#10B981">account_tree</span>
         </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">Sitemap Crawler</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Parse sitemap.xml, flag broken/redirect URLs, surface lastmod gaps, export to Excel.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#10B981">XML Parse</span><span class="feat-tag" style="color:#10B981">Status Codes</span></div>
+        <span style="color:#10B981;font-size:12px;font-family:var(--mono)">Open Sitemap &#8594;</span>
+      </a>
+
+      <a href="backend/pages/keyword-gap.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#6366F1,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.12)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#6366F1">find_in_page</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">Keyword Gap</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Discover keywords competitors rank for that you are missing. Segment by missing, weak, strong.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#6366F1">Gap Score</span><span class="feat-tag" style="color:#6366F1">Opportunities</span></div>
+        <span style="color:#6366F1;font-size:12px;font-family:var(--mono)">Open Keyword Gap &#8594;</span>
+      </a>
+
+      <a href="backend/pages/ai-content.html" class="feat-card featured" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+        <div class="feat-popular">&#10022; AI Powered</div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.15)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#818cf8">psychology</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">AI Content Generator</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Generate SEO-optimized content via Groq, Gemini, Claude or OpenAI. Live SEO scoring, meta outputs, history.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#818cf8">Multi-AI</span><span class="feat-tag" style="color:#818cf8">SEO Score</span></div>
+        <span style="color:#818cf8;font-size:12px;font-family:var(--mono)">Open AI Content &#8594;</span>
+      </a>
 
     </div>
   </div>
 </section>
-
-<!-- SCHEMA SECTION -->
-<section id="schema">
-  <div class="sec-inner">
-    <div class="sec-hd">
-      <div class="sec-lbl lbl-c">STRUCTURED DATA</div>
-      <h2>Schema &amp; Structured Data Audit</h2>
-      <p>Automatically detect, validate, and fix your JSON-LD markup</p>
-    </div>
-    <div class="schema-grid">
-      <div class="code-editor">
-        <div class="code-hd">
-          <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-          <span>schema.json · JSON-LD Structured Data</span>
-        </div>
-        <div class="code-body">
-          <span class="ck">&lt;script type="application/ld+json"&gt;</span><br>
-          <span class="cy">{</span><br>
-          &nbsp;&nbsp;<span class="ck">"@context"</span><span class="cy">:</span> <span class="cs">"https://schema.org"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"@type"</span><span class="cy">:</span> <span class="cs">"Organization"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"name"</span><span class="cy">:</span> <span class="cs">"CrawlIQ"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"url"</span><span class="cy">:</span> <span class="cs">"https://crawliq.io"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"logo"</span><span class="cy">: {</span><br>
-          &nbsp;&nbsp;&nbsp;&nbsp;<span class="ck">"@type"</span><span class="cy">:</span> <span class="cs">"ImageObject"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;&nbsp;&nbsp;<span class="ck">"url"</span><span class="cy">:</span> <span class="cs">"https://crawliq.io/logo.png"</span><br>
-          &nbsp;&nbsp;<span class="cy">}</span><br>
-          <span class="cy">}</span><br>
-          <span class="ck">&lt;/script&gt;</span><br><br>
-          <span class="code-valid">✓ Valid Schema</span>
-        </div>
-      </div>
-      <div class="schema-cards">
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(99,102,241,.15)">🏢</div>
-            <div class="schema-card-info">
-              <h4>Organization Schema</h4>
-              <span class="schema-status ss-detected">✓ Detected</span>
-            </div>
-          </div>
-          <p class="schema-desc">Defines your company name, logo, URL, social profiles. Boosts brand visibility in Google Knowledge Panel.</p>
-          <div class="schema-fields" style="color:var(--indigo)">name · url · logo · sameAs · contactPoint</div>
-        </div>
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(34,211,238,.15)">📄</div>
-            <div class="schema-card-info">
-              <h4>WebPage Schema</h4>
-              <span class="schema-status ss-incomplete">⚠ Incomplete</span>
-            </div>
-          </div>
-          <p class="schema-desc">Identifies individual pages with breadcrumbs, dates, and authorship for richer snippets.</p>
-          <div class="schema-fields" style="color:var(--cyan)">url · name · breadcrumb · dateModified</div>
-        </div>
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(16,185,129,.15)">📰</div>
-            <div class="schema-card-info">
-              <h4>Article Schema</h4>
-              <span class="schema-status ss-missing">✗ Missing</span>
-            </div>
-          </div>
-          <p class="schema-desc">Marks blog posts and news articles for Google Top Stories and rich article results.</p>
-          <div class="schema-fields" style="color:var(--green)">headline · author · publisher · datePublished</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ SCHEMA INTELLIGENCE PANEL (app mode only) ════════════════════════════ -->
-<div id="panel-schema-intel" class="panel-hidden">
-  <div class="si-head">
-    <div>
-      <div class="si-lbl">Structured Data Audit</div>
-      <h1>Schema Intelligence</h1>
-    </div>
-    <div class="si-head-btns">
-      <button class="si-btn-outline" onclick="validateSchemaLive()">
-        <span class="material-symbols-outlined" style="font-size:16px">verified</span> Validate Live
-      </button>
-      <button class="si-btn-primary" onclick="generateSchemaAI()">
-        <span class="material-symbols-outlined" style="font-size:16px">add</span> Generate Schema
-      </button>
-    </div>
-  </div>
-  <div class="si-summary-grid" id="si-summary-grid">
-    <div class="si-sum-card">
-      <div class="s-label">Schema Coverage</div>
-      <span class="s-icon material-symbols-outlined">layers</span>
-      <div class="s-val" id="si-coverage">—</div>
-      <div class="s-sub">of crawled pages</div>
-    </div>
-    <div class="si-sum-card">
-      <div class="s-label">Valid Entities</div>
-      <span class="s-icon material-symbols-outlined" style="color:#059669">check_circle</span>
-      <div class="s-val" id="si-valid" style="color:#059669">—</div>
-      <div class="s-sub">Audit complete</div>
-    </div>
-    <div class="si-sum-card">
-      <div class="s-label">Schema Warnings</div>
-      <span class="s-icon material-symbols-outlined" style="color:#d97706">warning</span>
-      <div class="s-val" id="si-warnings" style="color:#d97706">—</div>
-      <div class="s-sub">Needs attention</div>
-    </div>
-  </div>
-  <div class="si-matrix">
-    <div class="si-matrix-head">
-      <h3>Entity Diagnostic Matrix</h3>
-      <div class="si-matrix-filter">
-        <span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8">search</span>
-        <input type="text" placeholder="Filter by URL or type…" oninput="filterSchemaMatrix(this.value)" id="si-filter-input"/>
-      </div>
-    </div>
-    <table class="si-table" id="si-table">
-      <thead>
-        <tr>
-          <th>URL Context</th>
-          <th>Schema ID</th>
-          <th>Detected Types</th>
-          <th>Status</th>
-          <th style="text-align:center">Warnings/Errors</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="si-tbody">
-        <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;font-size:12px">Run a crawl first, then click Schema Intel to audit structured data.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══ CONTENT LAB PANEL (app mode only) ══════════════════════════════════ -->
-<div id="panel-content-lab" class="panel-hidden">
-  <div class="clab-head">
-    <div class="clab-lbl">Neural Content Forge</div>
-    <h1>Content Lab</h1>
-  </div>
-  <div class="clab-body">
-    <div class="clab-model-row">
-      <button class="clab-model-btn active" onclick="clabSelectModel(this,'gemini')">✨ Gemini</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'groq')">⚡ Groq (Llama 3)</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'openai')">🤖 GPT-4o</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'claude')">🧠 Claude</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'ollama')">🏠 Ollama (Local)</button>
-    </div>
-    <div class="clab-panel">
-      <h3>Original Content</h3>
-      <textarea class="clab-textarea" id="clab-original" placeholder="Paste your current page content here — title, meta description, H1, body copy…"></textarea>
-    </div>
-    <div class="clab-panel">
-      <h3>SEO Audit Context</h3>
-      <textarea class="clab-textarea" id="clab-context" placeholder="Paste your CrawlIQ audit report or describe what SEO issues were found…"></textarea>
-    </div>
-    <div class="clab-generate-row">
-      <button class="clab-generate-btn" id="clab-generate-btn" onclick="runContentLabSynthesis()">
-        <span class="material-symbols-outlined" style="font-size:18px">psychology</span>
-        Initiate Synthesis
-      </button>
-    </div>
-    <div class="clab-processing" id="clab-processing">
-      <div style="color:#818cf8;font-size:13px;font-weight:700;font-family:var(--mono)">⚡ Neural synthesis in progress…</div>
-      <p>Processing semantic clusters · Optimizing keyword density · Generating content</p>
-      <div class="clab-proc-bar"><div class="clab-proc-fill"></div></div>
-    </div>
-    <div class="clab-result" id="clab-result">
-      <h3>✦ Synthesized Content</h3>
-      <div class="clab-result-text" id="clab-result-text"></div>
-      <div class="clab-result-actions">
-        <button class="clab-copy-btn" onclick="clabCopyResult()">Copy to Clipboard</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- HOW IT WORKS -->
 <section id="how-it-works" style="background:var(--surf-low)">
@@ -3023,7 +2643,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <span class="feat-tag" style="color:var(--primary)">50+ metrics</span>
           <span class="feat-tag" style="color:var(--primary)">50 pages/session</span>
         </div>
-        <a class="feat-link" href="#dash-sec" style="color:var(--primary)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
+        <a class="feat-link" href="backend/pages/tech-seo.html" style="color:var(--primary)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
       </div>
       <div class="feat-card featured">
         <div class="feat-shine" style="background:linear-gradient(90deg,var(--indigo),var(--primary-container))"></div>
@@ -3037,7 +2657,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <span class="feat-tag" style="color:var(--primary-container)">Multi-AI</span>
           <span class="feat-tag" style="color:var(--primary-container)">Real-time</span>
         </div>
-        <a class="feat-link" href="#dash-sec" style="color:var(--primary-container)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
+        <a class="feat-link" href="backend/pages/ai-content.html" style="color:var(--primary-container)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
       </div>
       <div class="feat-card">
         <div class="feat-shine" style="background:linear-gradient(90deg,var(--tertiary),transparent)"></div>
@@ -3347,8 +2967,8 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <a class="cta-primary" href="#dash-sec">
       <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">travel_explore</span>Start Free Crawl
     </a>
-    <a class="cta-outline" href="#checklist-sec">
-      <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">checklist</span>Use the Checklist
+    <a class="cta-outline" href="#tools-suite">
+      <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">apps</span>Explore All Tools
     </a>
   </div>
 </div>
@@ -3394,12 +3014,15 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
       </div>
     </div>
     <div class="fc">
-      <h4>Tool</h4>
+      <h4>Tools</h4>
       <a href="#dash-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">travel_explore</span>SEO Crawler</a>
-      <a href="#analyzer-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">manage_search</span>Meta Analyzer</a>
-      <a href="#checklist-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">checklist</span>SEO Checklist</a>
-      <a href="#competitor-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">compare_arrows</span>Competitor Analysis</a>
-      <a href="#features"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">star</span>All Features</a>
+      <a href="backend/pages/tech-seo.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">health_and_safety</span>Technical SEO</a>
+      <a href="backend/pages/competitor.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">compare_arrows</span>Competitor Analysis</a>
+      <a href="backend/pages/serp-intel.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">leaderboard</span>SERP Intelligence</a>
+      <a href="backend/pages/monitor.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">notifications_active</span>Rank Monitor</a>
+      <a href="backend/pages/sitemap.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">account_tree</span>Sitemap Crawler</a>
+      <a href="backend/pages/keyword-gap.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">find_in_page</span>Keyword Gap</a>
+      <a href="backend/pages/ai-content.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">psychology</span>AI Content Generator</a>
     </div>
     <div class="fc">
       <h4>Learn</h4>

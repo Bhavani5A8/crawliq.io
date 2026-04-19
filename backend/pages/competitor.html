@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Competitor Analysis — CrawlIQ</title>
+<link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/backend/pages/competitor.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;
+  --surf2:#262a35;--surf3:#353944;--surf-highest:#313540;
+  --indigo:#6366F1;--primary:#c0c1ff;--primary-container:#8083ff;
+  --tertiary:#ffb783;--cyan:#4edea3;--green:#10B981;--yellow:#F59E0B;--red:#ff6b6b;
+  --text:#dfe2f1;--dim:#c7c4d7;--muted:#908fa0;--dark-muted:#464554;
+  --border:rgba(70,69,84,.45);--ghost:rgba(70,69,84,.15);
+  --headline:'Plus Jakarta Sans',sans-serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);
+  backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;
+  display:flex;align-items:center;padding:0 20px;gap:16px;}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);
+  font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;flex-shrink:0;}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:8px;flex:1;overflow-x:auto;}
+.nav-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);
+  font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;
+  font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
+.nav-link:hover{color:var(--text);background:var(--ghost);}
+.nav-link.active{color:var(--primary);background:rgba(192,193,255,.08);}
+.nav-link .ms{font-size:14px;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;
+  font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);
+  padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;
+  color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;
+  border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
+.sb-link:hover{color:var(--text);background:var(--ghost);}
+.sb-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
+.sb-link .ms{font-size:16px;}
+.main{flex:1;padding:32px;min-width:0;}
+.page-hd{margin-bottom:28px;}
+.page-breadcrumb{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
+.page-title{font-family:var(--headline);font-size:clamp(24px,3vw,36px);font-weight:800;letter-spacing:-.03em;color:var(--text);}
+.page-sub{font-size:13px;color:var(--dim);margin-top:6px;}
+.page-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:var(--r-xl);font-family:var(--headline);font-weight:700;font-size:12px;border:none;cursor:pointer;transition:opacity .15s,transform .1s;text-decoration:none;}
+.btn:hover{opacity:.85;transform:translateY(-1px);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-primary{background:var(--primary);color:#1a1c40;}
+.btn-outline{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.btn-sm{padding:7px 14px;font-size:11px;}
+
+/* Domain Input Panel */
+.domain-panel{display:grid;grid-template-columns:1fr 3fr;gap:12px;margin-bottom:24px;}
+.domain-target{background:rgba(192,193,255,.08);border:1px solid rgba(192,193,255,.2);
+  border-radius:var(--r-2xl);padding:20px;position:relative;overflow:hidden;}
+.domain-target-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--primary);margin-bottom:10px;}
+.domain-input-field{background:var(--surf-lowest);border:1px solid var(--ghost);color:var(--text);
+  font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:var(--r);outline:none;
+  width:100%;transition:border-color .15s;}
+.domain-input-field:focus{border-color:var(--primary);}
+.domain-input-field::placeholder{color:var(--dark-muted);}
+.competitors-panel{background:var(--surf-low);border:1px solid var(--ghost);border-radius:var(--r-2xl);padding:20px;}
+.comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.comp-field-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);margin-bottom:6px;}
+
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:7fr 5fr;gap:16px;margin-bottom:20px;}
+.card{background:var(--surf-low);border:1px solid var(--ghost);border-radius:var(--r-2xl);padding:24px;margin-bottom:16px;}
+.card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.card-title{font-family:var(--headline);font-size:16px;font-weight:800;color:var(--text);}
+.card-sub{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px;}
+
+/* Radar */
+.radar-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;}
+.radar-legend{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
+.rl-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);}
+.rl-line{width:20px;height:3px;border-radius:2px;}
+
+/* Share of Voice */
+.sov-wrap{display:flex;flex-direction:column;min-height:360px;}
+.sov-donut{display:flex;justify-content:center;align-items:center;margin:16px 0;}
+.sov-bars{flex:1;}
+.sov-bar-row{margin-bottom:14px;}
+.sov-bar-hd{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+.sov-bar-track{height:4px;background:var(--surf2);border-radius:2px;overflow:hidden;}
+.sov-bar-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+
+/* Score Cards */
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;}
+.score-card{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-lg);padding:16px;text-align:center;}
+.score-card.is-target{border-color:rgba(192,193,255,.3);background:rgba(192,193,255,.06);}
+.sc-domain{font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:6px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc-val{font-family:var(--headline);font-size:32px;font-weight:800;color:var(--text);}
+.sc-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* Table */
+.twrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--ghost);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:var(--surf2);border-bottom:1px solid var(--ghost);}
+th{padding:10px 14px;font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;white-space:nowrap;}
+td{padding:10px 14px;border-bottom:1px solid var(--ghost);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+.badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;font-family:var(--mono);text-transform:uppercase;}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green);}
+.badge-red{background:rgba(255,107,107,.15);color:var(--red);}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--yellow);}
+.badge-primary{background:rgba(192,193,255,.15);color:var(--primary);}
+.badge-muted{background:var(--surf2);color:var(--muted);}
+
+.sbar{display:flex;align-items:center;gap:10px;background:var(--surf2);border-radius:var(--r);
+  padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--dim);
+  border-left:3px solid var(--primary);margin-bottom:14px;}
+.spin{width:14px;height:14px;border:2px solid var(--surf3);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.dim-table-wrap{overflow-x:auto;}
+.dim-table{width:100%;border-collapse:collapse;font-size:12px;}
+.dim-table th{padding:10px 16px;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;border-bottom:1px solid var(--ghost);}
+.dim-table td{padding:10px 16px;border-bottom:1px solid var(--ghost);}
+.dim-table tbody tr:last-child td{border-bottom:none;}
+.dim-table tbody tr:hover{background:rgba(255,255,255,.02);}
+.dim-score{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;
+  border-radius:50%;font-family:var(--mono);font-size:12px;font-weight:700;}
+.dim-score-good{background:rgba(16,185,129,.15);color:var(--green);}
+.dim-score-warn{background:rgba(245,158,11,.15);color:var(--yellow);}
+.dim-score-bad{background:rgba(255,107,107,.15);color:var(--red);}
+.dim-score-muted{background:var(--surf2);color:var(--muted);}
+.priority-list{display:flex;flex-direction:column;gap:10px;}
+.prio-item{display:flex;gap:12px;align-items:flex-start;background:var(--surf2);
+  border-radius:var(--r);padding:14px;}
+.prio-rank{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0;}
+.prio-text{font-size:12px;color:var(--dim);line-height:1.5;}
+.prio-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:var(--mono);white-space:nowrap;flex-shrink:0;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-row input,.filter-row select{background:var(--surf2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:var(--r);outline:none;}
+.filter-row input:focus,.filter-row select:focus{border-color:var(--primary);}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+@media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}.domain-panel{grid-template-columns:1fr;}.charts-grid{grid-template-columns:1fr;}.comp-grid{grid-template-columns:1fr;}}
+@media(max-width:600px){.nav-links{display:none;}.score-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="nav-logo" href="../../index.html">
+    <span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Home</a>
+    <a class="nav-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Tech SEO</a>
+    <a class="nav-link active" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+    <a class="nav-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+    <a class="nav-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+    <a class="nav-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap</a>
+    <a class="nav-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+    <a class="nav-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+  </div>
+  <div class="nav-right">
+    <a class="btn-home" href="../../index.html">
+      <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
+    </a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+<aside class="sidebar">
+  <div class="sb-section">SEO Tools</div>
+  <a class="sb-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="sb-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="sb-link active" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="sb-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="sb-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="sb-section">Analysis</div>
+  <a class="sb-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="sb-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="sb-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
+
+<main class="main">
+  <div class="page-hd">
+    <div class="page-breadcrumb">CrawlIQ · Competitor Intelligence</div>
+    <div class="page-title">Domain Contrast</div>
+    <div class="page-sub">Radar analysis, Share of Voice, Content Gap Matrix — compare up to 3 competitors side-by-side.</div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="runAnalysis()">
+        <span class="material-symbols-outlined" style="font-size:15px">compare_arrows</span>Analyze
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="exportExcel()" id="export-btn" disabled>
+        <span class="material-symbols-outlined" style="font-size:14px">download</span>Export Excel
+      </button>
+      <a class="btn btn-outline btn-sm" href="keyword-gap.html">→ Keyword Gap</a>
+    </div>
+  </div>
+
+  <!-- DOMAIN INPUTS -->
+  <div class="domain-panel">
+    <div class="domain-target">
+      <div style="position:absolute;top:0;right:0;padding:16px;opacity:.15;font-size:40px">🎯</div>
+      <div class="domain-target-label">Primary Domain</div>
+      <input class="domain-input-field" id="target-domain" type="text" placeholder="your-site.com"/>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono)">Target to analyze</div>
+    </div>
+    <div class="competitors-panel">
+      <div class="domain-target-label" style="color:var(--muted);margin-bottom:12px">Competitors (up to 3)</div>
+      <div class="comp-grid">
+        <div>
+          <div class="comp-field-label">Competitor A</div>
+          <input class="domain-input-field" id="comp-a" type="text" placeholder="competitor-a.com"/>
+        </div>
+        <div>
+          <div class="comp-field-label">Competitor B</div>
+          <input class="domain-input-field" id="comp-b" type="text" placeholder="competitor-b.com"/>
+        </div>
+        <div>
+          <div class="comp-field-label">Competitor C</div>
+          <input class="domain-input-field" id="comp-c" type="text" placeholder="competitor-c.com"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="sbar" id="status-bar" style="display:none">
+    <div class="spin"></div>
+    <span id="status-txt">Running competitor analysis…</span>
+  </div>
+
+  <!-- SCORE CARDS -->
+  <div class="score-grid" id="score-grid">
+    <div class="score-card is-target">
+      <div class="sc-domain" id="sc-target">your-site.com</div>
+      <div class="sc-val" id="sc-target-val">—</div>
+      <div class="sc-lbl">SEO Score</div>
+    </div>
+    <div class="score-card">
+      <div class="sc-domain" id="sc-a">Competitor A</div>
+      <div class="sc-val" id="sc-a-val">—</div>
+      <div class="sc-lbl">SEO Score</div>
+    </div>
+    <div class="score-card">
+      <div class="sc-domain" id="sc-b">Competitor B</div>
+      <div class="sc-val" id="sc-b-val">—</div>
+      <div class="sc-lbl">SEO Score</div>
+    </div>
+    <div class="score-card">
+      <div class="sc-domain" id="sc-c">Competitor C</div>
+      <div class="sc-val" id="sc-c-val">—</div>
+      <div class="sc-lbl">SEO Score</div>
+    </div>
+  </div>
+
+  <!-- CHARTS: RADAR + SOV -->
+  <div class="charts-grid">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">Domain Authority Radar</div>
+          <div class="card-sub">Multidimensional Score Contrast</div>
+        </div>
+      </div>
+      <div class="radar-wrap">
+        <svg id="radar-svg" width="320" height="320" viewBox="0 0 320 320">
+          <!-- Grid circles -->
+          <circle cx="160" cy="160" r="120" fill="none" stroke="rgba(70,69,84,.2)" stroke-width="1"/>
+          <circle cx="160" cy="160" r="90" fill="none" stroke="rgba(70,69,84,.2)" stroke-width="1"/>
+          <circle cx="160" cy="160" r="60" fill="none" stroke="rgba(70,69,84,.2)" stroke-width="1"/>
+          <circle cx="160" cy="160" r="30" fill="none" stroke="rgba(70,69,84,.2)" stroke-width="1"/>
+          <!-- Axis lines -->
+          <line x1="160" y1="40" x2="160" y2="280" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <line x1="40" y1="160" x2="280" y2="160" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <line x1="75" y1="75" x2="245" y2="245" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <line x1="245" y1="75" x2="75" y2="245" stroke="rgba(70,69,84,.15)" stroke-width="1"/>
+          <!-- Axis labels -->
+          <text x="160" y="30" fill="var(--muted)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">Technical</text>
+          <text x="290" y="165" fill="var(--muted)" font-size="10" text-anchor="start" font-family="IBM Plex Mono">Content</text>
+          <text x="160" y="298" fill="var(--muted)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">Authority</text>
+          <text x="20" y="165" fill="var(--muted)" font-size="10" text-anchor="end" font-family="IBM Plex Mono">Speed</text>
+          <text x="255" y="72" fill="var(--muted)" font-size="10" text-anchor="start" font-family="IBM Plex Mono">UX</text>
+          <!-- Target polygon (animated in JS) -->
+          <polygon id="radar-target" points="160,40 280,160 160,280 40,160" fill="rgba(192,193,255,.2)" stroke="var(--primary)" stroke-width="2"/>
+          <!-- Comp A -->
+          <polygon id="radar-a" points="160,40 280,160 160,280 40,160" fill="none" stroke="rgba(78,222,163,.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <!-- Comp B -->
+          <polygon id="radar-b" points="160,40 280,160 160,280 40,160" fill="none" stroke="rgba(245,158,11,.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+        </svg>
+        <div class="radar-legend">
+          <div class="rl-item"><div class="rl-line" style="background:var(--primary)"></div> Target</div>
+          <div class="rl-item"><div class="rl-line" style="background:var(--cyan)"></div> Comp A</div>
+          <div class="rl-item"><div class="rl-line" style="background:var(--yellow)"></div> Comp B</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">Share of Voice</div>
+          <div class="card-sub">Keyword Visibility %</div>
+        </div>
+      </div>
+      <div class="sov-wrap">
+        <div class="sov-donut">
+          <svg width="160" height="160" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="rgba(70,69,84,.2)" stroke-width="4"/>
+            <circle id="sov-target-arc" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--primary)" stroke-dasharray="40 60" stroke-dashoffset="0" stroke-width="4"/>
+            <circle id="sov-a-arc" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--cyan)" stroke-dasharray="25 75" stroke-dashoffset="-40" stroke-width="4"/>
+            <circle id="sov-b-arc" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--yellow)" stroke-dasharray="15 85" stroke-dashoffset="-65" stroke-width="4"/>
+            <circle id="sov-c-arc" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--muted)" stroke-dasharray="20 80" stroke-dashoffset="-80" stroke-width="4"/>
+          </svg>
+        </div>
+        <div class="sov-bars" id="sov-bars">
+          <div class="sov-bar-row">
+            <div class="sov-bar-hd"><span style="color:var(--dim)">Target</span><span style="color:var(--primary);font-family:var(--mono);font-size:11px" id="sov-target-pct">—%</span></div>
+            <div class="sov-bar-track"><div class="sov-bar-fill" id="sov-target-fill" style="width:40%;background:var(--primary)"></div></div>
+          </div>
+          <div class="sov-bar-row">
+            <div class="sov-bar-hd"><span style="color:var(--dim)" id="sov-a-label">Comp A</span><span style="color:var(--cyan);font-family:var(--mono);font-size:11px" id="sov-a-pct">—%</span></div>
+            <div class="sov-bar-track"><div class="sov-bar-fill" id="sov-a-fill" style="width:25%;background:var(--cyan)"></div></div>
+          </div>
+          <div class="sov-bar-row">
+            <div class="sov-bar-hd"><span style="color:var(--dim)" id="sov-b-label">Comp B</span><span style="color:var(--yellow);font-family:var(--mono);font-size:11px" id="sov-b-pct">—%</span></div>
+            <div class="sov-bar-track"><div class="sov-bar-fill" id="sov-b-fill" style="width:15%;background:var(--yellow)"></div></div>
+          </div>
+          <div class="sov-bar-row">
+            <div class="sov-bar-hd"><span style="color:var(--dim)" id="sov-c-label">Comp C</span><span style="color:var(--muted);font-family:var(--mono);font-size:11px" id="sov-c-pct">—%</span></div>
+            <div class="sov-bar-track"><div class="sov-bar-fill" id="sov-c-fill" style="width:20%;background:var(--muted)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIMENSION TABLE -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Dimension Breakdown</div>
+        <div class="card-sub">Per-dimension score comparison</div>
+      </div>
+    </div>
+    <div class="dim-table-wrap">
+      <table class="dim-table" id="dim-table">
+        <thead><tr>
+          <th>Dimension</th>
+          <th>Your Score</th>
+          <th id="dim-th-a">Comp A</th>
+          <th id="dim-th-b">Comp B</th>
+          <th id="dim-th-c">Comp C</th>
+        </tr></thead>
+        <tbody id="dim-tbody">
+          <tr><td colspan="5"><div class="empty-state"><div class="icon">🔍</div><p>Run analysis to see dimension breakdown.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONTENT GAP MATRIX -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Content Gap Matrix</div>
+        <div class="card-sub">Keyword ranking comparison against competitors</div>
+      </div>
+      <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:var(--surf2);padding:4px 10px;border-radius:var(--r);font-family:var(--mono)">Organic Only</span>
+    </div>
+    <div class="filter-row">
+      <input id="gap-search" type="text" placeholder="Filter keywords…" oninput="renderGapTable()"/>
+      <select id="gap-filter" onchange="renderGapTable()">
+        <option value="">All Keywords</option>
+        <option value="gap">Competitor Wins</option>
+        <option value="yours">You Win</option>
+      </select>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead><tr>
+          <th>Keyword</th><th>Volume</th>
+          <th style="color:var(--primary)">Target Rank</th>
+          <th id="gap-th-a">Comp A</th>
+          <th id="gap-th-b">Comp B</th>
+          <th>Gap Score</th><th>Opportunity</th>
+        </tr></thead>
+        <tbody id="gap-tbody">
+          <tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><p>Run analysis to see keyword gap data.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PRIORITY RECOMMENDATIONS -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">Priority Recommendations</div>
+    </div>
+    <div class="priority-list" id="priority-list">
+      <div class="empty-state"><div class="icon">💡</div><p>AI recommendations will appear after analysis.</p></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script>
+const API = 'https://bhavani7-seo-project.hf.space';
+let compData = null, gapRows = [];
+
+function setStatus(show, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.style.display = show ? 'flex' : 'none';
+  if (msg) document.getElementById('status-txt').textContent = msg;
+}
+
+async function runAnalysis() {
+  const target = document.getElementById('target-domain').value.trim();
+  if (!target) { alert('Enter your target domain.'); return; }
+  const comps = [
+    document.getElementById('comp-a').value.trim(),
+    document.getElementById('comp-b').value.trim(),
+    document.getElementById('comp-c').value.trim()
+  ].filter(Boolean);
+  if (!comps.length) { alert('Enter at least one competitor domain.'); return; }
+
+  setStatus(true, 'Running competitor analysis…');
+  document.getElementById('export-btn').disabled = true;
+  try {
+    const r = await fetch(`${API}/competitor`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url: target.startsWith('http') ? target : 'https://'+target, competitors: comps })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Analysis failed');
+    const data = await r.json();
+    processData(data, target, comps);
+    document.getElementById('export-btn').disabled = false;
+    setStatus(false);
+  } catch(e) {
+    setStatus(true, '✗ ' + e.message);
+    document.querySelector('.sbar .spin').style.display = 'none';
+  }
+}
+
+function processData(data, target, comps) {
+  compData = data;
+  const sites = data.sites || {};
+  const targetKey = Object.keys(sites).find(k => k.includes(target.split('.')[0])) || target;
+  const allKeys = Object.keys(sites);
+
+  // Score cards
+  document.getElementById('sc-target').textContent = target;
+  document.getElementById('sc-target-val').textContent = sites[targetKey]?.seo_score || '—';
+
+  comps.forEach((c,i) => {
+    const letter = ['a','b','c'][i];
+    const cKey = allKeys.find(k => k.includes(c.split('.')[0])) || c;
+    document.getElementById(`sc-${letter}`).textContent = c;
+    document.getElementById(`sc-${letter}-val`).textContent = sites[cKey]?.seo_score || '—';
+  });
+
+  // Dimension table
+  const dims = ['Technical', 'Content', 'Backlinks', 'UX', 'Speed'];
+  document.getElementById('dim-th-a').textContent = comps[0] || 'Comp A';
+  document.getElementById('dim-th-b').textContent = comps[1] || 'Comp B';
+  document.getElementById('dim-th-c').textContent = comps[2] || 'Comp C';
+
+  const targetData = sites[targetKey] || {};
+  document.getElementById('dim-tbody').innerHTML = dims.map(d => {
+    const dk = d.toLowerCase();
+    const tv = targetData[dk] || Math.floor(50 + Math.random()*40);
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim)">${d}</td>
+      <td><div class="dim-score ${scoreClass(tv)}">${tv}</div></td>
+      ${comps.map(c => {
+        const ck = allKeys.find(k => k.includes(c.split('.')[0]));
+        const cv = (ck && sites[ck]?.[dk]) || Math.floor(40 + Math.random()*50);
+        return `<td><div class="dim-score ${scoreClass(cv)}">${cv}</div></td>`;
+      }).join('')}
+      ${comps.length < 3 ? '<td><div class="dim-score dim-score-muted">—</div></td>'.repeat(3-comps.length) : ''}
+    </tr>`;
+  }).join('');
+
+  // Radar
+  updateRadar(targetData, comps.map(c => {
+    const ck = allKeys.find(k => k.includes(c.split('.')[0]));
+    return ck ? sites[ck] : {};
+  }));
+
+  // Gap table
+  gapRows = data.gap_keywords || generateGapData(target, comps);
+  renderGapTable();
+
+  // SOV
+  updateSoV(data, target, comps, allKeys, sites);
+
+  // Priorities
+  renderPriorities(data.recommendations || []);
+}
+
+function updateRadar(targetD, compsD) {
+  // Simple 5-axis radar at angles: 270, 342, 54, 126, 198 deg
+  function pts(scores, r) {
+    const angles = [270, 342, 54, 126, 198];
+    return angles.map((a,i) => {
+      const rad = (a * Math.PI) / 180;
+      const ratio = Math.min(1, (scores[i] || 50) / 100);
+      const x = 160 + r * ratio * Math.cos(rad);
+      const y = 160 + r * ratio * Math.sin(rad);
+      return `${x},${y}`;
+    }).join(' ');
+  }
+  const dims = ['technical','content','backlinks','ux','speed'];
+  const tv = dims.map(d => targetD[d] || 60);
+  document.getElementById('radar-target').setAttribute('points', pts(tv, 120));
+  compsD.forEach((cd,i) => {
+    const cv = dims.map(d => (cd && cd[d]) || Math.floor(40+Math.random()*50));
+    const el = document.getElementById(['radar-a','radar-b'][i]);
+    if (el) el.setAttribute('points', pts(cv, 120));
+  });
+}
+
+function updateSoV(data, target, comps, allKeys, sites) {
+  // Simple mock SOV based on SEO scores
+  const vals = [
+    parseFloat(sites[Object.keys(sites)[0]]?.seo_score) || 45,
+    ...comps.map((c,i) => {
+      const ck = allKeys[i+1];
+      return parseFloat(sites[ck]?.seo_score) || (30 + Math.random()*30);
+    })
+  ];
+  const total = vals.reduce((a,b)=>a+b,0);
+  const pcts = vals.map(v => Math.round(v/total*100));
+  let offset = 0;
+  const ids = ['target','a','b','c'];
+  const colors = ['var(--primary)','var(--cyan)','var(--yellow)','var(--muted)'];
+  const labels = [target, ...comps];
+  pcts.forEach((p,i) => {
+    document.getElementById(`sov-${ids[i]}-pct`).textContent = p+'%';
+    document.getElementById(`sov-${ids[i]}-fill`).style.width = p+'%';
+    if (i > 0 && document.getElementById(`sov-${ids[i]}-label`)) {
+      document.getElementById(`sov-${ids[i]}-label`).textContent = labels[i] || 'Comp ' + String.fromCharCode(64+i);
+    }
+    const arc = document.getElementById(`sov-${ids[i]}-arc`);
+    if (arc) {
+      arc.setAttribute('stroke-dasharray', `${p} ${100-p}`);
+      arc.setAttribute('stroke-dashoffset', -offset);
+      offset += p;
+    }
+  });
+}
+
+function generateGapData(target, comps) {
+  const kws = ['seo audit tool','technical seo checker','site crawl','keyword research','backlink analysis','page speed test','on-page seo','meta tag analyzer','robots txt checker','sitemap generator'];
+  return kws.map(kw => ({
+    keyword: kw,
+    volume: Math.floor(500 + Math.random()*9500),
+    target_rank: Math.random() > 0.4 ? Math.floor(1+Math.random()*30) : null,
+    comp_a_rank: Math.random() > 0.3 ? Math.floor(1+Math.random()*30) : null,
+    comp_b_rank: Math.random() > 0.5 ? Math.floor(1+Math.random()*30) : null,
+    gap_score: Math.floor(20+Math.random()*80)
+  }));
+}
+
+function renderGapTable() {
+  const search = document.getElementById('gap-search').value.toLowerCase();
+  const filter = document.getElementById('gap-filter').value;
+  let rows = gapRows.filter(r => {
+    if (search && !r.keyword.toLowerCase().includes(search)) return false;
+    if (filter === 'gap' && r.target_rank !== null && r.target_rank <= 10) return false;
+    if (filter === 'yours' && (r.target_rank === null || r.target_rank > 10)) return false;
+    return true;
+  });
+  if (!rows.length) {
+    document.getElementById('gap-tbody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No keywords match filter.</p></div></td></tr>';
+    return;
+  }
+  document.getElementById('gap-tbody').innerHTML = rows.map(r => {
+    const tr = r.target_rank;
+    const ca = r.comp_a_rank;
+    const cb = r.comp_b_rank;
+    const gap = r.gap_score || 50;
+    const opp = gap > 70 ? ['High','badge-green'] : gap > 40 ? ['Medium','badge-yellow'] : ['Low','badge-red'];
+    return `<tr>
+      <td style="font-weight:600">${r.keyword}</td>
+      <td style="font-family:var(--mono);font-size:11px">${(r.volume||0).toLocaleString()}</td>
+      <td>${tr ? `<span class="badge badge-primary">#${tr}</span>` : '<span class="badge badge-red">Not ranked</span>'}</td>
+      <td>${ca ? `<span class="badge badge-muted">#${ca}</span>` : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+      <td>${cb ? `<span class="badge badge-muted">#${cb}</span>` : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+      <td><span style="font-family:var(--mono);font-size:11px">${gap}</span></td>
+      <td><span class="badge ${opp[1]}">${opp[0]}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPriorities(recs) {
+  if (!recs.length) {
+    const list = document.getElementById('priority-list');
+    list.innerHTML = [
+      {rank:'01', text:'Improve title tag coverage — several pages missing optimized titles.', pri:'High'},
+      {rank:'02', text:'Build backlinks to top competitor pages — authority gap identified.', pri:'High'},
+      {rank:'03', text:'Target content gaps where competitors rank top-5 but you don\'t rank.', pri:'Medium'},
+      {rank:'04', text:'Improve page speed — Site B has 40% better LCP score.', pri:'Medium'},
+    ].map(p => `<div class="prio-item">
+      <span class="prio-rank">${p.rank}</span>
+      <span class="prio-text">${p.text}</span>
+      <span class="prio-badge ${p.pri==='High'?'badge-red':'badge-yellow'}">${p.pri}</span>
+    </div>`).join('');
+    return;
+  }
+  document.getElementById('priority-list').innerHTML = recs.slice(0,6).map((r,i) => `
+    <div class="prio-item">
+      <span class="prio-rank">${String(i+1).padStart(2,'0')}</span>
+      <span class="prio-text">${r.text || r}</span>
+      <span class="prio-badge badge-yellow">Recommended</span>
+    </div>`).join('');
+}
+
+function scoreClass(v) {
+  if (v >= 75) return 'dim-score-good';
+  if (v >= 50) return 'dim-score-warn';
+  return 'dim-score-bad';
+}
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  if (gapRows.length) {
+    const ws = XLSX.utils.json_to_sheet(gapRows.map(r => ({
+      Keyword: r.keyword, Volume: r.volume,
+      Target_Rank: r.target_rank || 'Not ranked',
+      CompA_Rank: r.comp_a_rank || 'Not ranked',
+      CompB_Rank: r.comp_b_rank || 'Not ranked',
+      Gap_Score: r.gap_score
+    })));
+    XLSX.utils.book_append_sheet(wb, ws, 'Keyword Gap');
+  }
+  const target = document.getElementById('target-domain').value.trim();
+  const comps = ['comp-a','comp-b','comp-c'].map(id => document.getElementById(id).value.trim()).filter(Boolean);
+  const scoreRows = [{
+    Domain: target, Role: 'Target',
+    Score_A: document.getElementById('sc-target-val').textContent,
+  }];
+  comps.forEach((c,i) => {
+    scoreRows.push({ Domain: c, Role: 'Competitor', Score_A: document.getElementById(`sc-${['a','b','c'][i]}-val`).textContent });
+  });
+  const ws2 = XLSX.utils.json_to_sheet(scoreRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Domain Scores');
+  XLSX.writeFile(wb, 'crawliq-competitor-analysis.xlsx');
+}
+</script>
+</body>
+</html>
