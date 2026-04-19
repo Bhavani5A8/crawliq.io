@@ -1584,6 +1584,65 @@ body.app-mode #monitor-sec.panel-hidden,
 body.app-mode #competitor-sec.panel-hidden,
 body.app-mode #panel-schema-intel.panel-hidden,
 body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
+
+/* ══════════════════════════════════════════════════
+   ANIMATION SYSTEM — scroll reveal / entrance / glow
+   ══════════════════════════════════════════════════ */
+
+/* Keyframes */
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes panelFade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes rowSlide{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes mcStagger{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes glowPulse{0%,100%{opacity:.5;width:16px}50%{opacity:1;width:24px}}
+@keyframes countRoll{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Scroll-reveal base — invisible until .visible added by JS */
+.reveal{
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .65s cubic-bezier(.22,.61,.36,1),
+             transform .65s cubic-bezier(.22,.61,.36,1);
+}
+.reveal.visible{opacity:1;transform:none;}
+.reveal-left{
+  opacity:0;transform:translateX(-28px);
+  transition:opacity .65s cubic-bezier(.22,.61,.36,1),
+             transform .65s cubic-bezier(.22,.61,.36,1);
+}
+.reveal-left.visible{opacity:1;transform:none;}
+.reveal-right{
+  opacity:0;transform:translateX(28px);
+  transition:opacity .65s cubic-bezier(.22,.61,.36,1),
+             transform .65s cubic-bezier(.22,.61,.36,1);
+}
+.reveal-right.visible{opacity:1;transform:none;}
+
+/* Panel switch entrance */
+.panel-enter{animation:panelFade .28s cubic-bezier(.22,.61,.36,1) both;}
+
+/* Metric card stagger (applied per-card via inline animation-delay) */
+.mc.mc-animate{animation:mcStagger .4s cubic-bezier(.22,.61,.36,1) both;}
+
+/* Progress bar trailing glow */
+.progress-fill{position:relative;overflow:visible;}
+.progress-fill::after{
+  content:'';position:absolute;top:-2px;right:-2px;
+  width:16px;height:calc(100% + 4px);
+  background:rgba(255,255,255,.55);
+  filter:blur(6px);border-radius:4px;
+  animation:glowPulse 1.5s ease-in-out infinite;
+  pointer-events:none;
+}
+/* Hide glow when bar is at 0 or 100% */
+.progress-fill[style*="width:0%"]::after,
+.progress-fill[style*="width: 0%"]::after{display:none;}
+
+/* Results row entrance (applied inline per row) */
+.row-anim{animation:rowSlide .3s cubic-bezier(.22,.61,.36,1) both;}
+
+/* Number roll flash on update */
+.num-updated{animation:countRoll .35s cubic-bezier(.22,.61,.36,1);}
 </style>
 </head>
 <body class="app-mode">
@@ -6434,6 +6493,226 @@ document.addEventListener('DOMContentLoaded', () => {
   <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
   Built by Teki Bhavani Shankar
 </a>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMATION SYSTEM v2 — scroll-reveal · stat counters · panel fade
+                        · metric roll · row stagger · progress glow
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. SCROLL-REVEAL (IntersectionObserver) ─────────────────────────────── */
+(function initReveal() {
+  /* Groups of selectors → reveal direction */
+  const groups = [
+    { sel: '.sec-hd',                  dir: 'reveal' },
+    { sel: '#how-it-works .step-card', dir: 'reveal' },
+    { sel: '#features .feat-card',     dir: 'reveal' },
+    { sel: '.stat-card',               dir: 'reveal' },
+    { sel: '#faq .faq-item',           dir: 'reveal' },
+    { sel: '#checklist-sec .chk-group',dir: 'reveal' },
+    { sel: '#checklist-sec .sb-item',  dir: 'reveal' },
+    { sel: '#analyzer-sec .sa',        dir: 'reveal' },
+    { sel: '#example-sec .ex-block',   dir: 'reveal' },
+    { sel: '.cta-wrap',                dir: 'reveal' },
+    { sel: '#seo-content-sec .feat-card', dir: 'reveal' },
+    { sel: '.about-grid > :first-child',  dir: 'reveal-left' },
+    { sel: '.about-grid > :last-child',   dir: 'reveal-right' },
+  ];
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const delay = parseInt(el.dataset.revDelay || '0', 10);
+      setTimeout(() => el.classList.add('visible'), delay);
+      io.unobserve(el);
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -32px 0px' });
+
+  function applyReveal() {
+    groups.forEach(({ sel, dir }) => {
+      document.querySelectorAll(sel).forEach((el, i) => {
+        /* Skip if already set (avoids double-init) */
+        if (el.classList.contains('reveal') ||
+            el.classList.contains('reveal-left') ||
+            el.classList.contains('reveal-right')) return;
+        el.classList.add(dir);
+        el.dataset.revDelay = String(i * 75); /* stagger per group */
+        io.observe(el);
+      });
+    });
+  }
+
+  /* Run after DOM is ready */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyReveal);
+  } else {
+    applyReveal();
+  }
+})();
+
+/* ── 2. STAT COUNTER ANIMATION (.stat-card .sv) ──────────────────────────── */
+function animateCount(el, targetStr, duration) {
+  const m = targetStr.match(/^([\d,]+(\.\d+)?)(.*)$/);
+  if (!m) { el.textContent = targetStr; return; }
+  const num   = parseFloat(m[1].replace(/,/g, ''));
+  const dec   = (m[1].includes('.')) ? m[1].split('.')[1].length : 0;
+  const suffix = m[3] || '';
+  const t0 = performance.now();
+  (function tick(ts) {
+    const p = Math.min((ts - t0) / duration, 1);
+    const e = 1 - Math.pow(1 - p, 3);          /* ease-out-cubic */
+    const v = num * e;
+    el.textContent = (dec ? v.toFixed(dec) : Math.round(v).toLocaleString()) + suffix;
+    if (p < 1) requestAnimationFrame(tick);
+    else        el.textContent = targetStr;
+  })(t0);
+}
+
+(function initStatCounters() {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const sv = entry.target.querySelector('.sv');
+      if (sv && sv.dataset.target) {
+        animateCount(sv, sv.dataset.target, 1400);
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.35 });
+
+  function setup() {
+    document.querySelectorAll('.stat-card').forEach(card => {
+      const sv = card.querySelector('.sv');
+      if (sv && !sv.dataset.target) {
+        sv.dataset.target = sv.textContent.trim();
+        sv.textContent    = '0';
+        io.observe(card);
+      }
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
+})();
+
+/* ── 3. DASHBOARD METRIC CARD ROLL (patch set()) ────────────────────────── */
+const _ANIM_IDS = new Set([
+  's-total','s-issues','s-ok','s-high','s-med','s-low',
+  'ts-score','ts-total','ts-indexable'
+]);
+const _metricPrev = {};
+
+function animateMetricEl(el, newVal) {
+  const target = parseInt(String(newVal), 10);
+  if (isNaN(target)) { el.textContent = newVal; return; }
+  const from   = parseInt(_metricPrev[el.id] || '0', 10) || 0;
+  if (from === target) return;
+  _metricPrev[el.id] = String(newVal);
+  /* flash class for visual feedback */
+  el.classList.remove('num-updated');
+  void el.offsetWidth;
+  el.classList.add('num-updated');
+  const t0 = performance.now(), dur = 550;
+  (function tick(ts) {
+    const p = Math.min((ts - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (target - from) * e);
+    if (p < 1) requestAnimationFrame(tick);
+    else        el.textContent = newVal;
+  })(t0);
+}
+
+/* Wrap the existing set() — defined further up in main script */
+(function patchSet() {
+  const _orig = window.set;
+  window.set = function(id, v) {
+    if (_ANIM_IDS.has(id)) {
+      const el = document.getElementById(id);
+      if (el) { animateMetricEl(el, v); return; }
+    }
+    if (_orig) _orig(id, v);
+    else { const el = document.getElementById(id); if (el) el.textContent = v; }
+  };
+})();
+
+/* ── 4. PANEL-SWITCH FADE TRANSITION ─────────────────────────────────────── */
+(function patchShowPanel() {
+  const _orig = window.showPanel;
+  window.showPanel = function(name) {
+    if (_orig) _orig(name);
+    /* Animate the newly visible panel */
+    if (typeof _PANELS !== 'undefined' && _PANELS[name]) {
+      const el = document.getElementById(_PANELS[name].el);
+      if (el && !el.classList.contains('panel-hidden')) {
+        el.classList.remove('panel-enter');
+        void el.offsetWidth;           /* force reflow */
+        el.classList.add('panel-enter');
+      }
+    }
+    /* Stagger metric cards when dashboard becomes visible */
+    if (name === 'dashboard') staggerMcCards();
+  };
+})();
+
+/* ── 5. METRIC CARD STAGGER (on panel show + page load) ─────────────────── */
+function staggerMcCards() {
+  const cards = document.querySelectorAll('#dash-sec .mc');
+  cards.forEach((card, i) => {
+    card.style.opacity    = '0';
+    card.style.transform  = 'translateY(14px)';
+    card.style.transition = `opacity .4s ease ${i * 70}ms, transform .4s ease ${i * 70}ms`;
+    /* Double rAF ensures transition is active before we clear inline styles */
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      card.style.opacity   = '';
+      card.style.transform = '';
+    }));
+  });
+}
+document.addEventListener('DOMContentLoaded', () => setTimeout(staggerMcCards, 300));
+
+/* ── 6. RESULTS TABLE ROW STAGGER ───────────────────────────────────────── */
+(function patchRenderTable() {
+  const _orig = window.renderTable;
+  window.renderTable = function(rows) {
+    if (_orig) _orig(rows);
+    requestAnimationFrame(() => {
+      const tb = document.getElementById('results-body');
+      if (!tb) return;
+      Array.from(tb.querySelectorAll('tr')).forEach((tr, i) => {
+        tr.style.opacity    = '0';
+        tr.style.transform  = 'translateX(-10px)';
+        tr.style.transition = `opacity .28s ease ${Math.min(i * 25, 400)}ms,
+                               transform .28s ease ${Math.min(i * 25, 400)}ms`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tr.style.opacity   = '';
+          tr.style.transform = '';
+        }));
+      });
+    });
+  };
+})();
+
+/* ── 7. REAL-TIME CRAWL COUNTER PULSE ───────────────────────────────────── */
+/* Watch #s-total for live changes and animate the progress label */
+(function initCrawlPulse() {
+  const el = document.getElementById('s-total');
+  if (!el || typeof MutationObserver === 'undefined') return;
+  let _last = el.textContent;
+  const mo = new MutationObserver(() => {
+    const curr = el.textContent;
+    if (curr !== _last && curr !== '0') {
+      _last = curr;
+      el.classList.remove('num-updated');
+      void el.offsetWidth;
+      el.classList.add('num-updated');
+    }
+  });
+  mo.observe(el, { childList: true, characterData: true, subtree: true });
+})();
+</script>
 
 </body>
 </html>
