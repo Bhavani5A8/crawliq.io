@@ -324,25 +324,32 @@ h1,h2,h3,h4{font-family:var(--headline);}
 /* ── NAV ── */
 nav{position:fixed;top:0;width:100%;z-index:100;
   background:rgba(15,19,29,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--ghost);display:flex;align-items:center;padding:0 32px;gap:28px;height:64px;
-  box-shadow:0 20px 40px -12px rgba(0,0,0,.4);}
+  border-bottom:1px solid rgba(70,69,84,.15);display:flex;align-items:center;padding:0 32px;gap:28px;height:64px;
+  box-shadow:0 40px 40px rgba(223,226,241,.06);}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0;}
-.nav-logo-icon{color:var(--indigo);font-size:24px;}
+.nav-logo-icon{color:var(--primary);font-size:24px;}
 .nav-logo-text{font-family:var(--headline);font-size:18px;font-weight:800;color:white;letter-spacing:-.5px;}
 .nav-logo-text em{font-style:normal;color:var(--primary);}
+/* System Active pill */
+.sys-active-pill{display:flex;align-items:center;gap:6px;
+  background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);
+  border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);
+  color:var(--dim);font-weight:600;flex-shrink:0;}
+.sys-active-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);
+  animation:ping 2s ease-in-out infinite;flex-shrink:0;}
 .nav-links{display:none;gap:24px;margin-left:8px;}
 @media(min-width:768px){.nav-links{display:flex;}}
 .nav-links a{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s;}
-.nav-links a:hover,.nav-links a.active{color:var(--indigo);}
+.nav-links a:hover,.nav-links a.active{color:var(--primary);}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
-.btn-nav-cta{background:linear-gradient(135deg,var(--indigo),var(--primary-container));color:white;
+.btn-nav-cta{background:var(--primary);color:#1a1c40;
   font-family:var(--headline);font-weight:700;font-size:13px;padding:9px 22px;
   border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;
   transition:opacity .15s,transform .1s;letter-spacing:-.2px;}
 .btn-nav-cta:hover{opacity:.88;transform:scale(.98);}
-.ai-pill{display:flex;align-items:center;gap:7px;background:var(--surf);border:1px solid var(--border);
+.ai-pill{display:flex;align-items:center;gap:7px;background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);
   border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;transition:border-color .15s;}
-.ai-pill:hover{border-color:var(--indigo);}
+.ai-pill:hover{border-color:var(--primary);}
 .ai-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--green);position:relative;flex-shrink:0;}
 .ai-pill-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);opacity:.3;animation:ping 2s ease-in-out infinite;}
 @keyframes ping{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.8);opacity:0}}
@@ -355,25 +362,25 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 /* ── HERO ── */
 .hero{position:relative;z-index:1;min-height:calc(100vh - 64px);display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:100px 24px 60px;text-align:center;overflow:hidden;}
-.orb1{position:absolute;left:5%;top:20%;width:480px;height:480px;border-radius:50%;
-  background:radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%);filter:blur(70px);pointer-events:none;}
-.orb2{position:absolute;right:5%;top:10%;width:380px;height:380px;border-radius:50%;
-  background:radial-gradient(circle,rgba(192,193,255,.12) 0%,transparent 70%);filter:blur(65px);pointer-events:none;}
-.orb3{position:absolute;left:40%;bottom:5%;width:340px;height:340px;border-radius:50%;
-  background:radial-gradient(circle,rgba(99,102,241,.1) 0%,transparent 70%);filter:blur(60px);pointer-events:none;}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--surf);
-  border:1px solid rgba(99,102,241,.35);border-radius:20px;padding:6px 16px;
-  font-size:12px;color:var(--primary);font-weight:600;margin-bottom:28px;letter-spacing:.2px;}
-.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--indigo);}
-.hero-badge-new{background:linear-gradient(90deg,var(--indigo),var(--primary-container));color:white;
+.orb1{position:absolute;left:25%;top:25%;width:384px;height:384px;border-radius:50%;
+  background:var(--primary);filter:blur(120px);opacity:.18;pointer-events:none;}
+.orb2{position:absolute;right:25%;bottom:25%;width:384px;height:384px;border-radius:50%;
+  background:var(--tertiary);filter:blur(120px);opacity:.14;pointer-events:none;}
+.orb3{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(192,193,255,.07) 0%,transparent 65%);pointer-events:none;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--surf-highest);
+  border:1px solid rgba(70,69,84,.2);border-radius:20px;padding:6px 16px;
+  font-size:12px;color:var(--dim);font-weight:600;margin-bottom:32px;letter-spacing:.2px;font-family:var(--mono);}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);animation:ping 2s ease-in-out infinite;}
+.hero-badge-new{background:linear-gradient(90deg,var(--primary),var(--primary-container));color:#1a1c40;
   font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:2px;}
-.hero h1{font-size:clamp(38px,6vw,68px);font-weight:900;line-height:1.06;letter-spacing:clamp(-2px,-0.04em,-3px);color:white;margin-bottom:16px;}
-.hero h1 .grad{background:linear-gradient(120deg,var(--indigo),var(--primary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.hero-sub{font-size:17px;color:var(--dim);max-width:520px;margin:0 auto 40px;line-height:1.7;font-weight:400;}
-/* ── Hero input — DESIGN.md: surface_container_lowest bg, no border, focus glow ── */
-.hero-input-row{display:flex;flex-direction:column;max-width:680px;width:100%;margin:0 auto 24px;
-  gap:10px;background:var(--surf-lowest);border-radius:var(--r-2xl);padding:8px;
-  border:1px solid var(--ghost);box-shadow:0 20px 60px rgba(0,0,0,.45);
+.hero h1{font-size:clamp(42px,7vw,88px);font-weight:800;line-height:1.02;letter-spacing:-.04em;color:white;margin-bottom:20px;font-family:var(--headline);}
+.hero h1 .grad{background:linear-gradient(120deg,var(--primary),var(--primary-container));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:18px;color:var(--dim);max-width:540px;margin:0 auto 44px;line-height:1.7;font-weight:400;}
+/* ── Hero input ── */
+.hero-input-row{display:flex;flex-direction:column;max-width:720px;width:100%;margin:0 auto 28px;
+  gap:10px;background:var(--surf-low);border-radius:20px;padding:8px;
+  border:1px solid rgba(70,69,84,.2);box-shadow:0 24px 80px rgba(0,0,0,.5);
   transition:box-shadow .25s,border-color .25s;}
 .hero-input-row:focus-within{border-color:rgba(99,102,241,.35);
   box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 2px rgba(99,102,241,.18);}
@@ -383,12 +390,12 @@ nav{position:fixed;top:0;width:100%;z-index:100;
   font-size:15px;font-family:var(--sans);padding:16px 0;}
 .hero-input-wrap input::placeholder{color:rgba(144,143,160,.5);}
 .hero-input-icon{color:var(--muted);font-size:20px;flex-shrink:0;}
-.hero-crawl-btn{background:linear-gradient(135deg,var(--primary-container),var(--indigo));border:none;color:white;
-  font-family:var(--headline);font-weight:700;font-size:14px;padding:14px 28px;
+.hero-crawl-btn{background:var(--primary);border:none;color:#1a1c40;
+  font-family:var(--headline);font-weight:700;font-size:14px;padding:14px 32px;
   border-radius:var(--r-xl);cursor:pointer;display:flex;align-items:center;gap:8px;
   transition:opacity .15s,transform .15s,box-shadow .15s;white-space:nowrap;letter-spacing:-.2px;
-  box-shadow:0 8px 20px rgba(99,102,241,.25);}
-.hero-crawl-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 12px 28px rgba(99,102,241,.35);}
+  box-shadow:0 8px 28px rgba(192,193,255,.25);}
+.hero-crawl-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 12px 32px rgba(192,193,255,.35);}
 .hero-crawl-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
 .hero-crawl-btn .sub{font-size:11px;opacity:.8;font-weight:400;font-family:var(--sans);}
 .trust-row{display:flex;flex-direction:column;align-items:center;gap:10px;}
@@ -433,10 +440,10 @@ section{position:relative;z-index:1;padding:80px 24px;}
 .dash-chrome .tab{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:6px;}
 
 /* Metric cards — bento style, tonal stacking (DESIGN.md) */
-.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 20px 0;}
-.mc{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-xl);padding:18px;position:relative;
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:20px 20px 0;}
+.mc{background:var(--surf-low);border:1px solid rgba(70,69,84,.1);border-radius:24px;padding:24px;position:relative;
   transition:background .2s,border-color .2s;}
-.mc:hover{background:var(--surf3);border-color:rgba(99,102,241,.2);}
+.mc:hover{background:var(--surf2);}
 .mc-lbl{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-family:var(--mono);}
 .mc-val{font-size:30px;font-weight:800;line-height:1;margin-bottom:4px;font-family:var(--headline);}
 .mc-sub{font-size:10px;font-family:var(--mono);}
@@ -511,12 +518,16 @@ section{position:relative;z-index:1;padding:80px 24px;}
 
 /* Table */
 .twrap{overflow-x:auto;border-top:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);}
-thead th{background:var(--surf2);color:var(--muted);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;padding:9px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:11px;font-family:var(--mono);}
+thead th{background:transparent;color:var(--muted);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;padding:6px 10px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;}
 thead th:hover{color:var(--text);}
-thead th.active .sa{color:var(--cyan);opacity:1!important;}
+thead th.active .sa{color:var(--primary);opacity:1!important;}
 .sa{margin-left:3px;opacity:.3;}
-tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr{transition:background .15s;}
+tbody tr td{background:var(--surf-low);border-top:1px solid rgba(70,69,84,.08);border-bottom:1px solid rgba(70,69,84,.08);}
+tbody tr td:first-child{border-left:1px solid rgba(70,69,84,.08);border-radius:12px 0 0 12px;}
+tbody tr td:last-child{border-right:1px solid rgba(70,69,84,.08);border-radius:0 12px 12px 0;}
+tbody tr:hover td{background:var(--surf2)!important;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:rgba(255,255,255,.02);}
 tbody tr.selected-row{background:rgba(99,102,241,.05);}
@@ -669,12 +680,16 @@ td.check-cell{width:28px;padding:7px 6px;}
 .schema-fields{font-size:10px;font-family:var(--mono);}
 
 /* ── FEATURES — tonal stacking, ghost border ── */
-.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-.feat-card{background:var(--surf2);border:1px solid var(--ghost);border-radius:var(--r-2xl);padding:28px 24px;position:relative;overflow:hidden;transition:background .2s,border-color .2s,transform .2s;}
-.feat-card:hover{background:var(--surf3);border-color:rgba(99,102,241,.2);transform:translateY(-3px);}
-.feat-card.featured{border-color:rgba(99,102,241,.25);background:var(--surf2);}
-.feat-shine{position:absolute;top:0;left:0;right:0;height:2px;}
-.feat-popular{position:absolute;top:14px;right:14px;background:linear-gradient(135deg,var(--indigo),var(--primary-container));color:white;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px;}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.feat-card{background:var(--surf-low);border:1px solid rgba(70,69,84,.1);border-radius:24px;padding:32px 28px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--primary),transparent);opacity:0;transition:opacity .3s;}
+.feat-card:hover{background:var(--surf2);border-color:rgba(192,193,255,.12);}
+.feat-card:hover::before{opacity:1;}
+.feat-card.featured{border-color:rgba(192,193,255,.15);background:var(--surf-low);}
+.feat-card.featured::before{opacity:1;}
+.feat-shine{display:none;}
+.feat-popular{position:absolute;top:14px;right:14px;background:linear-gradient(135deg,var(--primary),var(--primary-container));color:#1a1c40;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px;}
 .feat-ico{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:18px;}
 .feat-card h3{font-size:17px;font-weight:800;color:white;margin-bottom:10px;letter-spacing:-.3px;}
 .feat-card p{font-size:13px;color:var(--dim);line-height:1.7;margin-bottom:16px;}
@@ -731,7 +746,7 @@ td.check-cell{width:28px;padding:7px 6px;}
 .cta-outline:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.6);}
 
 /* ── FOOTER ── */
-footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56px 32px 32px;}
+footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padding:80px 32px 40px;margin-top:80px;}
 .ft{display:grid;grid-template-columns:200px repeat(3,1fr);gap:40px;margin-bottom:40px;}
 .fb p{font-size:13px;color:var(--muted);line-height:1.7;margin:12px 0 20px;}
 .fb-logo{display:flex;align-items:center;gap:8px;}
@@ -945,15 +960,15 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 
 /* ── BOTTOM NAV (mobile only) — matches prototype ── */
 .bottom-nav{display:flex;position:fixed;bottom:0;left:0;width:100%;justify-content:space-around;
-  align-items:center;padding:10px 16px 20px;
-  background:rgba(28,31,42,.7);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  z-index:100;border-top:1px solid var(--ghost);border-radius:20px 20px 0 0;
-  box-shadow:0 -10px 30px rgba(0,0,0,.5);}
+  align-items:center;padding:10px 16px 24px;
+  background:rgba(23,27,38,.8);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  z-index:100;border-top:1px solid rgba(70,69,84,.15);border-radius:24px 24px 0 0;
+  box-shadow:0 -10px 40px rgba(0,0,0,.4);height:80px;}
 @media(min-width:768px){.bottom-nav{display:none;}}
 .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;
   text-decoration:none;padding:6px 14px;border-radius:var(--r-lg);
   color:var(--muted);transition:color .15s,background .15s;}
-.bn-item.active{background:rgba(99,102,241,.12);color:var(--indigo);}
+.bn-item.active{background:rgba(192,193,255,.1);color:var(--primary);}
 .bn-item:hover{background:rgba(38,42,53,.8);color:var(--primary);}
 .bn-item .material-symbols-outlined{font-size:24px;}
 .bn-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-top:2px;font-family:var(--sans);}
@@ -1342,28 +1357,9 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
   .si-summary-grid{grid-template-columns:repeat(2,1fr);}
 }
 
-/* ── Mobile ≤768px: sidebar becomes drawer, topbar full-width ── */
+/* ── Mobile ≤768px ── */
 @media(max-width:768px){
-  /* Remove sidebar offset — sidebar overlays content */
-  body.app-mode{padding-left:0 !important;}
-
-  /* Topbar spans full width */
-  .app-topbar{left:0 !important;}
-
-  /* Show hamburger */
-  .app-hamburger{display:flex;}
-
-  /* Show sidebar backdrop */
-  .sidebar-backdrop{display:block;}
-
-  /* Sidebar hidden by default on mobile — regardless of app-mode */
-  body.app-mode .sidebar{transform:translateX(-256px) !important;}
-
-  /* Sidebar open state (class toggled by JS) */
-  body.app-mode.sidebar-open .sidebar{transform:translateX(0) !important;}
-  body.app-mode.sidebar-open .sidebar-backdrop{opacity:1;pointer-events:auto;}
-
-  /* Panel padding: account for topbar height only (no left sidebar) */
+  /* Panel padding: account for nav height */
   body.app-mode #dash-sec{padding-top:72px;padding-left:16px;padding-right:16px;}
   body.app-mode #competitor-sec{padding-top:72px;padding-left:16px;padding-right:16px;}
   body.app-mode #serp-intel-sec{padding-top:0;}
@@ -1379,11 +1375,6 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
   .clab-body{grid-template-columns:1fr !important;padding:16px;}
   .clab-generate-row{grid-column:1 !important;}
   .clab-result{grid-column:1 !important;}
-
-  /* Topbar: hide AI pill text on small screens */
-  .app-topbar .ai-pill .ai-pill-dot ~ span{display:none;}
-  .app-topbar-title{font-size:13px;}
-  .app-topbar{padding:0 14px;gap:10px;}
 
   /* App crawl bar: full-width comfortable */
   .app-crawl-bar{border-radius:16px;padding:6px 6px 6px 14px;}
@@ -1445,7 +1436,7 @@ footer{background:var(--surf-low);border-top:1px solid var(--border);padding:56p
 
 /* ── APP TOPBAR ── */
 .app-topbar{
-  display:none;position:fixed;top:0;left:256px;right:0;height:64px;
+  display:none;position:fixed;top:0;left:0;right:0;height:64px;
   background:rgba(15,19,29,.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid rgba(70,69,84,.25);
   z-index:110;align-items:center;padding:0 28px;gap:16px;
@@ -1631,17 +1622,10 @@ body.app-mode .app-crawl-bar{display:flex;}
    APP-MODE: dark Obsidian shell — sidebar + panels
    ════════════════════════════════════════════════ */
 body.app-mode{
-  padding-left:256px;
   background:var(--bg);
 }
 
-/* Sidebar visible in app mode */
-body.app-mode .sidebar{transform:translateX(0);}
-
-/* Topbar visible in app mode */
-body.app-mode .app-topbar{display:flex!important;}
-
-/* Dashboard needs top padding for fixed topbar */
+/* Dashboard padding when in app mode (no sidebar, just top padding for nav) */
 body.app-mode #dash-sec{padding-top:80px;}
 body.app-mode #serp-intel-sec{padding-top:0;}
 body.app-mode #monitor-sec{padding-top:0;}
@@ -1737,74 +1721,8 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 .num-updated{animation:countRoll .35s cubic-bezier(.22,.61,.36,1);}
 </style>
 </head>
-<body class="app-mode">
+<body>
 
-<!-- ══ SIDEBAR (app shell navigation) ══════════════════════════════════════ -->
-<aside class="sidebar" id="app-sidebar" aria-label="App navigation">
-  <div class="sidebar-logo">
-    <span class="material-symbols-outlined sidebar-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 600">query_stats</span>
-    <span class="sidebar-logo-text">Crawl<em>IQ</em></span>
-  </div>
-  <nav class="sidebar-nav" aria-label="Main panels">
-    <div class="sn-group">
-      <button class="sn-item active" id="sn-dashboard" onclick="showPanel('dashboard')" title="Dashboard">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">dashboard</span>
-        Dashboard
-      </button>
-      <button class="sn-item" id="sn-serp" onclick="showPanel('serp')" title="SERP Intelligence">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">bar_chart</span>
-        SERP Intel
-      </button>
-      <button class="sn-item" id="sn-monitor" onclick="showPanel('monitor')" title="Rank Monitor">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">notifications</span>
-        Rank Monitor
-      </button>
-      <button class="sn-item" id="sn-competitors" onclick="showPanel('competitors')" title="Competitor Analysis">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">compare_arrows</span>
-        Competitors
-      </button>
-    </div>
-    <div class="sn-divider"></div>
-    <div class="sn-group">
-      <button class="sn-item" id="sn-schema" onclick="showPanel('schema')" title="Schema Intelligence">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">data_object</span>
-        Schema Intel
-      </button>
-      <button class="sn-item" id="sn-content-lab" onclick="showPanel('content-lab')" title="Content Lab">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">auto_fix_high</span>
-        Content Lab
-      </button>
-    </div>
-    <div class="sn-divider"></div>
-    <div class="sn-group">
-      <button class="sn-item" onclick="openKwGap()" title="Keyword Gap">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">search</span>
-        Keyword Gap
-      </button>
-      <button class="sn-item" onclick="openScoreHistory()" title="Score History">
-        <span class="sn-icon material-symbols-outlined" style="font-size:17px">trending_up</span>
-        Score History
-      </button>
-    </div>
-  </nav>
-  <div class="sidebar-foot">
-    <button class="sidebar-ai-pill" onclick="openAiSetup()" title="Configure AI provider">
-      <div class="ai-pill-dot" style="width:7px;height:7px;flex-shrink:0"></div>
-      <span id="sb-ai-label" style="font-size:11px">AI Setup</span>
-    </button>
-    <button class="sn-item" onclick="openSettings()" style="color:rgba(148,163,184,.7)">
-      <span class="sn-icon material-symbols-outlined" style="font-size:17px">settings</span>
-      Settings
-    </button>
-    <button class="sidebar-back" onclick="exitAppMode()" title="Back to landing page">
-      <span class="material-symbols-outlined" style="font-size:15px">arrow_back</span>
-      Back to Home
-    </button>
-  </div>
-</aside>
-
-<!-- ══ SIDEBAR BACKDROP (mobile) ═════════════════════════════════════════════ -->
-<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
 <!-- ══ APP TOPBAR ════════════════════════════════════════════════════════════ -->
 <div class="app-topbar" id="app-topbar">
@@ -2094,23 +2012,23 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </div>
 </div>
 
-<!-- NAV (landing page only — hidden in app mode via .landing-nav) -->
+<!-- NAV -->
 <nav class="landing-nav">
   <a class="nav-logo" href="#">
-    <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 600">query_stats</span>
+    <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
   </a>
+  <div class="sys-active-pill" style="flex-shrink:0">
+    <span class="sys-active-dot"></span>
+    System Active
+  </div>
   <div class="nav-links">
-    <a href="#how-it-works">How It Works</a>
+    <a href="#dash-sec">SEO Audit</a>
     <a href="#features">Features</a>
-    <a href="#checklist-sec">Checklist</a>
-    <a href="#competitor-sec" style="color:var(--primary)">⚔ Competitor</a>
-    <a href="#faq">FAQ</a>
+    <a href="#checklist-sec">Tools</a>
+    <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-right">
-    <button class="btn-ai-setup" onclick="openAiSetup()" title="Configure AI provider &amp; API key">
-      <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">settings</span> AI Setup
-    </button>
     <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer" title="Click to configure AI">
       <div class="ai-pill-dot"></div>
       <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
@@ -2118,12 +2036,13 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <!-- Unauthenticated state -->
     <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
-      <button class="btn btn-green btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px">Free Sign Up</button>
+      <a class="btn-nav-cta" href="#dash-sec" onclick="setTimeout(()=>startCrawlHero&&null,100)">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
+      </a>
     </div>
     <!-- Authenticated state -->
     <div id="nav-auth-user" style="display:none;align-items:center;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="openProjects()" style="font-size:11px">📁 Projects</button>
-      <button class="btn btn-outline btn-sm" onclick="openKwGap()" style="font-size:11px">🔍 Keyword Gap</button>
       <div class="user-chip" onclick="toggleUserMenu()">
         <div class="user-avatar" id="user-avatar-initials">U</div>
         <span id="user-display-name" style="font-size:12px;color:var(--text)">User</span>
@@ -2135,9 +2054,13 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <button class="user-menu-item" onclick="openCrawlDiff()">🔄 Crawl Comparison</button>
           <button class="user-menu-item" onclick="openTeam()">👥 Team Access</button>
           <button class="user-menu-item" onclick="openKwGap()">🔍 Keyword Gap</button>
+          <button class="user-menu-item" onclick="openAiSetup()">⚡ AI Setup</button>
           <button class="user-menu-item" style="color:var(--red)" onclick="doLogout()">Sign Out</button>
         </div>
       </div>
+      <a class="btn-nav-cta" href="#dash-sec">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
+      </a>
     </div>
   </div>
 </nav>
@@ -2145,29 +2068,29 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 <!-- HERO -->
 <section class="hero">
   <div class="orb1"></div><div class="orb2"></div><div class="orb3"></div>
-  <div class="hero-badge">
+  <div class="hero-badge reveal">
     <span class="hero-badge-dot"></span>
-    AI-Powered SEO Platform
+    AI-Powered Precision SEO Platform
     <span class="hero-badge-new">Free</span>
   </div>
-  <h1>Optimize Your<br><span class="grad">SEO Presence</span></h1>
-  <p class="hero-sub">Enter any website URL to get a full technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes.</p>
-  <div class="hero-input-row" id="hero-input-row">
+  <h1 class="reveal" style="animation-delay:.05s">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
+  <p class="hero-sub reveal" style="animation-delay:.1s">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
+  <div class="hero-input-row reveal" id="hero-input-row" style="animation-delay:.15s">
     <div class="hero-input-wrap">
       <span class="material-symbols-outlined hero-input-icon">language</span>
       <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com"/>
     </div>
     <button class="hero-crawl-btn" id="crawl-btn" onclick="startCrawlHero()">
-      <span>Run SEO Audit</span>
-      <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
+      <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
+      <span>Start Audit</span>
     </button>
   </div>
-  <p class="trust-text" style="margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">⚡ Groq · Gemini · Claude · OpenAI</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">🔓 Open Source on GitHub</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📊 50+ SEO Metrics</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📤 Excel Export (.xlsx)</span>
+  <p class="trust-text reveal" style="animation-delay:.2s;margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
+  <div class="reveal" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;animation-delay:.25s">
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">⚡ Groq · Gemini · Claude · OpenAI</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">🔓 Open Source</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">📊 50+ SEO Metrics</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">📤 Excel Export</span>
   </div>
   <div class="scroll-ind">
     <div class="scroll-mouse"><div class="scroll-dot"></div></div>
@@ -6246,50 +6169,24 @@ function showPanel(name) {
 function enterAppMode() {
   document.body.classList.add('app-mode');
   showPanel('dashboard');
-  syncTopbarAuth();
-  syncSidebarAI();
+  const dashSec = document.getElementById('dash-sec');
+  if (dashSec) dashSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function exitAppMode() {
   document.body.classList.remove('app-mode');
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function syncTopbarAuth() {
-  const guestLanding = document.getElementById('nav-auth-guest');
-  const userLanding  = document.getElementById('nav-auth-user');
-  const guestTb      = document.getElementById('nav-auth-guest-topbar');
-  const userTb       = document.getElementById('nav-auth-user-topbar');
-  if (!guestTb || !userTb) return;
-  const isLoggedIn = userLanding && userLanding.style.display !== 'none';
-  guestTb.style.display = isLoggedIn ? 'none' : 'flex';
-  userTb.style.display  = isLoggedIn ? 'flex' : 'none';
-  const nameEl = document.getElementById('user-display-name');
-  const nameTb = document.getElementById('user-display-name-tb');
-  if (nameEl && nameTb) nameTb.textContent = nameEl.textContent;
-  const avatarEl = document.getElementById('user-avatar-initials');
-  const avatarTb = document.getElementById('user-avatar-initials-tb');
-  if (avatarEl && avatarTb) avatarTb.textContent = avatarEl.textContent;
-}
+function syncTopbarAuth() {}
+function syncSidebarAI() {}
 
-function syncSidebarAI() {
-  const pill = document.getElementById('gemini-pill');
-  const sbLbl = document.getElementById('sb-ai-label');
-  const tbPill = document.getElementById('gemini-pill-topbar');
-  if (pill && sbLbl) sbLbl.textContent = pill.textContent || 'AI Setup';
-  if (pill && tbPill) {
-    tbPill.textContent = pill.textContent || 'Checking AI…';
-    tbPill.className = pill.className;
-  }
-}
-
-/* ── Override startCrawlHero — already in app-mode by default ───────────── */
+/* ── Override startCrawlHero — enter app mode then crawl ────────────────── */
 window.startCrawlHero = function() {
-  /* Sync the app crawl bar input to the hidden hero input */
   const appInput = document.getElementById('url-input-app');
   const heroInput = document.getElementById('url-input');
   if (appInput && heroInput && appInput.value) heroInput.value = appInput.value;
-  showPanel('dashboard');
+  enterAppMode();
   if (typeof startCrawl === 'function') startCrawl();
 };
 
