@@ -39,8 +39,17 @@ COPY backend/main.py \
      backend/billing.py \
      ./
 
-# Copy the dashboard HTML (main.py serves backend/index.html from BASE_DIR)
+# Legacy dashboard (served at /dashboard, kept for backwards compat)
 COPY backend/index.html ./index.html
+
+# New landing page — served at / (same look as GitHub Pages root)
+COPY index.html ./landing.html
+
+# Tool pages — served at /pages/<name> AND /backend/pages/<name>
+COPY backend/pages/ ./pages/
+
+# Static assets (JS, CSS) — mounted at /static and /backend/static
+COPY backend/static/ ./static/
 
 EXPOSE 7860
 

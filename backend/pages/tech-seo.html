@@ -687,17 +687,27 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+/* ── Field accessors: backend returns nested audit dicts, not flat strings ── */
+function pgTitle(p)   { const t = p.title;    return typeof t==='string' ? t : (t?.value||''); }
+function pgMeta(p)    { const m = p.meta;     return typeof m==='string' ? m : (m?.value||''); }
+function pgH1(p)      { const h = p.headings; return h?.h1_texts?.[0] || ''; }
+function pgHasH1(p)   { const h = p.headings; return !!(h?.h1_count > 0); }
+function pgWords(p)   { const c = p.content;  return c?.word_count || 0; }
+function pgIssues(p)  { return p.all_issues || p.issues || []; }
+function pgCanonSt(p) { const c = p.canonical; return typeof c==='string' ? c : (c?.status||''); }
+function pgIsHttps(p) { return p.url_analysis?.is_https || (p.url||'').startsWith('https://'); }
+
 function processTechData(data) {
   const pages = data.pages || [];
-  const site = data.site || {};
+  const summ  = data.summary || {};
   techData = pages;
 
   // Metrics
-  const scores = pages.map(p => p.tech_score || 0);
-  const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
-  const indexable = pages.filter(p => (p.indexability||'').includes('indexable')).length;
-  const issues = pages.reduce((s,p) => s + (p.issues?.length || 0), 0);
-  const https = pages.filter(p => (p.url||'').startsWith('https://')).length;
+  const scores   = pages.map(p => p.tech_score || 0);
+  const avg      = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  const indexable= pages.filter(p => idxStatus(p).includes('indexable')).length;
+  const issues   = pages.reduce((s,p) => s + pgIssues(p).length, 0);
+  const https    = pages.filter(pgIsHttps).length;
 
   document.getElementById('m-score').textContent = avg;
   document.getElementById('m-grade').textContent = gradeOf(avg);
@@ -712,17 +722,30 @@ function processTechData(data) {
   updateRing(avg);
   document.getElementById('ring-val').textContent = avg;
 
-  // Key-value health
-  document.getElementById('kv-robots').textContent = site.robots_txt || '—';
-  document.getElementById('kv-sitemap').textContent = site.sitemap_xml || '—';
+  // Key-value health — robots/sitemap loaded async via /site-audit
+  document.getElementById('kv-robots').textContent = '—';
+  document.getElementById('kv-sitemap').textContent = '—';
   document.getElementById('kv-https').textContent = https === pages.length ? '✓ All HTTPS' : `${https}/${pages.length}`;
-  document.getElementById('kv-canonical').textContent = pages.filter(p => p.canonical_status === 'mismatch').length + ' mismatches';
-  document.getElementById('kv-dupmeta').textContent = (site.duplicate_metas || 0) + ' duplicates';
+  const canonMismatches = summ.indexability?.canonical_mismatch
+    ?? pages.filter(p => pgCanonSt(p) === 'points_elsewhere').length;
+  document.getElementById('kv-canonical').textContent = canonMismatches + ' mismatches';
+  const metaVals = pages.map(pgMeta).filter(Boolean);
+  const dupeMetas = metaVals.length - new Set(metaVals).size;
+  document.getElementById('kv-dupmeta').textContent = dupeMetas + ' duplicates';
 
-  // Domain cards
-  updateDomainCard('robots', site.robots_txt);
-  updateDomainCard('sitemap', site.sitemap_xml);
+  // Domain cards — robots/sitemap updated async
+  updateDomainCard('robots', '—');
+  updateDomainCard('sitemap', '—');
   updateDomainCard('https', https === pages.length ? 'Valid' : 'Issues');
+  // Async: fetch real robots/sitemap status from /site-audit
+  apiGet('/site-audit').then(sa => {
+    const rb = sa.robots_txt?.status || '';
+    const sm = sa.sitemap?.status   || '';
+    document.getElementById('kv-robots').textContent  = rb || '—';
+    document.getElementById('kv-sitemap').textContent = sm || '—';
+    updateDomainCard('robots',  rb === 'ok' ? 'Found'  : rb === 'not_found' ? 'Not found'  : rb);
+    updateDomainCard('sitemap', sm === 'ok' ? 'Found'  : sm === 'not_found' ? 'Not found'  : sm);
+  }).catch(() => {});
 
   // HTTP status distribution card
   const s2 = pages.filter(p => (p.status_code||200) < 300).length;
@@ -782,7 +805,7 @@ function updateDomainCard(key, val) {
 
 function renderFunnel(pages) {
   const total = pages.length;
-  const indexable = pages.filter(p => (p.indexability||'').includes('indexable')).length;
+  const indexable = pages.filter(p => idxStatus(p).includes('indexable')).length;
   const optimized = pages.filter(p => (p.tech_score||0) >= 70).length;
   const critical = pages.filter(p => (p.issues||[]).some(i => i.includes('Missing') || i.includes('missing'))).length;
 
@@ -818,7 +841,7 @@ function renderTable() {
   const search = document.getElementById('f-search').value.toLowerCase();
 
   let rows = techData.filter(p => {
-    if (idxF && !(p.indexability||'').includes(idxF)) return false;
+    if (idxF && idxStatus(p) !== idxF) return false;
     if (gradeF && gradeOf(p.tech_score||0) !== gradeF) return false;
     if (search && !(p.url||'').toLowerCase().includes(search)) return false;
     return true;
@@ -834,10 +857,16 @@ function renderTable() {
     const g = gradeOf(score);
     const gc = {A:'badge-green',B:'badge-cyan',C:'badge-yellow',D:'badge-yellow',F:'badge-red'}[g]||'badge-muted';
     const ic = score >= 80 ? 'badge-green' : score >= 60 ? 'badge-yellow' : 'badge-red';
-    const idxBadge = idxClass(p.indexability);
-    const intent = detectIntent(p.title, p.h1);
-    const ctr = estimateCTR(score);
-    const issues = (p.issues||[]).length;
+    const idxBadge  = idxClass(idxStatus(p));
+    const title     = pgTitle(p);
+    const hasMeta   = !!pgMeta(p);
+    const hasH1     = pgHasH1(p);
+    const canonSt   = pgCanonSt(p);
+    const words     = pgWords(p);
+    const isHttps   = pgIsHttps(p);
+    const issuesCnt = pgIssues(p).length;
+    const intent    = detectIntent(title, pgH1(p));
+    const ctr       = estimateCTR(score);
     return `<tr>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <a href="${p.url}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:11px">${p.url}</a>
@@ -846,26 +875,26 @@ function renderTable() {
       <td><span class="badge ${idxBadge[1]}">${idxBadge[0]}</span></td>
       <td><span class="badge ${ic}" style="font-family:var(--mono);font-size:11px">${score}</span></td>
       <td><span class="badge ${gc}">${g}</span></td>
-      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title||'<span style="color:var(--red)">Missing</span>'}</td>
-      <td><span class="badge ${p.meta_description ? 'badge-green' : 'badge-red'}">${p.meta_description ? '✓' : '✗'}</span></td>
-      <td><span class="badge ${p.canonical ? 'badge-green' : 'badge-muted'}">${p.canonical_status||'—'}</span></td>
-      <td><span class="badge ${p.h1 ? 'badge-green' : 'badge-red'}">${p.h1 ? '✓' : '✗'}</span></td>
-      <td style="font-size:11px;color:var(--muted)">${(p.word_count||0)} words</td>
-      <td><span class="badge ${(p.url||'').startsWith('https://') ? 'badge-green' : 'badge-red'}">${(p.url||'').startsWith('https://') ? '✓' : '✗'}</span></td>
+      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title||'<span style="color:var(--red)">Missing</span>'}</td>
+      <td><span class="badge ${hasMeta ? 'badge-green' : 'badge-red'}">${hasMeta ? '✓' : '✗'}</span></td>
+      <td><span class="badge ${canonSt === 'self' ? 'badge-green' : canonSt === 'missing' ? 'badge-red' : 'badge-yellow'}">${canonSt||'—'}</span></td>
+      <td><span class="badge ${hasH1 ? 'badge-green' : 'badge-red'}">${hasH1 ? '✓' : '✗'}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${words} words</td>
+      <td><span class="badge ${isHttps ? 'badge-green' : 'badge-red'}">${isHttps ? '✓' : '✗'}</span></td>
       <td><span class="badge" style="background:${intent.bg};color:${intent.color}">${intent.tag}</span></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--cyan)">${ctr}%</td>
-      <td><span class="badge ${issues > 0 ? 'badge-red' : 'badge-green'}">${issues}</span></td>
+      <td><span class="badge ${issuesCnt > 0 ? 'badge-red' : 'badge-green'}">${issuesCnt}</span></td>
     </tr>`;
   }).join('');
 }
 
 function renderTimeline(pages) {
   const events = [];
-  const noTitle = pages.filter(p => !p.title).length;
-  const noMeta = pages.filter(p => !p.meta_description).length;
-  const noH1 = pages.filter(p => !p.h1).length;
-  const errors = pages.filter(p => (p.status_code||200) >= 400).length;
-  const dupes = pages.filter(p => p.canonical_status === 'mismatch').length;
+  const noTitle = pages.filter(p => !pgTitle(p)).length;
+  const noMeta  = pages.filter(p => !pgMeta(p)).length;
+  const noH1    = pages.filter(p => !pgHasH1(p)).length;
+  const errors  = pages.filter(p => (p.status_code||200) >= 400).length;
+  const dupes   = pages.filter(p => pgCanonSt(p) === 'points_elsewhere').length;
 
   if (noTitle) events.push({icon:'⚠', label:`${noTitle} Missing Titles`, date:'Critical', color:'var(--red)', bg:'rgba(255,107,107,.15)'});
   if (noMeta) events.push({icon:'📝', label:`${noMeta} No Meta Desc`, date:'High', color:'var(--yellow)', bg:'rgba(245,158,11,.12)'});
@@ -887,12 +916,12 @@ function renderInsights(pages) {
   const grid = document.getElementById('insights-grid');
   if (!grid) return;
 
-  const allText = pages.map(p => (p.title||'') + ' ' + (p.meta_description||'')).join(' ');
+  const allText = pages.map(p => pgTitle(p) + ' ' + pgMeta(p)).join(' ');
   const words = extractPowerWords(allText);
 
   const intents = {};
   pages.forEach(p => {
-    const intent = detectIntent(p.title, p.h1);
+    const intent = detectIntent(pgTitle(p), pgH1(p));
     intents[intent.tag] = (intents[intent.tag] || 0) + 1;
   });
 
@@ -943,6 +972,13 @@ function gradeOf(score) {
   if (score >= 40) return 'D';
   return 'F';
 }
+/* Backend returns indexability as {status, label, reason} dict — extract status string safely */
+function idxStatus(p) {
+  const ix = p.indexability;
+  if (!ix) return '';
+  if (typeof ix === 'string') return ix;
+  return ix.status || ix.label || '';
+}
 function idxClass(val) {
   const v = (val||'').toLowerCase();
   if (v === 'indexable') return ['Indexable', 'badge-green'];
@@ -991,11 +1027,11 @@ async function loadVitals() {
 function exportExcel() {
   if (!techData.length) return;
   const rows = techData.map(p => ({
-    URL: p.url, HTTP_Status: p.status_code, Indexability: p.indexability,
+    URL: p.url, HTTP_Status: p.status_code, Indexability: idxStatus(p),
     Tech_Score: p.tech_score, Grade: gradeOf(p.tech_score||0),
-    Title: p.title, Meta_Description: p.meta_description,
-    H1: p.h1, Word_Count: p.word_count, HTTPS: (p.url||'').startsWith('https://') ? 'Yes' : 'No',
-    Canonical: p.canonical, Issues: (p.issues||[]).join('; ')
+    Title: pgTitle(p), Meta_Description: pgMeta(p),
+    H1: pgH1(p), Word_Count: pgWords(p), HTTPS: pgIsHttps(p) ? 'Yes' : 'No',
+    Canonical_Status: pgCanonSt(p), Issues: pgIssues(p).join('; ')
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();

@@ -92,6 +92,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Request as _FastAPIRequest, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 import uvicorn
@@ -940,14 +941,51 @@ def health_check():
     }
 
 
-# ── Frontend (HTML dashboard) ─────────────────────────────────────────────────
+# ── Static assets ─────────────────────────────────────────────────────────────
+# Mount /static and /backend/static to the same dir so both relative-path
+# conventions work: tool pages use "../static/js/…" which resolves to either
+# /static/… (when served at /pages/) or /backend/static/… (when served at
+# /backend/pages/) — both point to the same physical directory.
+_static_dir = os.path.join(BASE_DIR, "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+    app.mount("/backend/static", StaticFiles(directory=_static_dir), name="backend_static")
 
+def _read_html(path: str) -> HTMLResponse:
+    with open(path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+# ── Frontend: landing page ────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def serve_ui():
-    """Serve the index.html dark-theme dashboard."""
-    index_path = os.path.join(BASE_DIR, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    """Serve the new landing page; fall back to legacy dashboard if absent."""
+    landing = os.path.join(BASE_DIR, "landing.html")
+    legacy  = os.path.join(BASE_DIR, "index.html")
+    return _read_html(landing if os.path.exists(landing) else legacy)
+
+# ── Frontend: tool pages ──────────────────────────────────────────────────────
+# Serve at BOTH /pages/<name> and /backend/pages/<name> so the same relative
+# links work whether users land on GitHub Pages or directly on the HF Space.
+def _serve_page(page_name: str) -> HTMLResponse:
+    if not page_name.endswith(".html"):
+        raise HTTPException(status_code=404, detail="Not found")
+    page_path = os.path.join(BASE_DIR, "pages", page_name)
+    if not os.path.isfile(page_path):
+        raise HTTPException(status_code=404, detail="Page not found")
+    return _read_html(page_path)
+
+@app.get("/pages/{page_name}", response_class=HTMLResponse)
+def serve_page(page_name: str):
+    return _serve_page(page_name)
+
+@app.get("/backend/pages/{page_name}", response_class=HTMLResponse)
+def serve_backend_page(page_name: str):
+    return _serve_page(page_name)
+
+# ── Legacy dashboard (kept for direct /dashboard access) ─────────────────────
+@app.get("/dashboard", response_class=HTMLResponse)
+def serve_dashboard():
+    return _read_html(os.path.join(BASE_DIR, "index.html"))
 
 
 # ── Request models ────────────────────────────────────────────────────────────
