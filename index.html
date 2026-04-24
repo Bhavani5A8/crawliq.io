@@ -5991,6 +5991,7 @@ window.startCrawlHero = function() {
   const raw = ((appInput && appInput.value) || (heroInput && heroInput.value) || '').trim();
   if (!raw) { if (heroInput) heroInput.focus(); return; }
   const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  localStorage.setItem('ciq_last_url', url);
   window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
 };
 

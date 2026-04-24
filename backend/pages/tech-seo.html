@@ -448,6 +448,9 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
       </div>
     </div>
 
+    <!-- INSIGHTS GRID: power words + intent distribution -->
+    <div class="grid-2" id="insights-grid" style="margin-bottom:20px"></div>
+
     <!-- INDEXABILITY FUNNEL -->
     <div class="card">
       <div class="card-hd">
@@ -490,10 +493,11 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
           <th>URL</th><th>HTTP</th><th>Indexability</th>
           <th>Score</th><th>Grade</th><th>Title</th>
           <th>Meta</th><th>Canonical</th><th>H1</th>
-          <th>Content</th><th>HTTPS</th><th>Issues</th>
+          <th>Content</th><th>HTTPS</th><th>Intent</th>
+          <th>Est. CTR</th><th>Issues</th>
         </tr></thead>
         <tbody id="tbl-body">
-          <tr><td colspan="12"><div class="empty-state"><div class="icon">🔬</div><p>Run a tech audit above to populate this table.</p></div></td></tr>
+          <tr><td colspan="14"><div class="empty-state"><div class="icon">🔬</div><p>Run a tech audit above to populate this table.</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -559,7 +563,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 </div><!-- /page-wrap -->
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-<script src="../static/js/tools-shared.js"></script>
+<script src="../static/js/seo-core.js"></script>
 <script>
 function toggleMobileNav(){document.getElementById('mob-drawer').classList.toggle('open');document.getElementById('mob-overlay').classList.toggle('open');}
 function closeMobileNav(){document.getElementById('mob-drawer').classList.remove('open');document.getElementById('mob-overlay').classList.remove('open');}
@@ -580,22 +584,24 @@ function setStatus(show, msg) {
   if (msg) document.getElementById('status-txt').textContent = msg;
 }
 
-async function runAudit() {
+async function runAudit(forceFresh) {
   const url = document.getElementById('url-input').value.trim();
   if (!url) { toolToast('Please enter a URL.', 'error'); return; }
   document.getElementById('export-btn').disabled = true;
 
-  // ── Fast path: backend already has crawl data for any URL ──
-  setStatus(true, 'Checking for existing crawl data…');
-  const existing = await backendHasData();
-  if (existing) {
-    setStatus(true, 'Loading technical audit from cached crawl…');
-    try {
-      const data = await apiGet('/technical-seo');
-      processTechData(data);
-      setLastUrl(url);
-      return;
-    } catch { /* fall through to crawl */ }
+  // ── Fast path: skip when forceFresh (redirect from homepage) ──
+  if (!forceFresh) {
+    setStatus(true, 'Checking for existing crawl data…');
+    const existing = await backendHasData();
+    if (existing) {
+      setStatus(true, 'Loading technical audit from cached crawl…');
+      try {
+        const data = await apiGet('/technical-seo');
+        processTechData(data);
+        setLastUrl(url);
+        return;
+      } catch { /* fall through to crawl */ }
+    }
   }
 
   // ── Full crawl path ──
@@ -616,9 +622,13 @@ async function runAudit() {
   }
 }
 
-/* Auto-load on page open if backend already has data */
+/* Auto-load: ?url= param triggers fresh audit; existing data auto-loads */
 window.addEventListener('DOMContentLoaded', async () => {
-  prefillUrl('url-input');
+  const fromRedirect = prefillUrl('url-input');
+  if (fromRedirect) {
+    runAudit(true);
+    return;
+  }
   const ready = await backendHasData();
   if (ready) {
     setStatus(true, 'Loading Technical SEO from last crawl…');
@@ -666,8 +676,23 @@ function processTechData(data) {
   updateDomainCard('sitemap', site.sitemap_xml);
   updateDomainCard('https', https === pages.length ? 'Valid' : 'Issues');
 
+  // HTTP status distribution card
+  const s2 = pages.filter(p => (p.status_code||200) < 300).length;
+  const s3 = pages.filter(p => { const c = p.status_code||200; return c >= 300 && c < 400; }).length;
+  const s4 = pages.filter(p => { const c = p.status_code||200; return c >= 400 && c < 500; }).length;
+  const s5 = pages.filter(p => (p.status_code||200) >= 500).length;
+  const dcStatusBadge = document.getElementById('dc-status-badge');
+  const dcStatusSub = document.getElementById('dc-status-sub');
+  if (dcStatusBadge) {
+    dcStatusBadge.className = 'dc-badge ' + (s4 + s5 > 0 ? 'badge-red' : 'badge-green');
+    dcStatusBadge.textContent = s4 + s5 > 0 ? (s4 + s5) + ' errors' : 'OK';
+  }
+  if (dcStatusSub) dcStatusSub.textContent = `${s2} OK · ${s3} 3xx · ${s4} 4xx · ${s5} 5xx`;
+
   // Funnel
   renderFunnel(pages);
+  // Insights (power words + intent distribution)
+  renderInsights(pages);
   // Table
   renderTable();
   // Timeline
@@ -675,6 +700,10 @@ function processTechData(data) {
 
   document.getElementById('export-btn').disabled = false;
   setStatus(false);
+
+  // Auto-load Core Web Vitals
+  const inp = document.getElementById('url-input');
+  if (inp && inp.value.trim()) loadVitals();
 }
 
 function updateRing(score) {
@@ -749,7 +778,7 @@ function renderTable() {
   document.getElementById('tbl-count').textContent = rows.length + ' pages';
 
   if (!rows.length) {
-    document.getElementById('tbl-body').innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">🔬</div><p>No pages match the current filters.</p></div></td></tr>';
+    document.getElementById('tbl-body').innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="icon">🔬</div><p>No pages match the current filters.</p></div></td></tr>';
     return;
   }
   document.getElementById('tbl-body').innerHTML = rows.map(p => {
@@ -758,6 +787,8 @@ function renderTable() {
     const gc = {A:'badge-green',B:'badge-cyan',C:'badge-yellow',D:'badge-yellow',F:'badge-red'}[g]||'badge-muted';
     const ic = score >= 80 ? 'badge-green' : score >= 60 ? 'badge-yellow' : 'badge-red';
     const idxBadge = idxClass(p.indexability);
+    const intent = detectIntent(p.title, p.h1);
+    const ctr = estimateCTR(score);
     const issues = (p.issues||[]).length;
     return `<tr>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -773,6 +804,8 @@ function renderTable() {
       <td><span class="badge ${p.h1 ? 'badge-green' : 'badge-red'}">${p.h1 ? '✓' : '✗'}</span></td>
       <td style="font-size:11px;color:var(--muted)">${(p.word_count||0)} words</td>
       <td><span class="badge ${(p.url||'').startsWith('https://') ? 'badge-green' : 'badge-red'}">${(p.url||'').startsWith('https://') ? '✓' : '✗'}</span></td>
+      <td><span class="badge" style="background:${intent.bg};color:${intent.color}">${intent.tag}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--cyan)">${ctr}%</td>
       <td><span class="badge ${issues > 0 ? 'badge-red' : 'badge-green'}">${issues}</span></td>
     </tr>`;
   }).join('');
@@ -800,6 +833,59 @@ function renderTimeline(pages) {
       <div class="tl-title" style="color:${e.color}">${e.label}</div>
       <div class="tl-date">${e.date}</div>
     </div>`).join('')}</div>`;
+}
+
+function renderInsights(pages) {
+  const grid = document.getElementById('insights-grid');
+  if (!grid) return;
+
+  const allText = pages.map(p => (p.title||'') + ' ' + (p.meta_description||'')).join(' ');
+  const words = extractPowerWords(allText);
+
+  const intents = {};
+  pages.forEach(p => {
+    const intent = detectIntent(p.title, p.h1);
+    intents[intent.tag] = (intents[intent.tag] || 0) + 1;
+  });
+
+  const pwCard = `<div class="card" style="margin:0">
+    <div class="card-hd" style="margin-bottom:12px">
+      <div>
+        <div class="card-title">Power Words</div>
+        <div class="card-sub">Extracted from page titles &amp; meta descriptions</div>
+      </div>
+    </div>
+    ${words.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${words.map(w => `<span class="badge badge-cyan">${w}</span>`).join('')}</div>`
+      : `<div style="font-size:12px;color:var(--muted)">No power words detected in page titles.</div>`
+    }
+  </div>`;
+
+  const intentCard = `<div class="card" style="margin:0">
+    <div class="card-hd" style="margin-bottom:12px">
+      <div>
+        <div class="card-title">Search Intent Distribution</div>
+        <div class="card-sub">Detected from page titles + H1s</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${Object.entries(intents).map(([tag, count]) => {
+        const rule = _INTENT_RULES.find(r => r.tag === tag) || { color:'var(--muted)', bg:'var(--surf2)' };
+        const pct = pages.length ? Math.round(count / pages.length * 100) : 0;
+        return `<div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:11px;font-weight:700;font-family:var(--mono);color:${rule.color}">${tag}</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${count} · ${pct}%</span>
+          </div>
+          <div style="height:4px;background:var(--surf3);border-radius:2px">
+            <div style="width:${pct}%;height:100%;background:${rule.color};border-radius:2px;transition:width .8s ease"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  grid.innerHTML = pwCard + intentCard;
 }
 
 function gradeOf(score) {
