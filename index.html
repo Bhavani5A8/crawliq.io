@@ -342,6 +342,20 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 .nav-links a{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s;}
 .nav-links a:hover,.nav-links a.active{color:var(--primary);}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+/* ── Landing nav hamburger (mobile only) ── */
+.nav-hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--text);}
+.nav-hamburger span{display:block;width:22px;height:2px;background:currentColor;border-radius:1px;transition:all .2s;}
+@media(min-width:768px){.nav-hamburger{display:none;}}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid rgba(70,69,84,.15);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(70,69,84,.15);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;}
+.mob-nav-link{display:flex;align-items:center;gap:10px;padding:13px 20px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;border-bottom:1px solid rgba(70,69,84,.12);transition:color .15s,background .15s;}
+.mob-nav-link:hover{color:var(--text);background:rgba(70,69,84,.1);}
+.mob-drawer-auth{display:flex;flex-direction:column;gap:8px;padding:16px 20px;}
 .btn-nav-cta{background:var(--primary);color:#1a1c40;
   font-family:var(--headline);font-weight:700;font-size:13px;padding:9px 22px;
   border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;
@@ -2117,6 +2131,9 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-right">
+    <button class="nav-hamburger" onclick="toggleLandingMobileNav()" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer" title="Click to configure AI">
       <div class="ai-pill-dot"></div>
       <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
@@ -2152,6 +2169,26 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     </div>
   </div>
 </nav>
+
+<!-- Mobile nav overlay + drawer -->
+<div class="mob-overlay" id="landing-mob-overlay" onclick="closeLandingMobileNav()"></div>
+<aside class="mob-drawer" id="landing-mob-drawer">
+  <div class="mob-drawer-head">
+    <a class="mob-drawer-logo" href="#">
+      <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>CrawlIQ
+    </a>
+    <button class="mob-close" onclick="closeLandingMobileNav()" aria-label="Close menu">✕</button>
+  </div>
+  <a class="mob-nav-link" href="backend/pages/tech-seo.html">SEO Audit</a>
+  <a class="mob-nav-link" href="#tools-suite" onclick="closeLandingMobileNav()">Tools</a>
+  <a class="mob-nav-link" href="#features" onclick="closeLandingMobileNav()">Features</a>
+  <a class="mob-nav-link" href="#checklist-sec" onclick="closeLandingMobileNav()">Checklist</a>
+  <a class="mob-nav-link" href="#pricing" onclick="closeLandingMobileNav()">Pricing</a>
+  <div class="mob-drawer-auth">
+    <button class="btn btn-outline btn-sm" onclick="closeLandingMobileNav();openAuthModal()">Sign In</button>
+    <a class="btn-nav-cta" href="#" onclick="closeLandingMobileNav();startCrawlHero();return false;" style="text-align:center">Analyze Free</a>
+  </div>
+</aside>
 
 <!-- HERO -->
 <section class="hero">
@@ -5947,13 +5984,14 @@ function syncTopbarAuth() {
 }
 function syncSidebarAI() {}
 
-/* ── Override startCrawlHero — enter app mode then crawl ────────────────── */
+/* ── startCrawlHero — redirect to tool page with URL ────────────────────── */
 window.startCrawlHero = function() {
   const appInput = document.getElementById('url-input-app');
   const heroInput = document.getElementById('url-input');
-  if (appInput && heroInput && appInput.value) heroInput.value = appInput.value;
-  enterAppMode();
-  if (typeof startCrawl === 'function') startCrawl();
+  const raw = ((appInput && appInput.value) || (heroInput && heroInput.value) || '').trim();
+  if (!raw) { if (heroInput) heroInput.focus(); return; }
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
 };
 
 /* ── Override openSerpPanel / closeSerpPanel ─────────────────────────────── */
@@ -6498,6 +6536,17 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(staggerMcCards, 3
   });
   mo.observe(el, { childList: true, characterData: true, subtree: true });
 })();
+</script>
+
+<script>
+function toggleLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.toggle('open');
+  document.getElementById('landing-mob-overlay').classList.toggle('open');
+}
+function closeLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.remove('open');
+  document.getElementById('landing-mob-overlay').classList.remove('open');
+}
 </script>
 
 </body>
