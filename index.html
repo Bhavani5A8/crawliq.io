@@ -2110,7 +2110,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     System Active
   </div>
   <div class="nav-links">
-    <a href="#dash-sec">SEO Audit</a>
+    <a href="backend/pages/tech-seo.html">SEO Audit</a>
     <a href="#tools-suite">Tools</a>
     <a href="#features">Features</a>
     <a href="#checklist-sec">Checklist</a>
@@ -2124,7 +2124,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <!-- Unauthenticated state -->
     <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
-      <a class="btn-nav-cta" href="#dash-sec" onclick="setTimeout(()=>startCrawlHero&&null,100)">
+      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
         <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
       </a>
     </div>
@@ -2146,7 +2146,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <button class="user-menu-item" style="color:var(--red)" onclick="doLogout()">Sign Out</button>
         </div>
       </div>
-      <a class="btn-nav-cta" href="#dash-sec">
+      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
         <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
       </a>
     </div>
@@ -2244,19 +2244,8 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
-<!-- COLD-START BANNER: shown when HF Space is waking up -->
-<div id="cold-banner">
-  <div class="cold-banner-row">
-    <div class="spin-sm"></div>
-    <span class="cold-banner-label">Starting up</span>
-    <span id="cold-banner-text">Warming up the crawler engine — first load takes ~30 seconds</span>
-    <span class="cold-elapsed" id="cold-elapsed">90s</span>
-  </div>
-  <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
-</div>
-
-<!-- DASHBOARD SECTION -->
-<section id="dash-sec" style="background:var(--bg)">
+<!-- DASHBOARD SECTION REMOVED — now lives at backend/pages/tech-seo.html -->
+<div style="display:none" id="dash-sec">
   <div class="sec-inner">
     <div class="dash-card">
       <div class="dash-chrome">
@@ -3301,8 +3290,10 @@ async function checkGemini() {
 }
 
 function startCrawlHero() {
-  document.getElementById('dash-sec').scrollIntoView({ behavior: 'smooth' });
-  setTimeout(startCrawl, 600);
+  const raw = (document.getElementById('url-input').value || '').trim();
+  if (!raw) { document.getElementById('url-input').focus(); return; }
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
 }
 
 // ── Cold-start banner helpers (main crawl) ────────────────────────────────────

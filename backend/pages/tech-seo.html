@@ -23,7 +23,7 @@
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
 
 /* ── NAV ── */
-.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);
+.topnav{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(15,19,29,.85);
   backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;
   display:flex;align-items:center;padding:0 20px;gap:16px;}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);
@@ -34,24 +34,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
   font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;
   font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
 .nav-link:hover{color:var(--text);background:var(--ghost);}
-.nav-link.active{color:var(--cyan);background:rgba(78,222,163,.08);}
+.nav-link.active{color:var(--primary);background:rgba(192,193,255,.08);}
 .nav-link .ms{font-size:14px;}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;
   font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
 
 /* ── LAYOUT ── */
-.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
+.page-wrap{padding-top:64px;display:flex;min-height:100vh;}
 .sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);
-  background:var(--surf-lowest);padding:20px 0;position:sticky;top:60px;
-  height:calc(100vh - 60px);overflow-y:auto;}
+  background:var(--surf-lowest);padding:20px 0;position:sticky;top:64px;
+  height:calc(100vh - 64px);overflow-y:auto;}
 .sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;
   text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
 .sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;
   font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;
   font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
 .sb-link:hover{color:var(--text);background:var(--ghost);}
-.sb-link.active{color:var(--cyan);background:rgba(78,222,163,.06);border-left-color:var(--cyan);}
+.sb-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
 .sb-link .ms{font-size:16px;}
 .main{flex:1;padding:32px;min-width:0;}
 
@@ -215,6 +215,22 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
   .nav-links{display:none;}
   .metric-grid{grid-template-columns:1fr 1fr;}
 }
+/* ── MOBILE NAV ── */
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:1px;transition:all .2s;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid var(--ghost);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ghost);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px;line-height:1;}
+.mob-section{padding:12px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.mob-link{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;border-right:none;border-top:none;border-bottom:none;background:none;width:100%;cursor:pointer;}
+.mob-link:hover{color:var(--text);background:var(--ghost);}
+.mob-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
+.mob-link .ms{font-size:18px;}
+@media(max-width:900px){.hamburger{display:flex;}.sidebar{display:none;}.nav-links{display:none!important;}.main{padding:20px 16px;}}
 </style>
 </head>
 <body>
@@ -238,9 +254,28 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
     <a class="btn-home" href="../../index.html">
       <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
     </a>
+    <button class="hamburger" onclick="toggleMobileNav()" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
-
+<div class="mob-overlay" id="mob-overlay" onclick="closeMobileNav()"></div>
+<aside class="mob-drawer" id="mob-drawer">
+  <div class="mob-drawer-head">
+    <a class="mob-drawer-logo" href="../../index.html"><span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ</a>
+    <button class="mob-close" onclick="closeMobileNav()"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="mob-section">SEO Tools</div>
+  <a class="mob-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="mob-link active" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="mob-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="mob-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="mob-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="mob-section">Analysis</div>
+  <a class="mob-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="mob-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="mob-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
 <div class="page-wrap">
 <!-- SIDEBAR -->
 <aside class="sidebar">
@@ -524,8 +559,10 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 </div><!-- /page-wrap -->
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="../static/js/tools-shared.js"></script>
 <script>
-const API = 'https://bhavani7-seo-project.hf.space';
+function toggleMobileNav(){document.getElementById('mob-drawer').classList.toggle('open');document.getElementById('mob-overlay').classList.toggle('open');}
+function closeMobileNav(){document.getElementById('mob-drawer').classList.remove('open');document.getElementById('mob-overlay').classList.remove('open');}
 let techData = [];
 
 function switchTab(name) {
@@ -545,45 +582,52 @@ function setStatus(show, msg) {
 
 async function runAudit() {
   const url = document.getElementById('url-input').value.trim();
-  if (!url) { alert('Please enter a URL.'); return; }
-  setStatus(true, 'Starting technical audit…');
+  if (!url) { toolToast('Please enter a URL.', 'error'); return; }
   document.getElementById('export-btn').disabled = true;
+
+  // ── Fast path: backend already has crawl data for any URL ──
+  setStatus(true, 'Checking for existing crawl data…');
+  const existing = await backendHasData();
+  if (existing) {
+    setStatus(true, 'Loading technical audit from cached crawl…');
+    try {
+      const data = await apiGet('/technical-seo');
+      processTechData(data);
+      setLastUrl(url);
+      return;
+    } catch { /* fall through to crawl */ }
+  }
+
+  // ── Full crawl path ──
+  setLastUrl(url);
+  setStatus(true, 'Starting crawl…');
   try {
-    // First start a crawl, then run tech SEO
-    setStatus(true, 'Crawling site…');
-    const cr = await fetch(`${API}/crawl`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url, max_pages: 50 })
+    await apiPost('/crawl', { url, max_pages: 50 });
+    setStatus(true, 'Crawling pages…');
+    await pollCrawlStatus(st => {
+      setStatus(true, `Crawling… ${st.pages_crawled || 0} pages found`);
     });
-    if (!cr.ok) throw new Error('Crawl failed');
-    // Poll for crawl completion
-    setStatus(true, 'Crawling pages — polling results…');
-    let crawled = false, attempts = 0;
-    while (!crawled && attempts < 60) {
-      await new Promise(r => setTimeout(r, 3000));
-      try {
-        const st = await fetch(`${API}/status`);
-        const s = await st.json();
-        if (s.status === 'done' || (s.pages_crawled > 0 && s.status !== 'running')) {
-          crawled = true;
-          setStatus(true, `Crawl complete (${s.pages_crawled} pages). Running Tech SEO…`);
-        } else {
-          setStatus(true, `Crawling… ${s.pages_crawled || 0} pages`);
-        }
-      } catch(_) {}
-      attempts++;
-    }
-    // Run tech SEO
-    const tr = await fetch(`${API}/tech-seo`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
-    if (!tr.ok) throw new Error('Tech SEO failed');
-    const data = await tr.json();
+    setStatus(true, 'Crawl complete — loading Technical SEO audit…');
+    const data = await apiGet('/technical-seo');
     processTechData(data);
-    setStatus(false);
   } catch(e) {
-    setStatus(true, '✗ ' + e.message + ' — make sure to run a crawl first from the main audit dashboard.');
+    setStatus(true, '✗ ' + e.message);
     document.getElementById('spin').style.display = 'none';
   }
 }
+
+/* Auto-load on page open if backend already has data */
+window.addEventListener('DOMContentLoaded', async () => {
+  prefillUrl('url-input');
+  const ready = await backendHasData();
+  if (ready) {
+    setStatus(true, 'Loading Technical SEO from last crawl…');
+    try {
+      const data = await apiGet('/technical-seo');
+      processTechData(data);
+    } catch { setStatus(false); }
+  }
+});
 
 function processTechData(data) {
   const pages = data.pages || [];
@@ -777,7 +821,7 @@ function idxClass(val) {
 
 async function loadVitals() {
   const url = document.getElementById('url-input').value.trim();
-  if (!url) { alert('Enter a URL first.'); return; }
+  if (!url) { toolToast('Enter a URL first', 'error'); return; }
   try {
     const r = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile`);
     const d = await r.json();

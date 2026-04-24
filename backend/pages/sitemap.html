@@ -12,21 +12,21 @@
 :root{--bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;--surf2:#262a35;--surf3:#353944;--surf-highest:#313540;--indigo:#6366F1;--primary:#c0c1ff;--primary-container:#8083ff;--tertiary:#ffb783;--cyan:#4edea3;--green:#10B981;--yellow:#F59E0B;--red:#ff6b6b;--text:#dfe2f1;--dim:#c7c4d7;--muted:#908fa0;--dark-muted:#464554;--border:rgba(70,69,84,.45);--ghost:rgba(70,69,84,.15);--headline:'Plus Jakarta Sans',sans-serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;--r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
-.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
+.topnav{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;flex-shrink:0;}
 .nav-links{display:flex;align-items:center;gap:2px;margin-left:8px;flex:1;overflow-x:auto;}
 .nav-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
 .nav-link:hover{color:var(--text);background:var(--ghost);}
-.nav-link.active{color:var(--green);background:rgba(16,185,129,.08);}
+.nav-link.active{color:var(--primary);background:rgba(192,193,255,.08);}
 .nav-link .ms{font-size:14px;}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
-.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.page-wrap{padding-top:64px;display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;}
 .sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
 .sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
 .sb-link:hover{color:var(--text);background:var(--ghost);}
-.sb-link.active{color:var(--green);background:rgba(16,185,129,.06);border-left-color:var(--green);}
+.sb-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
 .sb-link .ms{font-size:16px;}
 .main{flex:1;padding:32px;min-width:0;}
 .page-hd{margin-bottom:28px;}
@@ -85,8 +85,24 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 .issue-label{font-size:11px;color:var(--muted);margin-top:4px;}
 .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
 .empty-state .icon{font-size:40px;margin-bottom:12px;}
-@media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}}
-@media(max-width:600px){.nav-links{display:none;}.metric-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){.sidebar{display:none;}.main{padding:20px 16px;}}
+@media(max-width:600px){.metric-grid{grid-template-columns:1fr 1fr;}}
+/* ── MOBILE NAV ── */
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:1px;transition:all .2s;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid var(--ghost);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ghost);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px;line-height:1;}
+.mob-section{padding:12px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.mob-link{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;border-right:none;border-top:none;border-bottom:none;background:none;width:100%;cursor:pointer;}
+.mob-link:hover{color:var(--text);background:var(--ghost);}
+.mob-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
+.mob-link .ms{font-size:18px;}
+@media(max-width:900px){.hamburger{display:flex;}.nav-links{display:none!important;}}
 </style>
 </head>
 <body>
@@ -108,8 +124,28 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
     <a class="btn-home" href="../../index.html">
       <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
     </a>
+    <button class="hamburger" onclick="toggleMobileNav()" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
+<div class="mob-overlay" id="mob-overlay" onclick="closeMobileNav()"></div>
+<aside class="mob-drawer" id="mob-drawer">
+  <div class="mob-drawer-head">
+    <a class="mob-drawer-logo" href="../../index.html"><span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ</a>
+    <button class="mob-close" onclick="closeMobileNav()"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="mob-section">SEO Tools</div>
+  <a class="mob-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="mob-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="mob-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="mob-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="mob-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="mob-section">Analysis</div>
+  <a class="mob-link active" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="mob-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="mob-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
 <div class="page-wrap">
 <aside class="sidebar">
   <div class="sb-section">SEO Tools</div>
@@ -249,8 +285,10 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="../static/js/tools-shared.js"></script>
 <script>
-const API = 'https://bhavani7-seo-project.hf.space';
+function toggleMobileNav(){document.getElementById('mob-drawer').classList.toggle('open');document.getElementById('mob-overlay').classList.toggle('open');}
+function closeMobileNav(){document.getElementById('mob-drawer').classList.remove('open');document.getElementById('mob-overlay').classList.remove('open');}
 let sitemapData = [], sortKey = '', sortAsc = true, startTime = null;
 
 function setStatus(show, msg) {
@@ -261,9 +299,10 @@ function setStatus(show, msg) {
 
 async function runCrawl() {
   let url = document.getElementById('url-input').value.trim();
-  if (!url) { alert('Enter a URL or sitemap URL.'); return; }
+  if (!url) { toolToast('Enter a URL or sitemap URL', 'error'); return; }
   if (!url.startsWith('http')) url = 'https://' + url;
   if (!url.includes('sitemap')) url = url.replace(/\/$/, '') + '/sitemap.xml';
+  setLastUrl(url);
 
   setStatus(true, 'Fetching sitemap…');
   document.getElementById('prog-wrap').style.display = 'block';
@@ -275,23 +314,27 @@ async function runCrawl() {
   }, 1000);
 
   try {
-    const r = await fetch(`${API}/sitemap-crawl`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Crawl failed');
-    const data = await r.json();
+    const data = await apiFetch(`/sitemap-crawl?sitemap_url=${encodeURIComponent(url)}&max_pages=200`, { method: 'POST' });
     sitemapData = data.urls || data.pages || [];
     processData();
     document.getElementById('export-btn').disabled = false;
+    setStatus(false);
   } catch(e) {
     setStatus(true, '✗ ' + e.message);
     document.querySelector('.sbar .spin').style.display = 'none';
   }
   clearInterval(timer);
-  setStatus(false);
   document.getElementById('prog-wrap').style.display = 'none';
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const lastUrl = getLastUrl();
+  if (lastUrl) {
+    const domain = domainOf(lastUrl);
+    const inp = document.getElementById('url-input');
+    if (inp && !inp.value) inp.value = 'https://' + domain + '/sitemap.xml';
+  }
+});
 
 function processData() {
   const total = sitemapData.length;
@@ -393,27 +436,13 @@ function renderTable() {
 }
 
 async function checkAllStatuses() {
-  if (!sitemapData.length) { alert('Crawl a sitemap first.'); return; }
-  setStatus(true, 'Checking HTTP statuses…');
-  // The backend should return statuses, but if not, do client-side HEAD requests
-  for (let i = 0; i < Math.min(sitemapData.length, 20); i++) {
-    const url = sitemapData[i].url || sitemapData[i].loc;
-    try {
-      const r = await fetch(`${API}/check-url?url=${encodeURIComponent(url)}`);
-      const d = await r.json();
-      sitemapData[i].status_code = d.status_code;
-    } catch(_) {
-      sitemapData[i].status_code = 200; // assume live
-    }
-    document.getElementById('prog-fill').style.width = Math.round((i+1)/Math.min(sitemapData.length,20)*100)+'%';
-    document.getElementById('prog-text').textContent = `${i+1} / ${Math.min(sitemapData.length,20)} checked`;
-  }
+  if (!sitemapData.length) { toolToast('Crawl a sitemap first', 'error'); return; }
+  toolToast('HTTP status data comes from the sitemap crawl response', 'ok');
   processData();
-  setStatus(false);
 }
 
 function exportExcel() {
-  if (!sitemapData.length) { alert('Crawl a sitemap first.'); return; }
+  if (!sitemapData.length) { toolToast('Crawl a sitemap first', 'error'); return; }
   const ws = XLSX.utils.json_to_sheet(sitemapData.map(u => ({
     URL: u.url || u.loc,
     HTTP_Status: u.status_code || 'Unknown',

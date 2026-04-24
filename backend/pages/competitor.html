@@ -21,7 +21,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
-.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);
+.topnav{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(15,19,29,.85);
   backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;
   display:flex;align-items:center;padding:0 20px;gap:16px;}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);
@@ -36,9 +36,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;
   font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
+.page-wrap{padding-top:64px;display:flex;min-height:100vh;}
 .sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);
-  padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+  padding:20px 0;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;}
 .sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;
   text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
 .sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;
@@ -150,8 +150,24 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 .filter-row input:focus,.filter-row select:focus{border-color:var(--primary);}
 .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
 .empty-state .icon{font-size:40px;margin-bottom:12px;}
-@media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}.domain-panel{grid-template-columns:1fr;}.charts-grid{grid-template-columns:1fr;}.comp-grid{grid-template-columns:1fr;}}
-@media(max-width:600px){.nav-links{display:none;}.score-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){.sidebar{display:none;}.main{padding:20px 16px;}.domain-panel{grid-template-columns:1fr;}.charts-grid{grid-template-columns:1fr;}.comp-grid{grid-template-columns:1fr;}}
+@media(max-width:600px){.score-grid{grid-template-columns:1fr 1fr;}}
+/* ── MOBILE NAV ── */
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:1px;transition:all .2s;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid var(--ghost);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ghost);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px;line-height:1;}
+.mob-section{padding:12px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.mob-link{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;border-right:none;border-top:none;border-bottom:none;background:none;width:100%;cursor:pointer;}
+.mob-link:hover{color:var(--text);background:var(--ghost);}
+.mob-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
+.mob-link .ms{font-size:18px;}
+@media(max-width:900px){.hamburger{display:flex;}.nav-links{display:none!important;}}
 </style>
 </head>
 <body>
@@ -174,9 +190,28 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
     <a class="btn-home" href="../../index.html">
       <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
     </a>
+    <button class="hamburger" onclick="toggleMobileNav()" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
-
+<div class="mob-overlay" id="mob-overlay" onclick="closeMobileNav()"></div>
+<aside class="mob-drawer" id="mob-drawer">
+  <div class="mob-drawer-head">
+    <a class="mob-drawer-logo" href="../../index.html"><span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ</a>
+    <button class="mob-close" onclick="closeMobileNav()"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="mob-section">SEO Tools</div>
+  <a class="mob-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="mob-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="mob-link active" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="mob-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="mob-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="mob-section">Analysis</div>
+  <a class="mob-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="mob-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="mob-link" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
 <div class="page-wrap">
 <aside class="sidebar">
   <div class="sb-section">SEO Tools</div>
@@ -415,8 +450,10 @@ tbody tr:hover{background:rgba(255,255,255,.02);}
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="../static/js/tools-shared.js"></script>
 <script>
-const API = 'https://bhavani7-seo-project.hf.space';
+function toggleMobileNav(){document.getElementById('mob-drawer').classList.toggle('open');document.getElementById('mob-overlay').classList.toggle('open');}
+function closeMobileNav(){document.getElementById('mob-drawer').classList.remove('open');document.getElementById('mob-overlay').classList.remove('open');}
 let compData = null, gapRows = [];
 
 function setStatus(show, msg) {
@@ -427,31 +464,58 @@ function setStatus(show, msg) {
 
 async function runAnalysis() {
   const target = document.getElementById('target-domain').value.trim();
-  if (!target) { alert('Enter your target domain.'); return; }
+  if (!target) { toolToast('Enter your target domain.', 'error'); return; }
   const comps = [
     document.getElementById('comp-a').value.trim(),
     document.getElementById('comp-b').value.trim(),
     document.getElementById('comp-c').value.trim()
   ].filter(Boolean);
-  if (!comps.length) { alert('Enter at least one competitor domain.'); return; }
+  if (!comps.length) { toolToast('Enter at least one competitor domain.', 'error'); return; }
 
-  setStatus(true, 'Running competitor analysis…');
+  const targetUrl = target.startsWith('http') ? target : 'https://' + target;
+  setLastUrl(targetUrl);
+  setStatus(true, 'Starting competitor analysis…');
   document.getElementById('export-btn').disabled = true;
   try {
-    const r = await fetch(`${API}/competitor`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url: target.startsWith('http') ? target : 'https://'+target, competitors: comps })
+    const resp = await apiPost('/competitor/analyze', {
+      target_url: targetUrl,
+      competitor_urls: comps.map(c => c.startsWith('http') ? c : 'https://' + c)
     });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Analysis failed');
-    const data = await r.json();
-    processData(data, target, comps);
-    document.getElementById('export-btn').disabled = false;
-    setStatus(false);
+    if (!resp.task_id) throw new Error('No task ID returned');
+    setStatus(true, 'Analysis running… (30–90 seconds)');
+    // Poll task status
+    let done = false, attempts = 0;
+    while (!done && attempts < 60) {
+      await new Promise(r => setTimeout(r, 3000));
+      const st = await apiGet('/competitor/status/' + resp.task_id).catch(() => null);
+      if (!st) { attempts++; continue; }
+      setStatus(true, st.status_msg || `Status: ${st.status}`);
+      if (st.status === 'done') {
+        done = true;
+        const data = await apiGet('/competitor/results/' + resp.task_id);
+        processData(data, domainOf(targetUrl), comps.map(domainOf));
+        document.getElementById('export-btn').disabled = false;
+        setStatus(false);
+      } else if (st.status === 'error') {
+        throw new Error(st.error || 'Analysis failed');
+      }
+      attempts++;
+    }
+    if (!done) throw new Error('Analysis timed out — please retry.');
   } catch(e) {
     setStatus(true, '✗ ' + e.message);
-    document.querySelector('.sbar .spin').style.display = 'none';
+    const sp = document.querySelector('.sbar .spin');
+    if (sp) sp.style.display = 'none';
   }
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const last = getLastUrl();
+  if (last) {
+    const inp = document.getElementById('target-domain');
+    if (inp && !inp.value) inp.value = domainOf(last);
+  }
+});
 
 function processData(data, target, comps) {
   compData = data;

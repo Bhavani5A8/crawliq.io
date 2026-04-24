@@ -12,21 +12,21 @@
 :root{--bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;--surf2:#262a35;--surf3:#353944;--surf-highest:#313540;--indigo:#6366F1;--primary:#c0c1ff;--primary-container:#8083ff;--tertiary:#ffb783;--cyan:#4edea3;--green:#10B981;--yellow:#F59E0B;--red:#ff6b6b;--text:#dfe2f1;--dim:#c7c4d7;--muted:#908fa0;--dark-muted:#464554;--border:rgba(70,69,84,.45);--ghost:rgba(70,69,84,.15);--headline:'Plus Jakarta Sans',sans-serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;--r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
-.topnav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
+.topnav{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(15,19,29,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--ghost);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;flex-shrink:0;}
 .nav-links{display:flex;align-items:center;gap:2px;margin-left:8px;flex:1;overflow-x:auto;}
 .nav-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;font-family:var(--mono);transition:color .15s,background .15s;border:none;cursor:pointer;background:none;}
 .nav-link:hover{color:var(--text);background:var(--ghost);}
-.nav-link.active{color:var(--tertiary);background:rgba(255,183,131,.08);}
+.nav-link.active{color:var(--primary);background:rgba(192,193,255,.08);}
 .nav-link .ms{font-size:14px;}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .btn-home{background:var(--primary);color:#1a1c40;font-family:var(--headline);font-weight:700;font-size:12px;padding:7px 16px;border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-.page-wrap{padding-top:60px;display:flex;min-height:100vh;}
-.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.page-wrap{padding-top:64px;display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--ghost);background:var(--surf-lowest);padding:20px 0;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;}
 .sb-section{padding:8px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
 .sb-link{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;}
 .sb-link:hover{color:var(--text);background:var(--ghost);}
-.sb-link.active{color:var(--tertiary);background:rgba(255,183,131,.06);border-left-color:var(--tertiary);}
+.sb-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
 .sb-link .ms{font-size:16px;}
 .main{flex:1;padding:32px;min-width:0;}
 .page-hd{margin-bottom:28px;}
@@ -93,6 +93,22 @@ select.form-input{cursor:pointer;}
 @media(max-width:1100px){.content-grid{grid-template-columns:1fr;}}
 @media(max-width:900px){.sidebar{display:none;}.main{padding:20px;}.meta-outputs{grid-template-columns:1fr;}.provider-grid{grid-template-columns:repeat(4,1fr);}  }
 @media(max-width:600px){.nav-links{display:none;}.provider-grid{grid-template-columns:1fr 1fr;}.seo-factors{grid-template-columns:1fr;}}
+/* ── MOBILE NAV ── */
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:1px;transition:all .2s;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid var(--ghost);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ghost);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px;line-height:1;}
+.mob-section{padding:12px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark-muted);font-family:var(--mono);}
+.mob-link{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;font-family:var(--sans);transition:all .15s;border-left:3px solid transparent;border-right:none;border-top:none;border-bottom:none;background:none;width:100%;cursor:pointer;}
+.mob-link:hover{color:var(--text);background:var(--ghost);}
+.mob-link.active{color:var(--primary);background:rgba(192,193,255,.06);border-left-color:var(--primary);}
+.mob-link .ms{font-size:18px;}
+@media(max-width:900px){.hamburger{display:flex;}.nav-links{display:none!important;}}
 </style>
 </head>
 <body>
@@ -114,8 +130,28 @@ select.form-input{cursor:pointer;}
     <a class="btn-home" href="../../index.html">
       <span class="material-symbols-outlined" style="font-size:14px">bolt</span>Audit Tool
     </a>
+    <button class="hamburger" onclick="toggleMobileNav()" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
+<div class="mob-overlay" id="mob-overlay" onclick="closeMobileNav()"></div>
+<aside class="mob-drawer" id="mob-drawer">
+  <div class="mob-drawer-head">
+    <a class="mob-drawer-logo" href="../../index.html"><span class="material-symbols-outlined" style="font-size:18px">bolt</span>CrawlIQ</a>
+    <button class="mob-close" onclick="closeMobileNav()"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="mob-section">SEO Tools</div>
+  <a class="mob-link" href="../../index.html"><span class="material-symbols-outlined ms">home</span>Dashboard</a>
+  <a class="mob-link" href="tech-seo.html"><span class="material-symbols-outlined ms">biotech</span>Technical SEO</a>
+  <a class="mob-link" href="competitor.html"><span class="material-symbols-outlined ms">compare_arrows</span>Competitors</a>
+  <a class="mob-link" href="serp-intel.html"><span class="material-symbols-outlined ms">bar_chart</span>SERP Intel</a>
+  <a class="mob-link" href="monitor.html"><span class="material-symbols-outlined ms">notifications</span>Monitor</a>
+  <div class="mob-section">Analysis</div>
+  <a class="mob-link" href="sitemap.html"><span class="material-symbols-outlined ms">account_tree</span>Sitemap Crawl</a>
+  <a class="mob-link" href="keyword-gap.html"><span class="material-symbols-outlined ms">search</span>Keyword Gap</a>
+  <a class="mob-link active" href="ai-content.html"><span class="material-symbols-outlined ms">auto_awesome</span>AI Content</a>
+</aside>
 <div class="page-wrap">
 <aside class="sidebar">
   <div class="sb-section">SEO Tools</div>
@@ -141,7 +177,7 @@ select.form-input{cursor:pointer;}
       <button class="btn btn-outline btn-sm" onclick="exportExcel()" id="export-btn" disabled>
         <span class="material-symbols-outlined" style="font-size:14px">download</span>Export Excel
       </button>
-      <button class="btn btn-outline btn-sm" onclick="copyContent()">
+      <button class="btn btn-outline btn-sm" onclick="copyContent(this)">
         <span class="material-symbols-outlined" style="font-size:14px">content_copy</span>Copy
       </button>
     </div>
@@ -234,7 +270,7 @@ select.form-input{cursor:pointer;}
       </div>
 
       <!-- HISTORY -->
-      <div class="panel" style="margin-top:16px" id="history-panel" style="display:none">
+      <div class="panel" id="history-panel" style="margin-top:16px;display:none">
         <div class="panel-title">Recent Generations</div>
         <div class="history-list" id="history-list"></div>
       </div>
@@ -290,7 +326,7 @@ select.form-input{cursor:pointer;}
           <div class="panel-title" style="margin-bottom:0">Content Preview</div>
           <div style="display:flex;gap:8px">
             <span id="word-count-actual" style="font-size:11px;color:var(--muted);font-family:var(--mono)">0 words</span>
-            <button class="btn btn-outline btn-sm" onclick="copyContent()">Copy</button>
+            <button class="btn btn-outline btn-sm" onclick="copyContent(this)">Copy</button>
           </div>
         </div>
         <div class="content-preview" id="content-preview">
@@ -306,9 +342,11 @@ select.form-input{cursor:pointer;}
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="../static/js/tools-shared.js"></script>
 <script>
-const API = 'https://bhavani7-seo-project.hf.space';
 let selectedProvider = 'groq', generationHistory = [], lastGeneration = null;
+function toggleMobileNav(){document.getElementById('mob-drawer').classList.toggle('open');document.getElementById('mob-overlay').classList.toggle('open');}
+function closeMobileNav(){document.getElementById('mob-drawer').classList.remove('open');document.getElementById('mob-overlay').classList.remove('open');}
 
 function selectProvider(p) {
   selectedProvider = p;
@@ -324,7 +362,7 @@ function setStatus(show, msg) {
 
 async function generate() {
   const keyword = document.getElementById('target-kw').value.trim();
-  if (!keyword) { alert('Enter a target keyword.'); return; }
+  if (!keyword) { toolToast('Enter a target keyword', 'error'); return; }
 
   const payload = {
     keyword,
@@ -340,45 +378,25 @@ async function generate() {
   setStatus(true, `Generating with ${selectedProvider.charAt(0).toUpperCase()+selectedProvider.slice(1)}…`);
   document.getElementById('export-btn').disabled = true;
 
-  // Show typing animation
-  document.getElementById('content-preview').innerHTML = '<div class="content-placeholder"><div style="display:flex;gap:6px;align-items:center"><span style="font-size:13px;color:var(--tertiary)">✨</span><span style="font-size:13px">Generating with AI</span><span style="font-family:var(--mono);color:var(--muted);font-size:13px;animation:blink 1s step-end infinite">...</span></div></div>';
+  document.getElementById('content-preview').innerHTML = '<div class="content-placeholder"><div style="display:flex;gap:6px;align-items:center"><span style="font-size:13px;color:var(--tertiary)">✨</span><span style="font-size:13px">Generating with AI</span><span style="font-family:var(--mono);color:var(--muted);font-size:13px">...</span></div></div>';
 
   try {
-    // Try the AI content endpoint
-    const r = await fetch(`${API}/ai-content`, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+    const data = await apiFetch('/generate-content', {
+      method: 'POST',
       body: JSON.stringify(payload)
     });
-
-    let data;
-    if (!r.ok) {
-      // Fallback: use the existing Gemini optimize endpoint
-      const fb = await fetch(`${API}/gemini-optimize`, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ url: 'https://example.com', keyword, content: `Write a ${payload.content_type} about ${keyword}` })
-      });
-      if (!fb.ok) throw new Error('AI generation failed — try the main audit page first');
-      data = await fb.json();
-      // Adapt to expected format
-      data = adaptFallback(data, keyword, payload);
-    } else {
-      data = await r.json();
-    }
-
     renderOutput(data, keyword);
     addToHistory(keyword, payload.content_type, data);
     document.getElementById('export-btn').disabled = false;
+    setStatus(false);
   } catch(e) {
-    // Graceful fallback: generate demo output
     const demo = generateDemo(keyword, payload);
     renderOutput(demo, keyword);
     addToHistory(keyword, payload.content_type, demo);
     document.getElementById('export-btn').disabled = false;
-    setStatus(true, '⚠ Using demo output — connect to backend for AI generation. ' + e.message);
+    setStatus(true, '⚠ Demo output — crawl a site from the dashboard first for AI generation');
     setTimeout(() => setStatus(false), 5000);
-    return;
   }
-  setStatus(false);
 }
 
 function generateDemo(kw, p) {
@@ -475,11 +493,12 @@ function loadHistory(i) {
   document.getElementById('content-type').value = h.type;
 }
 
-function copyContent() {
+function copyContent(triggerEl) {
   const content = document.getElementById('content-preview').textContent;
-  if (!content || content.includes('Fill in the brief')) { alert('Generate content first.'); return; }
+  if (!content || content.includes('Fill in the brief')) { toolToast('Generate content first', 'error'); return; }
   navigator.clipboard.writeText(content).then(() => {
-    const btn = event.target.closest('button');
+    const btn = triggerEl instanceof Element ? triggerEl : document.querySelector('[onclick*="copyContent"]');
+    if (!btn) return;
     const orig = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = orig, 2000);
@@ -487,7 +506,7 @@ function copyContent() {
 }
 
 function exportExcel() {
-  if (!lastGeneration) { alert('Generate content first.'); return; }
+  if (!lastGeneration) { toolToast('Generate content first', 'error'); return; }
   const wb = XLSX.utils.book_new();
 
   const ws1 = XLSX.utils.json_to_sheet([{
