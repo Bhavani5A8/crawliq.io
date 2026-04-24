@@ -315,6 +315,11 @@ async function runGapAnalysis() {
   if (!yours.length) { toolToast('Enter your keywords (one per line)', 'error'); return; }
   if (!theirs.length) { toolToast('Enter competitor keywords (one per line)', 'error'); return; }
 
+  setStatus(true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus(true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus(false); toolToast('Backend unavailable — please retry.', 'error'); return; }
+  }
   setStatus(true, 'Analyzing keyword gaps…');
   document.getElementById('export-btn').disabled = true;
 

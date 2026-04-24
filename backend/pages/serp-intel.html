@@ -493,6 +493,11 @@ async function runPositionCheck() {
   const kws = document.getElementById('serp-keywords').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,20);
   if (!domain) { toolToast('Enter a domain.', 'error'); return; }
   if (!kws.length) { toolToast('Enter at least one keyword.', 'error'); return; }
+  setStatus('pos-bar', true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus('pos-bar', true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus('pos-bar', false); toolToast('Backend unavailable — please retry.', 'error'); return; }
+  }
   setStatus('pos-bar', true, 'Checking positions…');
   document.getElementById('pos-wrap').style.display = 'none';
   try {

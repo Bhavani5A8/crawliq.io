@@ -472,6 +472,13 @@ async function runAnalysis() {
   ].filter(Boolean);
   if (!comps.length) { toolToast('Enter at least one competitor domain.', 'error'); return; }
 
+  // Probe backend — wake HF Space if cold before firing the analysis
+  setStatus(true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus(true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus(false); toolToast('Backend unavailable — please retry in a moment.', 'error'); return; }
+  }
+
   const targetUrl = target.startsWith('http') ? target : 'https://' + target;
   setLastUrl(targetUrl);
   setStatus(true, 'Starting competitor analysis…');

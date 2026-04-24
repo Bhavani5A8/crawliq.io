@@ -364,6 +364,12 @@ async function generate() {
   const keyword = document.getElementById('target-kw').value.trim();
   if (!keyword) { toolToast('Enter a target keyword', 'error'); return; }
 
+  setStatus(true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus(true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus(false); toolToast('Backend unavailable — please retry.', 'error'); return; }
+  }
+
   const payload = {
     keyword,
     secondary_keywords: document.getElementById('secondary-kws').value.split(',').map(s=>s.trim()).filter(Boolean),

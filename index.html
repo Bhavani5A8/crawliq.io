@@ -2281,7 +2281,17 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
-<!-- DASHBOARD SECTION REMOVED — now lives at backend/pages/tech-seo.html -->
+<!-- COLD-START BANNER: shown while HF Space is waking up -->
+<div id="cold-banner">
+  <div class="cold-banner-row">
+    <div class="spin-sm"></div>
+    <span class="cold-banner-label">Starting up</span>
+    <span id="cold-banner-text">Warming up the crawler engine — first load takes ~30 seconds</span>
+    <span class="cold-elapsed" id="cold-elapsed">90s</span>
+  </div>
+  <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
+</div>
+
 <div style="display:none" id="dash-sec">
   <div class="sec-inner">
     <div class="dash-card">

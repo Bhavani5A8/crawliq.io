@@ -382,6 +382,11 @@ async function scheduleJob() {
   if (!domain) { toolToast('Enter a domain', 'error'); return; }
   if (!kws.length) { toolToast('Enter at least one keyword', 'error'); return; }
 
+  setStatus(true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus(true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus(false); toolToast('Backend unavailable — please retry.', 'error'); return; }
+  }
   setStatus(true, 'Scheduling job…');
   const msg = document.getElementById('sched-msg');
   try {

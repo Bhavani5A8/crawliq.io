@@ -304,6 +304,11 @@ async function runCrawl() {
   if (!url.includes('sitemap')) url = url.replace(/\/$/, '') + '/sitemap.xml';
   setLastUrl(url);
 
+  setStatus(true, 'Checking backend…');
+  if (!await probeBackend()) {
+    const ready = await waitForBackend((msg, rem) => setStatus(true, `⏳ ${msg} (${rem}s)`));
+    if (!ready) { setStatus(false); toolToast('Backend unavailable — please retry.', 'error'); return; }
+  }
   setStatus(true, 'Fetching sitemap…');
   document.getElementById('prog-wrap').style.display = 'block';
   document.getElementById('export-btn').disabled = true;
