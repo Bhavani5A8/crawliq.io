@@ -146,6 +146,9 @@ _CWV_THRESHOLDS = {
     "inp": {"good": 0.200,"poor": 0.500,"unit": "s",   "label": "Interaction to Next Paint"},
 }
 
+# Explicit CWV status ordering — avoids relying on alphabetical string comparison
+_CWV_STATUS_RANK: dict[str, int] = {"good": 0, "needs_improvement": 1, "poor": 2}
+
 # Required security headers (header-name → missing-message)
 _REQUIRED_SECURITY_HEADERS: dict[str, str] = {
     "strict-transport-security": "HSTS missing — browsers won't enforce HTTPS-only access",
@@ -183,6 +186,7 @@ def run_full_audit(
         return _empty_result("No pages provided")
 
     real_pages = [p for p in pages if not p.get("_is_error")]
+    _errors: list[str] = []
 
     # ── Run sub-validators (or use pre-computed results) ──────────────────────
     if tech_audit is None:
@@ -190,6 +194,7 @@ def run_full_audit(
             from technical_seo import analyze_all as _tech_analyze_all
             tech_audit = _tech_analyze_all(pages)
         except Exception as exc:
+            _errors.append(f"technical_seo.analyze_all: {exc}")
             logger.warning("technical_seo.analyze_all failed: %s", exc)
             tech_audit = {"pages": [], "summary": {}}
 
@@ -198,6 +203,7 @@ def run_full_audit(
             from issues import validate_all as _validate_all
             validation = _validate_all(pages, sitemap_urls=sitemap_urls)
         except Exception as exc:
+            _errors.append(f"issues.validate_all: {exc}")
             logger.warning("issues.validate_all failed: %s", exc)
             validation = {"page_issues": [], "cross_page_issues": [], "stats": {}}
 
@@ -249,6 +255,7 @@ def run_full_audit(
         "implementation_roadmap": roadmap,
         "final_score":         final_score,
         "final_grade":         _grade(final_score),
+        "errors":              _errors,   # surfaces any sub-validator failures
     }
 
 
@@ -457,12 +464,20 @@ def _cluster_issues(
             "fix":      ms["fix"],
         })
 
+    n = len(real_pages) or 1
+
     if cluster_id == "on_page":
         dup_titles = sum(
             1 for p in real_pages if "Duplicate Title" in (p.get("issues") or [])
         )
         dup_meta = sum(
             1 for p in real_pages if "Duplicate Meta Description" in (p.get("issues") or [])
+        )
+        long_title = sum(
+            1 for p in real_pages if len(p.get("title") or "") > 60
+        )
+        long_meta = sum(
+            1 for p in real_pages if len(p.get("meta_description") or "") > 160
         )
         if dup_titles:
             issues.append({
@@ -478,15 +493,158 @@ def _cluster_issues(
                 "reason": "Duplicate meta descriptions reduce SERP click diversity",
                 "fix": "Write unique meta descriptions for each page",
             })
+        if long_title:
+            issues.append({
+                "type": "title_too_long", "severity": "medium",
+                "detail": f"{long_title} pages have titles exceeding 60 characters",
+                "reason": "Titles truncated in SERP lose keyword visibility beyond ~580px",
+                "fix": "Rewrite titles to 30-60 characters; put primary keyword first",
+            })
+        if long_meta:
+            issues.append({
+                "type": "meta_too_long", "severity": "low",
+                "detail": f"{long_meta} pages have meta descriptions exceeding 160 characters",
+                "reason": "Google truncates long meta descriptions in SERP, cutting off the CTA",
+                "fix": "Trim meta descriptions to 120-160 characters",
+            })
 
     if cluster_id == "indexability":
-        noindex = sum(1 for p in real_pages if p.get("robots_noindex"))
+        noindex = sum(
+            1 for p in real_pages
+            if p.get("robots_noindex")
+            or "noindex" in (p.get("robots_meta") or "").lower()
+            or "noindex" in (p.get("x_robots_tag") or "").lower()
+        )
+        errors_4xx = sum(
+            1 for p in real_pages if str(p.get("status_code", "")).startswith("4")
+        )
+        errors_5xx = sum(
+            1 for p in real_pages if str(p.get("status_code", "")).startswith("5")
+        )
         if noindex:
             issues.append({
                 "type": "noindex_pages", "severity": "critical",
-                "detail": f"{noindex} pages have noindex directive",
-                "reason": "These pages will not appear in Google search results",
+                "detail": f"{noindex} pages carry a noindex directive",
+                "reason": "These pages are excluded from Google's index and will not rank",
                 "fix": "Verify each noindex page is intentionally excluded — remove directive if not",
+            })
+        if errors_4xx:
+            issues.append({
+                "type": "4xx_pages", "severity": "critical",
+                "detail": f"{errors_4xx} pages return 4xx errors",
+                "reason": "4xx pages cannot be indexed and waste crawl budget",
+                "fix": "Fix broken pages or redirect them with 301 to a valid URL",
+            })
+        if errors_5xx:
+            issues.append({
+                "type": "5xx_pages", "severity": "critical",
+                "detail": f"{errors_5xx} pages return 5xx server errors",
+                "reason": "Server errors block indexing and signal site instability to Google",
+                "fix": "Investigate server errors in application logs and resolve the root cause",
+            })
+
+    if cluster_id == "content_quality":
+        thin = sum(1 for p in real_pages if len((p.get("body_text") or "").split()) < 300)
+        no_keywords = sum(1 for p in real_pages if not p.get("keywords"))
+        if thin:
+            issues.append({
+                "type": "thin_content", "severity": "high",
+                "detail": f"{thin} pages have fewer than 300 words of body text",
+                "reason": "Thin pages provide little value to users and are at risk of ranking penalties",
+                "fix": "Expand content to 300+ words; focus on answering user intent thoroughly",
+            })
+        if no_keywords:
+            issues.append({
+                "type": "no_keywords_extracted", "severity": "medium",
+                "detail": f"{no_keywords} pages have no extracted keywords",
+                "reason": "Without keywords, AI analysis and content gap detection cannot run",
+                "fix": "Run the keyword extraction pipeline after crawl; ensure body_text is populated",
+            })
+
+    if cluster_id == "links":
+        no_internal = sum(
+            1 for p in real_pages if (p.get("internal_links_count") or 0) == 0
+        )
+        if no_internal:
+            issues.append({
+                "type": "no_internal_links", "severity": "medium",
+                "detail": f"{no_internal} pages have zero inbound internal links",
+                "reason": "Pages with no internal links receive no PageRank and are hard for Googlebot to discover",
+                "fix": "Add contextual internal links from topically related pages",
+            })
+
+    if cluster_id == "images":
+        pages_with_imgs = [p for p in real_pages if (p.get("img_total") or 0) > 0]
+        if pages_with_imgs:
+            total_imgs    = sum(p.get("img_total") or 0 for p in pages_with_imgs)
+            missing_alt   = sum(p.get("img_missing_alt") or 0 for p in pages_with_imgs)
+            missing_dims  = sum(p.get("img_missing_dims") or 0 for p in pages_with_imgs)
+            if missing_alt:
+                pct = round(missing_alt / max(total_imgs, 1) * 100, 1)
+                issues.append({
+                    "type": "images_missing_alt", "severity": "medium",
+                    "detail": f"{missing_alt} images ({pct}%) missing alt text across {len(pages_with_imgs)} pages",
+                    "reason": "Alt text is the primary accessibility and image-search signal for crawlers",
+                    "fix": "Add descriptive alt attributes to every informational image; leave decorative images as alt=''",
+                })
+            if missing_dims:
+                issues.append({
+                    "type": "images_missing_dimensions", "severity": "medium",
+                    "detail": f"{missing_dims} images missing explicit width/height attributes",
+                    "reason": "Images without dimensions cause cumulative layout shift (CLS) as the browser resizes them",
+                    "fix": "Add width and height attributes to every <img>; CSS can still override them",
+                })
+
+    if cluster_id == "schema":
+        with_schema   = sum(1 for p in real_pages if p.get("schema_types"))
+        schema_pct    = round(with_schema / n * 100, 1)
+        if schema_pct < 20:
+            issues.append({
+                "type": "schema_absent", "severity": "medium",
+                "detail": f"Structured data present on only {schema_pct}% of pages ({with_schema}/{n})",
+                "reason": "Structured data unlocks rich results (star ratings, FAQ accordions, breadcrumbs) — absent = missed SERP real estate",
+                "fix": "Implement JSON-LD BreadcrumbList on all pages; add Article/Product/FAQPage on relevant pages",
+            })
+
+    if cluster_id == "social":
+        missing_og = sum(
+            1 for p in real_pages
+            if not p.get("og_title") or not p.get("og_description")
+        )
+        if missing_og:
+            issues.append({
+                "type": "og_tags_missing", "severity": "medium",
+                "detail": f"{missing_og} pages missing og:title or og:description",
+                "reason": "Missing OG tags produce generic or broken link previews on social networks — reduces CTR from social traffic",
+                "fix": "Add og:title, og:description, and og:image to every page",
+            })
+
+    if cluster_id == "technical":
+        no_viewport = sum(1 for p in real_pages if not p.get("viewport"))
+        http_pages  = sum(1 for p in real_pages if (p.get("url") or "").startswith("http://"))
+        if no_viewport:
+            issues.append({
+                "type": "missing_viewport", "severity": "high",
+                "detail": f"{no_viewport} pages missing mobile viewport meta tag",
+                "reason": "Missing viewport causes poor rendering on mobile — Google mobile-first indexing will penalise these pages",
+                "fix": "Add <meta name='viewport' content='width=device-width, initial-scale=1'> to every page <head>",
+            })
+        if http_pages:
+            issues.append({
+                "type": "http_urls", "severity": "critical",
+                "detail": f"{http_pages} pages served over unencrypted HTTP",
+                "reason": "HTTPS is a confirmed Google ranking signal; HTTP pages rank lower and show browser security warnings",
+                "fix": "Redirect all HTTP URLs to HTTPS with 301 redirects; update internal links",
+            })
+
+    if cluster_id == "performance":
+        slow = sum(1 for p in real_pages if (p.get("response_time_ms") or 0) > 2500)
+        if slow:
+            issues.append({
+                "type": "slow_response_time", "severity": "high",
+                "detail": f"{slow} pages have server response time > 2500ms",
+                "reason": "High TTFB is the strongest crawl-time predictor of poor LCP — Google recommends < 800ms",
+                "fix": "Add server-side caching, use a CDN, or optimise database queries to reduce TTFB",
             })
 
     return issues
@@ -550,8 +708,6 @@ def _run_consistency_checks(
       4. Internal links vs status codes (broken links)
     """
     real = [p for p in pages if not p.get("_is_error")]
-    url_to_page = {(p.get("url") or "").rstrip("/"): p for p in pages}
-
     checks: dict[str, dict] = {}
 
     # 1. Sitemap vs indexability
@@ -560,15 +716,18 @@ def _run_consistency_checks(
     # 2. Canonical vs noindex
     checks["canonical_noindex"] = _check_canonical_noindex(real)
 
-    # 3. Hreflang reciprocity (pull from pre-computed cross issues)
+    # 3. Hreflang reciprocity — prefer pre-computed cross issues; fall back to direct check
     hreflang_issues = [i for i in cross_issues if i.get("type") == "hreflang_missing_reciprocal"]
+    pages_with_hreflang = [p for p in pages if p.get("hreflang_tags")]
+    if not hreflang_issues and pages_with_hreflang:
+        hreflang_issues = _check_hreflang_reciprocity_direct(pages)
     checks["hreflang_reciprocity"] = {
-        "checked":         sum(1 for p in pages if p.get("hreflang_tags")),
-        "violations":      len(hreflang_issues),
-        "details":         hreflang_issues[:20],
-        "status":          "ok" if not hreflang_issues else "issues_found",
-        "impact":          "Missing reciprocal hreflang links break international URL sets — Googlebot may ignore the entire set",
-        "fix":             "Every page A declaring hreflang pointing to B must have B declare hreflang pointing back to A",
+        "checked":    len(pages_with_hreflang),
+        "violations": len(hreflang_issues),
+        "details":    hreflang_issues[:20],
+        "status":     "ok" if not hreflang_issues else "issues_found",
+        "impact":     "Missing reciprocal hreflang links break international URL sets — Googlebot may ignore the entire set",
+        "fix":        "Every page A declaring hreflang pointing to B must have B declare hreflang pointing back to A",
     }
 
     # 4. Internal links vs status codes
@@ -591,6 +750,39 @@ def _run_consistency_checks(
         "total_violations": total_violations,
         "checks":           checks,
     }
+
+
+def _check_hreflang_reciprocity_direct(pages: list[dict]) -> list[dict]:
+    """
+    Direct hreflang reciprocity check used when cross_issues is unavailable.
+    For every (page_url → target_url, lang) pair, verify target_url declares
+    a reciprocal hreflang back to page_url.
+    """
+    url_to_hreflang: dict[str, list[dict]] = {}
+    for p in pages:
+        url = (p.get("url") or "").rstrip("/")
+        tags = p.get("hreflang_tags") or []
+        if url and tags:
+            url_to_hreflang[url] = tags
+
+    violations: list[dict] = []
+    for src_url, tags in url_to_hreflang.items():
+        for tag in tags:
+            tgt = (tag.get("href") or "").rstrip("/")
+            lang = tag.get("lang", "")
+            if not tgt or lang == "x-default":
+                continue
+            tgt_tags = url_to_hreflang.get(tgt, [])
+            reciprocal_hrefs = {(t.get("href") or "").rstrip("/") for t in tgt_tags}
+            if src_url not in reciprocal_hrefs:
+                violations.append({
+                    "type":    "hreflang_missing_reciprocal",
+                    "source":  src_url,
+                    "target":  tgt,
+                    "lang":    lang,
+                    "reason":  f"{tgt} does not declare a hreflang back to {src_url}",
+                })
+    return violations
 
 
 def _check_sitemap_indexability(
@@ -654,7 +846,11 @@ def _check_canonical_noindex(real_pages: list[dict]) -> dict:
     for page in real_pages:
         url    = (page.get("url") or "").rstrip("/")
         canon  = (page.get("canonical") or "").rstrip("/")
-        noindex = page.get("robots_noindex") or "noindex" in (page.get("robots_meta") or "").lower()
+        noindex = (
+            page.get("robots_noindex")
+            or "noindex" in (page.get("robots_meta") or "").lower()
+            or "noindex" in (page.get("x_robots_tag") or "").lower()
+        )
 
         if canon and canon != url and noindex:
             conflicts.append({
@@ -903,16 +1099,19 @@ def _run_performance_audit(
             "fix":      "Remove loading='lazy' from the first/hero image; keep it only on below-fold images",
         })
 
-    n = len(real_pages) or 1
+    timed_pages = [p for p in real_pages if (p.get("response_time_ms") or 0) > 0]
+    avg_rt = (
+        round(sum(p["response_time_ms"] for p in timed_pages) / len(timed_pages))
+        if timed_pages else 0
+    )
     return {
         "data_source":          data_source,
         "cwv_results":          cwv_results,
         "issue_count":          len(issues),
         "issues":               issues,
         "slow_pages_count":     len(slow_pages),
-        "avg_response_time_ms": round(
-            sum(p.get("response_time_ms") or 0 for p in real_pages) / n
-        ),
+        "avg_response_time_ms": avg_rt,
+        "timed_pages":          len(timed_pages),
         "note": (
             "CWV values are real measurements from PageSpeed Insights"
             if cwv_data
@@ -943,13 +1142,16 @@ def _evaluate_cwv_data(cwv_data: dict, issues: list[dict]) -> list[dict]:
             status = "poor"
             page_issues.append(f"CLS {cls:.3f} > {_CWV_THRESHOLDS['cls']['poor']} (poor)")
         elif cls is not None and cls > _CWV_THRESHOLDS["cls"]["good"]:
-            status = max(status, "needs_improvement")  # type: ignore[call-overload]
+            if _CWV_STATUS_RANK.get(status, 0) < _CWV_STATUS_RANK["needs_improvement"]:
+                status = "needs_improvement"
             page_issues.append(f"CLS {cls:.3f} > {_CWV_THRESHOLDS['cls']['good']} threshold")
 
         if inp is not None and inp > _CWV_THRESHOLDS["inp"]["poor"]:
             status = "poor"
             page_issues.append(f"INP {int(inp*1000)}ms > {int(_CWV_THRESHOLDS['inp']['poor']*1000)}ms (poor)")
         elif inp is not None and inp > _CWV_THRESHOLDS["inp"]["good"]:
+            if _CWV_STATUS_RANK.get(status, 0) < _CWV_STATUS_RANK["needs_improvement"]:
+                status = "needs_improvement"
             page_issues.append(f"INP {int(inp*1000)}ms > {int(_CWV_THRESHOLDS['inp']['good']*1000)}ms threshold")
 
         if page_issues:
@@ -1133,6 +1335,8 @@ def _build_roadmap(
 
     for cluster in cluster_validation.values():
         for iss in cluster.get("issues", []):
+            if iss.get("type") == "missing_signal":
+                continue  # signal gaps are routed through gap_report below
             if iss.get("severity") == "critical":
                 _add(1, iss["detail"], iss["reason"], iss["fix"])
 
@@ -1154,6 +1358,13 @@ def _build_roadmap(
              "Wastes crawl budget; may confuse Googlebot about intended index",
              "Remove all noindex and 4xx/5xx pages from sitemap.xml", noindex_in_sitemap)
 
+    canon_noindex = consistency.get("checks", {}).get("canonical_noindex", {}).get("conflicts", 0)
+    if canon_noindex:
+        _add(1, f"{canon_noindex} pages with contradictory noindex + foreign canonical",
+             "Contradictory signals can cause the canonical target to also be excluded from indexing",
+             "Choose one directive per page: either noindex (exclude) or self-canonical (include)",
+             canon_noindex)
+
     # ── High (P2) ─────────────────────────────────────────────────────────────
     for iss in security.get("issues", []):
         if iss.get("severity") == "high":
@@ -1161,6 +1372,8 @@ def _build_roadmap(
 
     for cluster in cluster_validation.values():
         for iss in cluster.get("issues", []):
+            if iss.get("type") == "missing_signal":
+                continue
             if iss.get("severity") == "high":
                 _add(2, iss["detail"], iss["reason"], iss["fix"])
 
@@ -1175,12 +1388,21 @@ def _build_roadmap(
              "Add internal links from related pages to each orphan", len(orphans))
 
     # ── Medium (P3) ───────────────────────────────────────────────────────────
+    hreflang_violations = consistency.get("checks", {}).get("hreflang_reciprocity", {}).get("violations", 0)
+    if hreflang_violations:
+        _add(3, f"{hreflang_violations} hreflang reciprocity violations",
+             "Missing reciprocal hreflang links break international URL sets — Googlebot may ignore the entire set",
+             "For every page A→B hreflang, ensure B declares hreflang pointing back to A",
+             hreflang_violations)
+
     for iss in security.get("issues", []):
         if iss.get("severity") == "medium":
             _add(3, iss["detail"], iss["reason"], iss["fix"])
 
     for cluster in cluster_validation.values():
         for iss in cluster.get("issues", []):
+            if iss.get("type") == "missing_signal":
+                continue
             if iss.get("severity") == "medium":
                 _add(3, iss["detail"], iss["reason"], iss["fix"])
 
@@ -1194,17 +1416,36 @@ def _build_roadmap(
              "Duplicate pages split ranking signals and may cause index bloat",
              "Consolidate duplicates with canonical tags or 301 redirects", len(dup_content))
 
-    # ── Low (P4) — Gaps and enhancements ─────────────────────────────────────
+    # ── Signal coverage gaps — routed to the correct priority bucket ──────────
+    _gap_priority = {"critical": 1, "high": 2, "medium": 3, "low": 4, "info": 4}
     for gap in gap_report.get("gaps", []):
-        if gap.get("severity") in ("low", "info"):
-            _add(4, f"Signal gap: {gap['signal']} ({gap['coverage_pct']}% coverage)",
-                 gap["impact"], gap["minimal_fix"])
+        p = _gap_priority.get(gap.get("severity", "info"), 4)
+        _add(
+            p,
+            f"Coverage gap: {gap['signal']} ({gap['coverage_pct']}% covered, need {gap['threshold_pct']}%)",
+            gap["impact"],
+            gap["minimal_fix"],
+        )
 
     chains = [i for i in cross_issues if i.get("type") == "canonical_chain"]
     if chains:
         _add(4, f"{len(chains)} canonical chains (2+ hops)",
              "Google does not reliably follow multi-hop canonicals",
              "Flatten chains so A → B directly (not A → C → B)", len(chains))
+
+    # Dedup: within each bucket, drop actions whose first 38 chars match a seen entry.
+    # 38 chars captures "count + metric subject" before minor wording diverges between
+    # cluster issues and dedicated-audit issues (e.g. response-time, image dimensions).
+    deduped: dict[int, list[dict]] = {}
+    for p, actions in buckets.items():
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for a in actions:
+            key = a["issue"][:38].lower().strip()
+            if key not in seen:
+                seen.add(key)
+                unique.append(a)
+        deduped[p] = unique
 
     return [
         {
@@ -1213,7 +1454,7 @@ def _build_roadmap(
             "count":    len(actions),
             "actions":  actions,
         }
-        for p, actions in buckets.items()
+        for p, actions in deduped.items()
         if actions
     ]
 
@@ -1243,6 +1484,7 @@ def _empty_result(reason: str) -> dict:
         "implementation_roadmap": [],
         "final_score":            0,
         "final_grade":            "F",
+        "errors":                 [reason],
     }
 
 

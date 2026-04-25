@@ -43,17 +43,21 @@ except ImportError:
 
 
 # ── Colour palette (matches CrawlIQ dark theme) ───────────────────────────────
-_INDIGO = colors.HexColor("#6366F1")
-_CYAN   = colors.HexColor("#22D3EE")
-_GREEN  = colors.HexColor("#10B981")
-_YELLOW = colors.HexColor("#F59E0B")
-_RED    = colors.HexColor("#EF4444")
-_DARK   = colors.HexColor("#0F1117")
-_SURF   = colors.HexColor("#1A1D2E")
-_BORDER = colors.HexColor("#2D3048")
-_DIM    = colors.HexColor("#9CA3AF")
-_WHITE  = colors.HexColor("#E5E7EB")
-_BLACK  = colors.black
+if _REPORTLAB:
+    _INDIGO = colors.HexColor("#6366F1")
+    _CYAN   = colors.HexColor("#22D3EE")
+    _GREEN  = colors.HexColor("#10B981")
+    _YELLOW = colors.HexColor("#F59E0B")
+    _RED    = colors.HexColor("#EF4444")
+    _DARK   = colors.HexColor("#0F1117")
+    _SURF   = colors.HexColor("#1A1D2E")
+    _BORDER = colors.HexColor("#2D3048")
+    _DIM    = colors.HexColor("#9CA3AF")
+    _WHITE  = colors.HexColor("#E5E7EB")
+    _BLACK  = colors.black
+else:
+    _INDIGO = _CYAN = _GREEN = _YELLOW = _RED = None
+    _DARK = _SURF = _BORDER = _DIM = _WHITE = _BLACK = None
 
 
 def _score_color(score) -> Any:
