@@ -24,8 +24,8 @@ Public API
 
 Environment
 ───────────
-  JWT_SECRET   — signing secret (defaults to a stable fallback for dev)
-  JWT_EXPIRE_DAYS — token lifetime in days (default 30)
+  JWT_SECRET       — signing secret (required; server refuses to start without it)
+  JWT_EXPIRE_DAYS  — token lifetime in days (default 30)
 
 Dependencies (requirements.txt)
 ───────────────────────────────
@@ -53,7 +53,13 @@ TIER_LIMITS: dict[str, dict] = {
 
 # ── JWT config ────────────────────────────────────────────────────────────────
 
-_JWT_SECRET      = os.getenv("JWT_SECRET", "crawliq-dev-secret-change-in-production")
+_JWT_SECRET = os.getenv("JWT_SECRET")
+if not _JWT_SECRET:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\" "
+        "and add it to your .env file."
+    )
 _JWT_ALGORITHM   = "HS256"
 _JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "30"))
 
