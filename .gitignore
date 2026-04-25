@@ -95,3 +95,26 @@ dist/
 seo-project-clone/
 backend/aphc_full_report.xlsx
 backend/mockers_report.xlsx
+
+# ── Runtime databases (never commit SQLite files) ─────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Stray files accidentally created at project root ─────────────────────────
+pip
+*.png
+*.jpg
+*.jpeg
+
+# ── Staging / export HTML snapshots ──────────────────────────────────────────
+code*.html
+crawliq---precision-ai-seo-auditing/
+
+# ── Node artefacts (no Node build step in this project) ──────────────────────
+package.json
+package-lock.json
+node_modules/
+
+# ── QA / design working docs (keep V2/V3 already committed, ignore future) ───
+QA_REPORT.md
