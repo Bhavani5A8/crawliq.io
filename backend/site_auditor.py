@@ -426,6 +426,24 @@ async def trace_redirect_chains_batch(urls: list[str], concurrency: int = 5) -> 
 # Full site audit entry point
 # ---------------------------------------------------------------------------
 
+def parse_sitemap_xml(content: str) -> list[str]:
+    """
+    Extract <loc> URLs from a sitemap XML string.
+    Handles both <urlset> and <sitemapindex> formats without external XML libraries.
+    Returns a deduplicated, order-preserving list of URL strings.
+    """
+    # Regex extraction tolerates whitespace and attribute variations in <loc> tags.
+    raw = re.findall(r"<loc>\s*(https?://[^\s<]+)\s*</loc>", content, re.I)
+    seen:   set[str]   = set()
+    result: list[str]  = []
+    for u in raw:
+        u = u.strip().rstrip("/")
+        if u not in seen:
+            seen.add(u)
+            result.append(u)
+    return result
+
+
 async def run_site_audit(site_url: str, pages: list[dict]) -> dict:
     """
     Run all site-level audits.

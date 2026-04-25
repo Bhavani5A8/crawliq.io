@@ -269,6 +269,220 @@ def top_pages_by_pr(
 
 
 # ---------------------------------------------------------------------------
+# Priority scoring
+# ---------------------------------------------------------------------------
+
+def compute_priority_scores(
+    graph: dict,
+    pagerank: dict[str, float],
+    issue_counts: dict[str, int],
+) -> dict[str, float]:
+    """
+    Priority score per page: 0–1, higher = fix this page first.
+
+    Combines three equal-weight signals:
+      depth_score   = 1 – (depth / max_depth)   shallow pages score higher
+      pagerank_score = min-max normalised PR      high-authority pages score higher
+      issue_score   = issues / max_issues         more broken = more urgent
+
+    Pages with low crawl depth + high PageRank + many issues surface at the top.
+    Scales to 10 k+ pages (pure dict arithmetic, no matrix ops).
+    """
+    nodes = graph.get("nodes", {})
+    if not nodes:
+        return {}
+
+    valid_depths = [d["depth"] for d in nodes.values() if d["depth"] >= 0]
+    max_depth    = max(valid_depths) if valid_depths else 1
+
+    pr_values = list(pagerank.values()) or [0.0]
+    min_pr, max_pr = min(pr_values), max(pr_values)
+    pr_range = max_pr - min_pr or 1.0
+
+    max_issues = max(issue_counts.values()) if issue_counts else 1
+
+    scores: dict[str, float] = {}
+    for url, data in nodes.items():
+        depth = data.get("depth", -1)
+        depth_score = 1.0 - (depth / max_depth) if depth >= 0 else 0.0
+
+        pr          = pagerank.get(url, 0.0)
+        pr_score    = (pr - min_pr) / pr_range
+
+        n_issues    = issue_counts.get(url, 0)
+        issue_score = n_issues / max_issues if max_issues else 0.0
+
+        scores[url] = round((depth_score + pr_score + issue_score) / 3.0, 4)
+
+    return scores
+
+
+def pages_needing_attention(
+    graph: dict,
+    pagerank: dict[str, float],
+    priority_scores: dict[str, float],
+    pages: list[dict],
+    top_n: int = 20,
+) -> list[dict]:
+    """
+    Return the top_n pages sorted by priority_score descending.
+    Each entry includes URL, score, depth, PageRank, issue count, and a
+    sample of the top 5 issues so the caller has immediate context.
+    """
+    nodes        = graph.get("nodes", {})
+    issue_lookup = {p.get("url", ""): p.get("issues", []) for p in pages}
+
+    ranked = []
+    for url, score in priority_scores.items():
+        data   = nodes.get(url, {})
+        issues = issue_lookup.get(url, [])
+        ranked.append({
+            "url":            url,
+            "priority_score": score,
+            "crawl_depth":    data.get("depth", -1),
+            "pagerank":       round(pagerank.get(url, 0.0), 6),
+            "issue_count":    len(issues),
+            "issues":         issues[:5],
+            "in_links":       data.get("in_count", 0),
+        })
+
+    ranked.sort(key=lambda x: -x["priority_score"])
+    return ranked[:top_n]
+
+
+# ---------------------------------------------------------------------------
+# Render-blocking resources (PageSpeed Insights response parser)
+# ---------------------------------------------------------------------------
+
+def extract_render_blocking_resources(psi_response: dict) -> dict:
+    """
+    Parse a Google PageSpeed Insights API JSON response and extract the list
+    of render-blocking resources reported by Lighthouse.
+
+    Expected path:
+      lighthouseResult.audits["render-blocking-resources"].details.items[]
+
+    Each item contains: url, totalBytes, wastedMs.
+
+    Returns:
+    {
+      "count":           int,
+      "total_wasted_ms": float,
+      "resources":       [{url, bytes, wasted_ms}],   # sorted worst-first
+      "issues":          [str],                        # human-readable labels
+    }
+    """
+    resources: list[dict] = []
+    try:
+        items = (
+            psi_response
+            .get("lighthouseResult", {})
+            .get("audits", {})
+            .get("render-blocking-resources", {})
+            .get("details", {})
+            .get("items", [])
+        )
+        for item in items:
+            resources.append({
+                "url":       item.get("url", ""),
+                "bytes":     int(item.get("totalBytes", 0)),
+                "wasted_ms": round(float(item.get("wastedMs", 0)), 1),
+            })
+        resources.sort(key=lambda x: -x["wasted_ms"])
+    except Exception:
+        pass
+
+    total_wasted = round(sum(r["wasted_ms"] for r in resources), 1)
+    issues = [
+        f"Render-blocking: {r['url'].split('/')[-1] or r['url']} "
+        f"(~{r['wasted_ms']} ms wasted)"
+        for r in resources[:5] if r["wasted_ms"] > 0
+    ]
+
+    return {
+        "count":           len(resources),
+        "total_wasted_ms": total_wasted,
+        "resources":       resources[:10],
+        "issues":          issues,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Site-wide image loading summary
+# ---------------------------------------------------------------------------
+
+def image_loading_summary(pages: list[dict]) -> dict:
+    """
+    Aggregate lazy-loading and srcset coverage across all crawled pages.
+    Uses the img_total / img_lazy_count / img_srcset_count fields added by
+    crawler._parse() — no re-fetching needed.
+    """
+    total_imgs   = sum(p.get("img_total", 0)        for p in pages)
+    total_lazy   = sum(p.get("img_lazy_count", 0)   for p in pages)
+    total_srcset = sum(p.get("img_srcset_count", 0) for p in pages)
+
+    lazy_pct   = round(total_lazy   / total_imgs * 100, 1) if total_imgs else 0.0
+    srcset_pct = round(total_srcset / total_imgs * 100, 1) if total_imgs else 0.0
+
+    issues = []
+    if total_imgs:
+        if lazy_pct < 50:
+            issues.append(
+                f"Only {lazy_pct}% of images use loading=\"lazy\" — "
+                "add it to below-fold images to reduce initial page weight"
+            )
+        if srcset_pct < 30:
+            issues.append(
+                f"Only {srcset_pct}% of images have srcset — "
+                "add srcset for responsive image delivery across device sizes"
+            )
+
+    return {
+        "total_images": total_imgs,
+        "lazy_count":   total_lazy,
+        "lazy_pct":     lazy_pct,
+        "srcset_count": total_srcset,
+        "srcset_pct":   srcset_pct,
+        "issues":       issues,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Site-wide breadcrumb coverage
+# ---------------------------------------------------------------------------
+
+def breadcrumb_summary(pages: list[dict]) -> dict:
+    """
+    Report what fraction of crawled pages have breadcrumb markup and
+    which detection method was used (JSON-LD preferred over HTML nav).
+    """
+    total     = len(pages)
+    detected  = sum(1 for p in pages if p.get("breadcrumb_detected"))
+    jsonld    = sum(1 for p in pages if p.get("breadcrumb_source") == "json_ld")
+    html_nav  = sum(1 for p in pages if p.get("breadcrumb_source") == "html_nav")
+    coverage  = round(detected / total * 100, 1) if total else 0.0
+
+    issues = []
+    if coverage < 80 and total > 3:
+        issues.append(
+            f"Only {coverage}% of pages have breadcrumb markup — "
+            "add BreadcrumbList JSON-LD or nav[aria-label=breadcrumb] "
+            "to improve SERP breadcrumb display"
+        )
+
+    return {
+        "pages_with_breadcrumbs": detected,
+        "coverage_pct":           coverage,
+        "by_source": {
+            "json_ld":  jsonld,
+            "html_nav": html_nav,
+            "none":     total - detected,
+        },
+        "issues": issues,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -282,10 +496,14 @@ def analyse_link_graph(pages: list[dict]) -> dict:
       "total_internal_links": int,
       "orphan_pages": [...],
       "orphan_count": int,
-      "depth": {...},                  # depth_distribution result
-      "silos": [...],                  # silo_analysis result
-      "top_pages": [...],              # top 20 by PageRank
-      "pagerank": {url: score},        # full PR map
+      "depth": {...},                      # depth_distribution result
+      "silos": [...],                      # silo_analysis result
+      "top_pages": [...],                  # top 20 by PageRank
+      "pagerank": {url: score},            # full PR map (scores sum to 1)
+      "priority_scores": {url: score},     # 0–1, higher = fix first
+      "pages_needing_attention": [...],    # top 20 by priority_score
+      "image_loading": {...},              # site-wide lazy/srcset coverage
+      "breadcrumbs": {...},                # site-wide breadcrumb coverage
     }
     """
     if not pages:
@@ -298,22 +516,38 @@ def analyse_link_graph(pages: list[dict]) -> dict:
             "silos": [],
             "top_pages": [],
             "pagerank": {},
+            "priority_scores": {},
+            "pages_needing_attention": [],
+            "image_loading": {},
+            "breadcrumbs": {},
         }
 
-    graph = build_link_graph(pages)
-    pr = compute_pagerank(graph)
+    graph   = build_link_graph(pages)
+    pr      = compute_pagerank(graph)
     orphans = detect_orphans(graph)
-    depth = depth_distribution(graph)
-    silos = silo_analysis(graph, pr)
-    top = top_pages_by_pr(graph, pr)
+    depth   = depth_distribution(graph)
+    silos   = silo_analysis(graph, pr)
+    top     = top_pages_by_pr(graph, pr)
+
+    # Build normalised-URL → issue count mapping for priority scoring
+    issue_counts: dict[str, int] = {
+        _normalise(p["url"]): len(p.get("issues", []))
+        for p in pages if p.get("url")
+    }
+    priority  = compute_priority_scores(graph, pr, issue_counts)
+    attention = pages_needing_attention(graph, pr, priority, pages)
 
     return {
-        "total_pages": len(graph["nodes"]),
-        "total_internal_links": len(graph["edges"]),
-        "orphan_pages": orphans,
-        "orphan_count": len(orphans),
-        "depth": depth,
-        "silos": silos,
-        "top_pages": top,
-        "pagerank": pr,
+        "total_pages":             len(graph["nodes"]),
+        "total_internal_links":    len(graph["edges"]),
+        "orphan_pages":            orphans,
+        "orphan_count":            len(orphans),
+        "depth":                   depth,
+        "silos":                   silos,
+        "top_pages":               top,
+        "pagerank":                pr,
+        "priority_scores":         priority,
+        "pages_needing_attention": attention,
+        "image_loading":           image_loading_summary(pages),
+        "breadcrumbs":             breadcrumb_summary(pages),
     }

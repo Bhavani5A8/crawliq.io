@@ -120,7 +120,7 @@ from seo_optimizer import (
     clear_optimization_store, optimizer_status,
 )
 from technical_seo import analyze_page as _tseo_page, analyze_all as _tseo_all
-from issues import detect_issues
+from issues import detect_issues, validate_all as _validate_all
 from keyword_extractor import extract_keywords_corpus
 from keyword_scorer import score_keywords, build_structured_page
 from competitor_analysis import (
@@ -160,9 +160,10 @@ except ImportError:
 
 try:
     from link_graph import (
-        analyse_link_graph as _analyse_link_graph,
-        build_link_graph   as _build_link_graph,
-        detect_orphans     as _detect_orphans,
+        analyse_link_graph              as _analyse_link_graph,
+        build_link_graph                as _build_link_graph,
+        detect_orphans                  as _detect_orphans,
+        extract_render_blocking_resources as _extract_render_blocking,
     )
     _LINK_GRAPH_MODULE = True
 except ImportError:
@@ -176,10 +177,11 @@ except ImportError:
 
 try:
     from site_auditor import (
-        fetch_robots_txt     as _fetch_robots_txt,
-        check_hsts           as _check_hsts,
+        fetch_robots_txt       as _fetch_robots_txt,
+        check_hsts             as _check_hsts,
         scan_mixed_content_all as _scan_mixed_content_all,
-        run_site_audit       as _run_site_audit,
+        run_site_audit         as _run_site_audit,
+        parse_sitemap_xml      as _parse_sitemap_xml,
     )
     _SITE_AUDITOR_MODULE = True
 except ImportError:
@@ -1732,6 +1734,43 @@ def get_technical_seo():
     return _tseo_all(list(crawl_results))
 
 
+@app.get("/seo-validate")
+def get_seo_validate(sitemap_url: str | None = None):
+    """
+    Comprehensive SEO signal validator — runs on crawl data already in memory.
+
+    Covers 8 categories per page (indexability, links, content, headings,
+    hreflang, images, security) plus cross-page issues (canonical chains/loops,
+    broken internal links, duplicate content, hreflang reciprocal, orphans).
+
+    Optional query param: ?sitemap_url=https://example.com/sitemap.xml
+    When supplied the endpoint fetches the sitemap and adds sitemap-vs-crawl
+    comparison issues (noindex-in-sitemap, missing pages).
+    """
+    if not crawl_results:
+        raise HTTPException(status_code=400, detail="No crawl data yet.")
+
+    pages = list(crawl_results)
+    sitemap_urls: list[str] | None = None
+
+    if sitemap_url:
+        try:
+            import aiohttp, asyncio as _asyncio
+            from site_auditor import parse_sitemap_xml as _parse_sm
+
+            async def _fetch_sitemap(url: str) -> str:
+                async with aiohttp.ClientSession() as _s:
+                    async with _s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                        return await r.text(errors="replace") if r.status == 200 else ""
+
+            xml = _asyncio.get_event_loop().run_until_complete(_fetch_sitemap(sitemap_url))
+            sitemap_urls = _parse_sm(xml) if xml else None
+        except Exception:
+            sitemap_urls = None  # sitemap fetch failure is non-fatal
+
+    return _validate_all(pages, sitemap_urls=sitemap_urls)
+
+
 @app.get("/technical-seo/{page_url:path}")
 def get_technical_seo_page(page_url: str):
     """Return technical SEO audit for a single crawled page.
@@ -1770,13 +1809,13 @@ async def get_site_audit():
     timeout = aiohttp.ClientTimeout(total=5)
     headers = {"User-Agent": "CrawlIQ-TechSEO/1.0 (+https://crawliq.io)"}
 
-    async def _fetch(url: str) -> tuple[int, str]:
-        """Return (status_code, body_text). Body capped at 4000 chars."""
+    async def _fetch(url: str, max_bytes: int = 200_000) -> tuple[int, str]:
+        """Return (status_code, body_text). Sitemap XML can be large — cap is caller-controlled."""
         try:
             async with aiohttp.ClientSession(timeout=timeout, headers=headers) as sess:
                 async with sess.get(url, ssl=False, allow_redirects=True) as resp:
                     body = await resp.text(errors="replace")
-                    return resp.status, body[:4000]
+                    return resp.status, body[:max_bytes]
         except Exception as exc:
             return 0, str(exc)
 
@@ -1837,16 +1876,31 @@ async def get_site_audit():
     sitemap_is_xml     = sitemap_accessible and (
         "<?xml" in sitemap_body or "<urlset" in sitemap_body or "<sitemapindex" in sitemap_body
     )
-    # Rough URL count: count <loc> tags
-    url_count = sitemap_body.count("<loc>") if sitemap_is_xml else 0
+
+    # Parse <loc> URLs and compare against crawled set
+    sitemap_urls: list[str] = []
+    missing_in_sitemap: list[str] = []
+    not_crawled: list[str] = []
+    if sitemap_is_xml and _SITE_AUDITOR_MODULE:
+        sitemap_urls = _parse_sitemap_xml(sitemap_body)
+        # Normalise both sets the same way (strip trailing slash) for comparison
+        crawled_set  = {(p.get("url") or "").rstrip("/")
+                        for p in crawl_results if p.get("url")}
+        sitemap_set  = {u.rstrip("/") for u in sitemap_urls}
+        # Pages crawled but absent from sitemap — Google may discover them late
+        missing_in_sitemap = sorted(crawled_set - sitemap_set)[:50]
+        # Sitemap entries not reached during the crawl — likely beyond the page cap
+        not_crawled        = sorted(sitemap_set - crawled_set)[:50]
 
     sitemap_result = {
-        "url":         sitemap_url,
-        "accessible":  sitemap_accessible,
-        "status_code": sitemap_status,
-        "is_xml":      sitemap_is_xml,
-        "url_count":   url_count,
-        "status":      (
+        "url":                sitemap_url,
+        "accessible":         sitemap_accessible,
+        "status_code":        sitemap_status,
+        "is_xml":             sitemap_is_xml,
+        "url_count":          len(sitemap_urls) if sitemap_is_xml else 0,
+        "missing_in_sitemap": missing_in_sitemap,
+        "not_crawled":        not_crawled,
+        "status":             (
             "ok" if sitemap_is_xml
             else "not_xml" if sitemap_accessible
             else "not_found" if sitemap_status == 404
@@ -2686,6 +2740,25 @@ def get_orphan_pages():
     graph = _build_link_graph(pages)
     orphans = _detect_orphans(graph)
     return {"orphan_count": len(orphans), "orphans": orphans}
+
+
+@app.post("/psi/render-blocking")
+async def psi_render_blocking(request: _FastAPIRequest):
+    """
+    Parse a PageSpeed Insights API JSON response and extract render-blocking
+    resources reported by Lighthouse.
+
+    POST body: raw PSI JSON (lighthouseResult.audits["render-blocking-resources"]).
+
+    Returns: {count, total_wasted_ms, resources: [{url, bytes, wasted_ms}], issues}
+    """
+    if not _LINK_GRAPH_MODULE:
+        raise HTTPException(status_code=503, detail="link_graph module not available")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Request body must be valid JSON")
+    return _extract_render_blocking(body)
 
 
 # ════════════════════════════════════════════════════════════════════════════

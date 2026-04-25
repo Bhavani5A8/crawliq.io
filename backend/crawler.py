@@ -861,45 +861,37 @@ def _parse(url: str, status: int, html: str,
     h1s      = [t.get_text(strip=True) for t in soup.find_all("h1") if t.get_text(strip=True)]
     h2s      = [t.get_text(strip=True) for t in soup.find_all("h2") if t.get_text(strip=True)]
     h3s      = [t.get_text(strip=True) for t in soup.find_all("h3") if t.get_text(strip=True)]
+    # Heading sequence in DOM order — needed for skipped-level detection.
+    # Extracted before _body_text() so soup is unmodified when we scan headings.
+    heading_sequence = [
+        {"level": int(t.name[1]), "text": t.get_text(strip=True)[:120]}
+        for t in soup.find_all(re.compile(r"^h[1-6]$", re.I))
+        if t.get_text(strip=True)
+    ][:30]
     og_title = _og(soup, "og:title")
     og_desc  = _og(soup, "og:description")
-    body_txt = _body_text(soup)
-    links    = _internal_links(soup, url, domain, bare_domain)
-    # Extract image alt texts — used by SEO audit and AI prompt
-    img_alts = [
-        img.get("alt", "").strip()
-        for img in soup.find_all("img")
-        if img.get("alt", "").strip()
-    ][:20]   # cap at 20 to keep payload manageable
+    og_image = _og(soup, "og:image")
+    og_type  = _og(soup, "og:type")
+    # Twitter Card uses name= attribute (not property=) — re.I handles case variants
+    _twc = soup.find("meta", attrs={"name": re.compile(r"^twitter:card$",        re.I)})
+    _twt = soup.find("meta", attrs={"name": re.compile(r"^twitter:title$",       re.I)})
+    _twd = soup.find("meta", attrs={"name": re.compile(r"^twitter:description$", re.I)})
+    _twi = soup.find("meta", attrs={"name": re.compile(r"^twitter:image$",       re.I)})
+    tw_card  = (_twc.get("content") or "").strip() if _twc else ""
+    tw_title = (_twt.get("content") or "").strip() if _twt else ""
+    tw_desc  = (_twd.get("content") or "").strip() if _twd else ""
+    tw_image = (_twi.get("content") or "").strip() if _twi else ""
 
-    # ── NEW: Last-Modified header (content freshness signal) ─────────────────
-    _hdrs = response_headers or {}
-    last_modified = (
-        _hdrs.get("Last-Modified") or
-        _hdrs.get("last-modified") or
-        ""
-    )
-
-    # ── NEW: Viewport meta tag (mobile-friendliness signal) ──────────────────
-    _vp_tag = soup.find("meta", attrs={"name": lambda n: n and n.lower() == "viewport"})
-    viewport = (_vp_tag.get("content", "").strip() if _vp_tag else "")
-
-    # ── NEW: Image src list (format detection: WebP/AVIF vs legacy) ──────────
-    img_srcs = [
-        img.get("src", "").strip()
-        for img in soup.find_all("img")
-        if img.get("src", "").strip()
-    ][:20]
-
-    # ── NEW: Schema @type list + structured data fields from JSON-LD ───────────
-    # Parses: @type, aggregateRating (ratingValue, reviewCount), author name.
-    # These fields are in <script> tags and are NOT in body_text, so they
-    # must be extracted here from raw HTML — not from visible text.
+    # ── JSON-LD schemas + breadcrumbs ─────────────────────────────────────────
+    # MUST run before _body_text() which calls tag.decompose() on <script> tags,
+    # making soup.find_all("script") return nothing afterwards.
     import json as _json
-    schema_types: list[str] = []
-    schema_rating: float | None  = None   # aggregateRating.ratingValue
-    schema_review_count: int | None = None  # aggregateRating.reviewCount
-    schema_author: str = ""              # author.name (first found)
+    schema_types:        list[str]    = []
+    schema_objects:      list[dict]   = []
+    schema_rating:       float | None = None
+    schema_review_count: int   | None = None
+    schema_author:       str          = ""
+    breadcrumbs_jsonld:  list[dict]   = []
 
     for script in soup.find_all("script", type="application/ld+json"):
         try:
@@ -912,12 +904,16 @@ def _parse(url: str, status: int, html: str,
             for o in objs:
                 if not isinstance(o, dict):
                     continue
-                # @type
+                # @type — collect type name and property keys for validation
                 t = o.get("@type")
                 if isinstance(t, str):
                     schema_types.append(t)
+                    schema_objects.append({"type": t, "props": list(o.keys())})
                 elif isinstance(t, list):
                     schema_types.extend(str(x) for x in t if x)
+                    for _st in t:
+                        if _st:
+                            schema_objects.append({"type": str(_st), "props": list(o.keys())})
                 # aggregateRating
                 ar = o.get("aggregateRating")
                 if isinstance(ar, dict):
@@ -946,8 +942,86 @@ def _parse(url: str, status: int, html: str,
                             schema_author = a0
                     elif isinstance(auth, str):
                         schema_author = auth
+                # BreadcrumbList — extract ordered trail
+                if isinstance(t, str) and t.lower() == "breadcrumblist":
+                    for _bi in (o.get("itemListElement") or []):
+                        if isinstance(_bi, dict) and _bi.get("name"):
+                            breadcrumbs_jsonld.append({
+                                "position": int(_bi.get("position", 0)),
+                                "name":     str(_bi.get("name", "")),
+                                "item":     str(_bi.get("item") or ""),
+                            })
+                    breadcrumbs_jsonld.sort(key=lambda x: x["position"])
         except Exception:
             pass
+
+    # ── HTML nav breadcrumb ───────────────────────────────────────────────────
+    # MUST run before _body_text() which decomposes <nav> elements.
+    breadcrumbs_html: list[dict] = []
+    _bc_nav = soup.find("nav", attrs={"aria-label": re.compile(r"breadcrumb", re.I)})
+    if _bc_nav:
+        for _li in _bc_nav.find_all("li"):
+            _bc_a    = _li.find("a")
+            _bc_text = _bc_a.get_text(strip=True) if _bc_a else _li.get_text(strip=True)
+            _bc_href = (_bc_a.get("href") or "") if _bc_a else ""
+            if _bc_text:
+                breadcrumbs_html.append({"name": _bc_text, "href": _bc_href})
+
+    breadcrumbs         = breadcrumbs_jsonld if breadcrumbs_jsonld else breadcrumbs_html
+    breadcrumb_detected = bool(breadcrumbs)
+    breadcrumb_source   = "json_ld" if breadcrumbs_jsonld else ("html_nav" if breadcrumbs_html else "")
+
+    body_txt     = _body_text(soup)
+    link_objects = _internal_links(soup, url, domain, bare_domain)
+    link_hrefs   = [d["href"] for d in link_objects]
+    # Extract image alt texts — used by SEO audit and AI prompt
+    img_alts = [
+        img.get("alt", "").strip()
+        for img in soup.find_all("img")
+        if img.get("alt", "").strip()
+    ][:20]   # cap at 20 to keep payload manageable
+
+    # ── NEW: Last-Modified header (content freshness signal) ─────────────────
+    _hdrs = response_headers or {}
+    last_modified = (
+        _hdrs.get("Last-Modified") or
+        _hdrs.get("last-modified") or
+        ""
+    )
+
+    # ── NEW: Viewport meta tag (mobile-friendliness signal) ──────────────────
+    _vp_tag = soup.find("meta", attrs={"name": lambda n: n and n.lower() == "viewport"})
+    viewport = (_vp_tag.get("content", "").strip() if _vp_tag else "")
+
+    # ── NEW: <meta name="robots"> and X-Robots-Tag header ────────────────────
+    # Both signals are equivalent per Google's spec — either can block indexing.
+    _rm = soup.find("meta", attrs={"name": re.compile(r"^robots$", re.I)})
+    robots_meta  = (_rm.get("content") or "").strip().lower() if _rm else ""
+    x_robots_tag = (_hdrs.get("X-Robots-Tag") or _hdrs.get("x-robots-tag") or "").strip().lower()
+    _robots_combined = f"{robots_meta} {x_robots_tag}"
+    robots_noindex   = "noindex"  in _robots_combined
+    robots_nofollow  = "nofollow" in _robots_combined
+
+    # ── NEW: Image src list (format detection: WebP/AVIF vs legacy) ──────────
+    img_srcs = [
+        img.get("src", "").strip()
+        for img in soup.find_all("img")
+        if img.get("src", "").strip()
+    ][:20]
+
+    # ── NEW: Image loading quality signals (lazy + srcset) ───────────────────
+    _all_imgs        = soup.find_all("img")   # img tags survive _body_text decompose
+    img_total        = len(_all_imgs)
+    img_lazy_count   = sum(1 for _im in _all_imgs if (_im.get("loading") or "").lower() == "lazy")
+    img_srcset_count = sum(1 for _im in _all_imgs if (_im.get("srcset") or "").strip())
+    img_lazy_pct     = round(img_lazy_count   / img_total * 100, 1) if img_total else 0.0
+    img_srcset_pct   = round(img_srcset_count / img_total * 100, 1) if img_total else 0.0
+    # alt=None means attribute absent entirely (CLS/accessibility issue)
+    # alt="" is valid for decorative images — only flag absent alt attributes
+    img_missing_alt  = sum(1 for _im in _all_imgs if _im.get("alt") is None)
+    # width+height both required to let browser reserve layout space before load
+    img_missing_dims = sum(1 for _im in _all_imgs
+                           if not (_im.get("width") and _im.get("height")))
 
     # ── External links (for .edu/.gov/.org citation signal in E-E-A-T) ─────────
     # Extracted from actual href attributes — more reliable than body-text search.
@@ -1012,7 +1086,13 @@ def _parse(url: str, status: int, html: str,
         "url": url, "status_code": status,
         "title": title, "meta_description": meta_d, "meta_keywords": meta_k,
         "canonical": canon, "h1": h1s, "h2": h2s, "h3": h3s,
-        "og_title": og_title, "og_description": og_desc, "body_text": body_txt,
+        "og_title": og_title, "og_description": og_desc,
+        "og_image": og_image, "og_type": og_type,
+        "twitter_card": tw_card, "twitter_title": tw_title,
+        "twitter_description": tw_desc, "twitter_image": tw_image,
+        "robots_meta": robots_meta, "x_robots_tag": x_robots_tag,
+        "robots_noindex": robots_noindex, "robots_nofollow": robots_nofollow,
+        "body_text": body_txt,
         "img_alts": img_alts,   # image alt texts for SEO audit
         # ── NEW fields (additive — no existing field changed) ─────────────────
         "last_modified":       last_modified,      # HTTP Last-Modified header value
@@ -1027,9 +1107,22 @@ def _parse(url: str, status: int, html: str,
         "redirect_hops":       redirect_hops,      # number of redirects followed to reach this page
         "response_headers":    _stored_headers,    # SEO-relevant HTTP response headers
         "mixed_resources":     mixed_resources,    # HTTP resources on HTTPS page (mixed content)
-        "links":               links if not is_error_status else [],  # internal link URLs for link graph
+        "link_objects":        link_objects if not is_error_status else [],   # [{href, text}] for anchor analysis
+        "links":               link_hrefs   if not is_error_status else [],   # hrefs only — backward-compat
+        "heading_sequence":    heading_sequence,   # [{level, text}] in DOM order for flow validation
+        "schema_objects":      schema_objects,     # [{type, props}] for required-property validation
+        "breadcrumbs":         breadcrumbs,        # ordered trail [{position,name,item}] or [{name,href}]
+        "breadcrumb_detected": breadcrumb_detected, # True if any breadcrumb found
+        "breadcrumb_source":   breadcrumb_source,  # "json_ld" | "html_nav" | ""
+        "img_total":           img_total,          # total <img> tags on page
+        "img_lazy_count":      img_lazy_count,     # images with loading="lazy"
+        "img_lazy_pct":        img_lazy_pct,       # % images using lazy loading
+        "img_srcset_count":    img_srcset_count,   # images with srcset attribute
+        "img_srcset_pct":      img_srcset_pct,     # % images with srcset
+        "img_missing_alt":     img_missing_alt,    # images with no alt attribute (CLS/a11y)
+        "img_missing_dims":    img_missing_dims,   # images missing width or height (CLS risk)
         # ─────────────────────────────────────────────────────────────────────
-        "internal_links_count": 0, "_internal_links": links if not is_error_status else [],
+        "internal_links_count": 0, "_internal_links": link_hrefs if not is_error_status else [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
         "keywords_scored": [],   # filled by keyword_scorer.score_keywords()
         "competitor_gaps": None, # filled by competitor.run_competitor_analysis()
@@ -1064,13 +1157,16 @@ def _body_text(soup: BeautifulSoup) -> str:
     return " ".join(soup.get_text(" ", strip=True).split())[:3000]
 
 def _internal_links(soup: BeautifulSoup, page_url: str,
-                    domain: str, bare_domain: str = "") -> list[str]:
+                    domain: str, bare_domain: str = "") -> list[dict]:
     """
-    Extract internal links. Accepts both www and non-www variants.
+    Extract internal links with anchor text.
+    Returns: [{"href": str, "text": str}]
+    Deduplicates by href — first-seen anchor text wins.
     bare_domain = domain.lstrip('www.') — compared against link's bare netloc.
     """
-    links = set()
-    bare  = bare_domain or domain.lstrip("www.")
+    seen:   set[str]   = set()
+    result: list[dict] = []
+    bare    = bare_domain or domain.lstrip("www.")
 
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
@@ -1081,8 +1177,11 @@ def _internal_links(soup: BeautifulSoup, page_url: str,
         link_bare = parsed.netloc.lstrip("www.")
 
         if link_bare == bare and parsed.scheme in ("http", "https"):
-            links.add(parsed._replace(fragment="").geturl())
-    return list(links)
+            clean = parsed._replace(fragment="").geturl()
+            if clean not in seen:
+                seen.add(clean)
+                result.append({"href": clean, "text": a.get_text(strip=True)[:100]})
+    return result
 
 def _minimal_record(url: str, status, note: str = "") -> dict:
     return {
@@ -1091,14 +1190,25 @@ def _minimal_record(url: str, status, note: str = "") -> dict:
         # but Gemini/keyword logic must skip these records
         "title": note, "meta_description": "", "meta_keywords": "",
         "canonical": "", "h1": [], "h2": [], "h3": [],
-        "og_title": "", "og_description": "", "body_text": "",
+        "og_title": "", "og_description": "",
+        "og_image": "", "og_type": "",
+        "twitter_card": "", "twitter_title": "",
+        "twitter_description": "", "twitter_image": "",
+        "robots_meta": "", "x_robots_tag": "",
+        "robots_noindex": False, "robots_nofollow": False,
+        "body_text": "",
         "img_alts": [],
         # ── new fields (must match _parse() return keys) ──────────────────────
         "last_modified": "", "viewport": "", "img_srcs": [],
         "schema_types": [], "schema_rating": None, "schema_review_count": None,
         "schema_author": "", "external_links": [], "hreflang_tags": [],
         "redirect_hops": 0, "response_headers": {},
-        "mixed_resources": [], "links": [],
+        "mixed_resources": [], "link_objects": [], "links": [],
+        "heading_sequence": [], "schema_objects": [],
+        "breadcrumbs": [], "breadcrumb_detected": False, "breadcrumb_source": "",
+        "img_total": 0, "img_lazy_count": 0, "img_lazy_pct": 0.0,
+        "img_srcset_count": 0, "img_srcset_pct": 0.0,
+        "img_missing_alt": 0, "img_missing_dims": 0,
         # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": [],
         "issues": [], "keywords": [], "keywords_ngrams": [],

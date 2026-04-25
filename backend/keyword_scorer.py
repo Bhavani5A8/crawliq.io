@@ -209,6 +209,11 @@ def score_keywords(
     h2_norm    = _norm(" ".join(page.get("h2", []) or []))
     h3_norm    = _norm(" ".join(page.get("h3", []) or []))
     body_norm  = _norm(page.get("body_text", "") or "")
+    # Tokenise raw body once — shared by density and prominence checks below.
+    # Minimum 3-char filter matches extract_keywords_with_freq for consistency.
+    body_tokens = re.findall(r"[a-z]{3,}", body_norm)
+    total_words = len(body_tokens) or 1
+    first_100   = " ".join(body_tokens[:100])
 
     scored = []
     for item in kw_freq_list:
@@ -249,11 +254,20 @@ def score_keywords(
             ctr_val  = None
             ctr_tier = None
 
+        # Density: raw body occurrences / total body tokens × 100
+        # Uses _compile_wb (cached regex) — whole-word only, matches scorer logic
+        raw_count = len(_compile_wb(kw).findall(body_norm))
+        density   = round((raw_count / total_words) * 100, 2)
+        # Prominent: keyword appears within the first 100 body tokens
+        prominent = _in_text(kw, first_100)
+
         scored.append({
-            "keyword":      kw,
-            "freq":         freq,
-            "importance":   importance,
-            "score":        pts,
+            "keyword":       kw,
+            "freq":          freq,
+            "importance":    importance,
+            "score":         pts,
+            "density":       density,
+            "prominent":     prominent,
             "serp_position": position,
             "expected_ctr":  ctr_val,
             "ctr_tier":      ctr_tier,

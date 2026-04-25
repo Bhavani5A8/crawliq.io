@@ -96,9 +96,21 @@ INDEX_REDIRECT   = "not_indexable_redirect"
 INDEX_CANON      = "canonical_mismatch"
 INDEX_ERROR      = "not_indexable_error"
 INDEX_UNKNOWN    = "unknown"
+INDEX_NOINDEX    = "not_indexable_noindex"
+
+# Required JSON-LD properties per schema type (Google Rich Results spec)
+_SCHEMA_REQUIRED: dict[str, list[str]] = {
+    "Article":  ["headline", "author", "datePublished"],
+    "Product":  ["name", "offers"],
+    "FAQPage":  ["mainEntity"],
+}
+
+# Human-readable heading level names (1-6)
+_LEVEL_NAME = {1: "H1", 2: "H2", 3: "H3", 4: "H4", 5: "H5", 6: "H6"}
 
 
-def assess_indexability(url: str, status_code, canonical: str, is_error: bool) -> dict:
+def assess_indexability(url: str, status_code, canonical: str, is_error: bool,
+                        robots_noindex: bool = False) -> dict:
     """
     Determine the likely indexability of a page from crawl-data signals only.
 
@@ -116,6 +128,15 @@ def assess_indexability(url: str, status_code, canonical: str, is_error: bool) -
       label   — short human-readable string for the UI
       reason  — one-sentence explanation
     """
+    # noindex directive takes precedence — checked before status code because
+    # a 200 page with noindex must not be reported as indexable.
+    if robots_noindex:
+        return {
+            "status": INDEX_NOINDEX,
+            "label":  "No Index",
+            "reason": "noindex directive in meta robots or X-Robots-Tag — Googlebot will not index this page",
+        }
+
     code = str(status_code)
 
     # ── Crawler-level errors ──────────────────────────────────────────────────
@@ -203,19 +224,37 @@ def analyze_page(page: dict) -> dict:
     img_alts     = page.get("img_alts") or []
     img_srcs     = page.get("img_srcs") or []
     int_links    = int(page.get("internal_links_count") or 0)
-    is_error     = bool(page.get("_is_error"))
-    last_modified = (page.get("last_modified") or "")
-    viewport      = (page.get("viewport") or "")
-    schema_types  = page.get("schema_types") or []
-    hreflang_tags = page.get("hreflang_tags") or []
-    indexability  = assess_indexability(url, status_code, canonical, is_error)
+    is_error       = bool(page.get("_is_error"))
+    robots_noindex = bool(page.get("robots_noindex"))
+    last_modified  = (page.get("last_modified") or "")
+    viewport       = (page.get("viewport") or "")
+    schema_types   = page.get("schema_types") or []
+    hreflang_tags  = page.get("hreflang_tags") or []
+    og_image         = (page.get("og_image") or "").strip()
+    og_type          = (page.get("og_type") or "").strip()
+    tw_card          = (page.get("twitter_card") or "").strip()
+    tw_title         = (page.get("twitter_title") or "").strip()
+    tw_desc          = (page.get("twitter_description") or "").strip()
+    tw_image         = (page.get("twitter_image") or "").strip()
+    heading_sequence = page.get("heading_sequence") or []
+    schema_objects   = page.get("schema_objects") or []
+    breadcrumbs          = page.get("breadcrumbs") or []
+    breadcrumb_detected  = bool(page.get("breadcrumb_detected"))
+    breadcrumb_source    = (page.get("breadcrumb_source") or "")
+    img_total            = int(page.get("img_total") or 0)
+    img_lazy_count       = int(page.get("img_lazy_count") or 0)
+    img_lazy_pct         = float(page.get("img_lazy_pct") or 0.0)
+    img_srcset_count     = int(page.get("img_srcset_count") or 0)
+    img_srcset_pct       = float(page.get("img_srcset_pct") or 0.0)
+    indexability     = assess_indexability(url, status_code, canonical, is_error, robots_noindex)
 
     # ── Component audits ──────────────────────────────────────────────────────
     title_audit       = _audit_title(title)
     meta_audit        = _audit_meta(meta)
     canonical_audit   = _audit_canonical(canonical, url)
     heading_audit     = _audit_headings(h1s, h2s, h3s)
-    og_audit          = _audit_og(og_title, og_desc)
+    og_audit          = _audit_og(og_title, og_desc, og_image, og_type,
+                                  tw_card, tw_title, tw_desc, tw_image)
     content_audit     = _audit_content(body_text, int_links)
     url_audit         = _audit_url(url)
     image_audit       = _audit_images(img_alts)
@@ -227,6 +266,12 @@ def analyze_page(page: dict) -> dict:
     viewport_audit     = _audit_viewport(viewport)
     schema_type_audit  = _audit_schema_types(schema_types)
     hreflang_audit     = _audit_hreflang(hreflang_tags)
+    heading_flow_audit   = _audit_heading_flow(heading_sequence)
+    schema_val_audit     = _audit_schema_validation(schema_objects)
+    breadcrumb_audit     = _audit_breadcrumbs(breadcrumbs, breadcrumb_detected, breadcrumb_source)
+    image_loading_audit  = _audit_image_loading(
+        img_total, img_lazy_count, img_lazy_pct, img_srcset_count, img_srcset_pct
+    )
 
     # ── Compound technical score (0 – 100) ────────────────────────────────────
     # Score uses only the original 9 components — new audits are additive/informational.
@@ -249,6 +294,8 @@ def analyze_page(page: dict) -> dict:
         + image_fmt_audit["issues"]
         + status_audit["issues"]
         + viewport_audit["issues"]
+        + heading_flow_audit["issues"]
+        + schema_val_audit["schema_errors"]
     )
 
     return {
@@ -274,9 +321,13 @@ def analyze_page(page: dict) -> dict:
         "readability":    readability_audit,   # Flesch-Kincaid / sentence-length proxy
         "freshness":      freshness_audit,     # Last-Modified age signal
         "viewport":       viewport_audit,      # mobile viewport presence
-        "schema_types":   schema_type_audit,   # JSON-LD @type detection
-        "image_formats":  image_fmt_audit,     # WebP/AVIF vs legacy format ratio
-        "hreflang":       hreflang_audit,      # international SEO hreflang tags
+        "schema_types":      schema_type_audit,   # JSON-LD @type detection
+        "image_formats":     image_fmt_audit,    # WebP/AVIF vs legacy format ratio
+        "hreflang":          hreflang_audit,      # international SEO hreflang tags
+        "heading_flow":      heading_flow_audit,  # skipped heading levels
+        "schema_validation": schema_val_audit,    # required-property check per @type
+        "breadcrumb":        breadcrumb_audit,    # breadcrumb presence + source
+        "image_loading":     image_loading_audit, # lazy loading + srcset coverage
     }
 
 
@@ -286,9 +337,39 @@ def analyze_all(pages: list[dict]) -> dict:
     Returns { pages: [...audit dicts...], summary: {...} }
     """
     audits = [analyze_page(p) for p in pages]
+
+    # ── Inbound link map (O(pages × avg_links)) ───────────────────────────────
+    # Build {url: [referring_urls]} from the `links` field stored per page.
+    # `links` is a list of href strings (backward-compat field set in crawler._parse).
+    url_set = {p["url"] for p in pages if p.get("url")}
+    inbound: dict[str, list[str]] = {u: [] for u in url_set}
+    for page in pages:
+        src = page.get("url", "")
+        for href in (page.get("links") or []):
+            if href in inbound:
+                inbound[href].append(src)
+
+    # Inject inbound_count, inbound_urls, and orphan flag into each audit dict
+    for audit in audits:
+        url  = audit.get("url", "")
+        refs = inbound.get(url, [])
+        audit["inbound_count"] = len(refs)
+        audit["inbound_urls"]  = refs[:10]   # cap to keep payload manageable
+        # Orphan: no other crawled page links here.
+        # Error pages are excluded — they have no content to link to.
+        audit["orphan"] = (len(refs) == 0 and not audit.get("is_error"))
+
+    orphan_pages = [a["url"] for a in audits if a.get("orphan")]
+
+    summary = site_summary(audits)
+    summary["link_graph"] = {
+        "orphan_count": len(orphan_pages),
+        "orphan_urls":  orphan_pages[:20],   # cap list for API payload size
+    }
+
     return {
         "pages":   audits,
-        "summary": site_summary(audits),
+        "summary": summary,
     }
 
 
@@ -525,20 +606,96 @@ def _audit_headings(h1s: list, h2s: list, h3s: list) -> dict:
     }
 
 
-def _audit_og(og_title: str, og_desc: str) -> dict:
+def _audit_heading_flow(heading_sequence: list[dict]) -> dict:
+    """
+    Detect skipped heading levels in DOM order.
+
+    A skip is when heading level increases by more than one step
+    (e.g. H1 → H3 without an H2, or H2 → H4 without an H3).
+    The first heading on the page is the reference; subsequent ones
+    are compared only to the immediately preceding heading.
+
+    Returns: {sequence_length, skipped_levels, issues}
+    """
+    if not heading_sequence:
+        return {"sequence_length": 0, "skipped_levels": [], "issues": []}
+
+    issues:  list[str] = []
+    skipped: list[str] = []
+    prev = heading_sequence[0]["level"]
+
+    for item in heading_sequence[1:]:
+        curr = item["level"]
+        if curr > prev + 1:
+            # Every missing intermediate level is a separate issue
+            for missing in range(prev + 1, curr):
+                label = (f"{_LEVEL_NAME[prev]}→{_LEVEL_NAME[curr]} "
+                         f"(missing {_LEVEL_NAME[missing]})")
+                skipped.append(label)
+                issues.append(f"Skipped heading level: {label}")
+        prev = curr
+
+    return {
+        "sequence_length": len(heading_sequence),
+        "skipped_levels":  skipped,
+        "issues":          issues,
+    }
+
+
+def _audit_schema_validation(schema_objects: list[dict]) -> dict:
+    """
+    Validate JSON-LD schema objects against required-property rules.
+
+    Checks only the types listed in _SCHEMA_REQUIRED — unrecognised types
+    are passed through without errors. Property keys come from the crawled
+    JSON-LD object (already parsed by the crawler); values are not inspected.
+
+    Returns: {schema_errors, validated_types, has_errors}
+    """
+    errors:    list[str] = []
+    validated: list[str] = []
+
+    for obj in schema_objects:
+        schema_type = obj.get("type", "")
+        if schema_type not in _SCHEMA_REQUIRED:
+            continue
+        validated.append(schema_type)
+        present = set(obj.get("props", []))
+        for req in _SCHEMA_REQUIRED[schema_type]:
+            if req not in present:
+                errors.append(f"{schema_type}: missing required property '{req}'")
+
+    return {
+        "schema_errors":   errors,
+        "validated_types": validated,
+        "has_errors":      bool(errors),
+    }
+
+
+def _audit_og(og_title: str, og_desc: str,
+              og_image: str = "", og_type: str = "",
+              tw_card: str = "", tw_title: str = "",
+              tw_desc: str = "", tw_image: str = "") -> dict:
     issues = []
     has_title = bool(og_title)
     has_desc  = bool(og_desc)
+    has_image = bool(og_image)
     has_og    = has_title or has_desc
 
     if not has_title:
         issues.append("og:title missing — affects social sharing previews")
     if not has_desc:
         issues.append("og:description missing — affects social sharing previews")
+    if not has_image:
+        issues.append("og:image missing — no thumbnail when page is shared on social networks")
 
-    if has_title and has_desc:
+    # Full score requires title + description + image (image drives click-through on social)
+    if has_title and has_desc and has_image:
         completeness = "complete"
         score = 100
+    elif has_title and has_desc:
+        completeness = "partial"
+        score = 75
     elif has_og:
         completeness = "partial"
         score = 55
@@ -547,16 +704,19 @@ def _audit_og(og_title: str, og_desc: str) -> dict:
         score = 0
 
     return {
-        "title":        og_title,
-        "description":  og_desc,
-        "has_og":       has_og,
-        "completeness": completeness,
-        "score":        score,
-        "issues":       issues,
-        # Note: og:image, og:type, og:url not stored by crawler — marked N/A
-        "og_image":     "not_audited",
-        "og_type":      "not_audited",
-        "twitter_card": "not_audited",
+        "title":               og_title,
+        "description":         og_desc,
+        "og_image":            og_image,
+        "og_type":             og_type,
+        "has_og":              has_og,
+        "completeness":        completeness,
+        "score":               score,
+        "issues":              issues,
+        "twitter_card":        tw_card,
+        "twitter_title":       tw_title,
+        "twitter_description": tw_desc,
+        "twitter_image":       tw_image,
+        "has_twitter":         bool(tw_card),
     }
 
 
@@ -1045,6 +1205,103 @@ def _audit_image_formats(img_srcs: list) -> dict:
         "next_gen":     next_gen_count,
         "legacy":       legacy_count,
         "next_gen_pct": pct,
+        "status":       status,
+        "issues":       issues,
+    }
+
+
+def _audit_breadcrumbs(breadcrumbs: list, detected: bool, source: str) -> dict:
+    """
+    Audit breadcrumb implementation.
+
+    Best practice (per Google): use BreadcrumbList JSON-LD — it triggers
+    the breadcrumb path display in SERP snippets without relying on HTML parsing.
+    HTML nav[aria-label=breadcrumb] is a valid fallback.
+    """
+    issues = []
+    if not detected:
+        issues.append(
+            "No breadcrumb markup detected — add BreadcrumbList JSON-LD "
+            "or <nav aria-label=\"breadcrumb\"> for SERP breadcrumb display"
+        )
+        return {
+            "detected":    False,
+            "source":      "",
+            "item_count":  0,
+            "items":       [],
+            "status":      "missing",
+            "issues":      issues,
+        }
+
+    if source == "html_nav":
+        issues.append(
+            "Breadcrumb uses HTML nav only — add BreadcrumbList JSON-LD "
+            "for richer SERP integration and Googlebot parsing"
+        )
+
+    return {
+        "detected":    True,
+        "source":      source,       # "json_ld" | "html_nav"
+        "item_count":  len(breadcrumbs),
+        "items":       breadcrumbs[:8],
+        "status":      "ok" if source == "json_ld" else "partial",
+        "issues":      issues,
+    }
+
+
+def _audit_image_loading(
+    img_total: int,
+    img_lazy_count: int,
+    img_lazy_pct: float,
+    img_srcset_count: int,
+    img_srcset_pct: float,
+) -> dict:
+    """
+    Audit image lazy-loading and srcset (responsive images) coverage.
+
+    lazy loading: loading="lazy" defers off-screen images — reduces initial
+    page weight and improves LCP / CLS scores on image-heavy pages.
+
+    srcset: lets the browser pick the right resolution for the viewport —
+    avoids serving desktop-sized images to mobile devices.
+    """
+    issues = []
+
+    if img_total == 0:
+        return {
+            "total":         0,
+            "lazy_count":    0,
+            "lazy_pct":      None,
+            "srcset_count":  0,
+            "srcset_pct":    None,
+            "status":        "no_images",
+            "issues":        [],
+        }
+
+    if img_lazy_pct < 50 and img_total > 2:
+        issues.append(
+            f"Only {img_lazy_pct}% of images use loading=\"lazy\" "
+            f"({img_lazy_count}/{img_total}) — add it to below-fold images"
+        )
+    if img_srcset_pct < 30 and img_total > 2:
+        issues.append(
+            f"Only {img_srcset_pct}% of images have srcset "
+            f"({img_srcset_count}/{img_total}) — add srcset for responsive delivery"
+        )
+
+    if not issues:
+        status = "ok"
+    elif len(issues) == 1:
+        status = "partial"
+    else:
+        status = "needs_work"
+
+    return {
+        "total":        img_total,
+        "lazy_count":   img_lazy_count,
+        "lazy_pct":     img_lazy_pct,
+        "srcset_count": img_srcset_count,
+        "srcset_pct":   img_srcset_pct,
         "status":       status,
         "issues":       issues,
     }

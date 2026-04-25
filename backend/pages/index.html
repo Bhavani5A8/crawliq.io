@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CrawlIQ — AI-Powered SEO Audit Platform</title>
+<meta name="description" content="Free AI-powered SEO crawler. Technical audit, AI fixes, rank tracking, competitor analysis — all in one platform."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link rel="stylesheet" href="/static/css/app.css"/>
+</head>
+<body>
+
+<!-- ══ AUTH MODAL ══ -->
+<div id="auth-modal" class="modal-overlay" style="display:none">
+<div class="modal-box">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><polygon points="16,2 9,14 14,14 7,26 21,10 15,10 22,2" fill="#22D3EE"/></svg>
+    <span style="font-size:16px;font-weight:800;color:var(--text)">Crawl<em style="color:var(--cyan)">IQ</em></span>
+    <span id="auth-tier-info" style="margin-left:auto;font-size:10px;color:var(--dim)">Sign in to save projects &amp; track rankings</span>
+  </div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tab-login" onclick="authTab('login')">Sign In</button>
+    <button class="auth-tab" id="tab-register" onclick="authTab('register')">Create Account</button>
+  </div>
+  <div id="auth-error" class="auth-error"></div>
+  <div id="auth-form-login">
+    <div class="auth-field"><label>Email</label><input id="login-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="auth-field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doLogin()">Sign In</button>
+    <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
+  </div>
+  <div id="auth-form-register" style="display:none">
+    <div class="auth-field"><label>Name</label><input id="reg-name" type="text" placeholder="Your name" autocomplete="name"/></div>
+    <div class="auth-field"><label>Email</label><input id="reg-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="auth-field"><label>Password</label><input id="reg-pass" type="password" placeholder="Min 6 characters" autocomplete="new-password"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doRegister()">Create Free Account</button>
+    <div style="font-size:10px;color:var(--dim);text-align:center;margin-top:8px">Free plan: 200 pages/month · 3 projects · No credit card required</div>
+    <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
+  </div>
+</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 600">query_stats</span>
+    <span class="nav-logo-text">Crawl<em>IQ</em></span>
+  </a>
+  <div class="nav-links">
+    <a href="#how-it-works">How It Works</a>
+    <a href="#features">Features</a>
+    <a href="#faq">FAQ</a>
+    <a href="/app" style="color:var(--primary)">⚡ Launch App</a>
+  </div>
+  <div class="nav-right">
+    <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
+      <a href="/app" class="btn-nav-cta">Free Audit →</a>
+    </div>
+    <div id="nav-auth-user" style="display:none;align-items:center;gap:8px">
+      <a href="/app" class="btn btn-green btn-sm" style="text-decoration:none;font-size:11px">⚡ Go to App</a>
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="user-avatar-initials">U</div>
+        <span id="user-display-name" style="font-size:12px;color:var(--text)">User</span>
+        <span id="user-tier-badge" class="tier-badge tier-free">Free</span>
+        <div class="user-menu" id="user-menu">
+          <a class="user-menu-item" href="/app" style="display:block;text-decoration:none">⚡ Go to App</a>
+          <button class="user-menu-item" style="color:var(--red)" onclick="doLogout()">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="orb1"></div><div class="orb2"></div><div class="orb3"></div>
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    AI-Powered SEO Platform
+    <span class="hero-badge-new">Free</span>
+  </div>
+  <h1>Optimize Your<br><span class="grad">SEO Presence</span></h1>
+  <p class="hero-sub">Enter any website URL to get a full technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes.</p>
+  <div class="hero-input-row" id="hero-input-row">
+    <div class="hero-input-wrap">
+      <span class="material-symbols-outlined hero-input-icon">language</span>
+      <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com" onkeydown="if(event.key==='Enter')goToApp()"/>
+    </div>
+    <button class="hero-crawl-btn" id="crawl-btn" onclick="goToApp()">
+      <span>Run SEO Audit</span>
+      <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
+    </button>
+  </div>
+  <p class="trust-text" style="margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">⚡ Groq · Gemini · Claude · OpenAI</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">🔓 Open Source on GitHub</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📊 50+ SEO Metrics</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf);border:1px solid var(--border);padding:4px 14px;border-radius:20px;font-weight:600">📤 Excel Export (.xlsx)</span>
+  </div>
+  <div class="scroll-ind">
+    <div class="scroll-mouse"><div class="scroll-dot"></div></div>
+    <span>Scroll to explore</span>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="sec-inner">
+    <div class="sec-hd">
+      <p class="sec-lbl lbl-i">Simple · Fast · Free</p>
+      <h2>Three Steps to Better Rankings</h2>
+      <p>No setup, no configuration. Just paste a URL and get an actionable SEO report.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card step-card--accent">
+        <div class="step-ico" style="background:rgba(99,102,241,.15)"><span class="material-symbols-outlined" style="color:var(--indigo)">language</span></div>
+        <div class="step-num">Step 01</div>
+        <div class="step-title">Enter Your URL</div>
+        <div class="step-desc">Paste any website URL. CrawlIQ BFS-crawls up to 500 pages and extracts 50+ SEO signals per page.</div>
+      </div>
+      <div class="step-card step-card--accent">
+        <div class="step-ico" style="background:rgba(16,185,129,.12)"><span class="material-symbols-outlined" style="color:var(--green)">psychology</span></div>
+        <div class="step-num">Step 02</div>
+        <div class="step-title">AI Analyses Issues</div>
+        <div class="step-desc">Groq, Gemini, Claude or OpenAI reviews every page. Generates exact title rewrites, meta description fixes, and structured-data suggestions.</div>
+      </div>
+      <div class="step-card step-card--accent">
+        <div class="step-ico" style="background:rgba(245,158,11,.12)"><span class="material-symbols-outlined" style="color:var(--yellow)">checklist</span></div>
+        <div class="step-num">Step 03</div>
+        <div class="step-title">Get Ranked Actions</div>
+        <div class="step-desc">Every issue is prioritized by impact — High / Medium / Low. Export to Excel or PDF. Monitor rank changes weekly.</div>
+      </div>
+      <div class="step-card step-card--accent">
+        <div class="step-ico" style="background:rgba(192,193,255,.1)"><span class="material-symbols-outlined" style="color:var(--primary)">trending_up</span></div>
+        <div class="step-num">Step 04</div>
+        <div class="step-title">Track & Beat Competitors</div>
+        <div class="step-desc">Run competitor analysis to spot keyword gaps, dimension scores, and historical comparison. Stay one step ahead.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="sec-inner">
+    <div class="sec-hd">
+      <p class="sec-lbl lbl-i">Everything You Need</p>
+      <h2>The Complete SEO Toolkit</h2>
+      <p>From crawling to monitoring — every feature is free to start.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card featured">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--indigo),var(--primary-container))"></div>
+        <div class="feat-popular">Popular</div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.15)">🔬</div>
+        <h3>Technical SEO Audit</h3>
+        <p>Full BFS crawler with Core Web Vitals scoring, canonical checks, robots.txt, sitemap validation, redirect chains, and 30+ checks per page.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Core Web Vitals</span>
+          <span class="feat-tag">Canonicals</span>
+          <span class="feat-tag">Structured Data</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--primary)">Run audit free →</a>
+      </div>
+      <div class="feat-card">
+        <div class="feat-ico" style="background:rgba(16,185,129,.12)">✨</div>
+        <h3>Multi-AI Analysis</h3>
+        <p>Groq (Llama 3), Google Gemini, Claude, OpenAI GPT-4o-mini, or Ollama — pick your provider. Every page gets exact rewrites, not vague advice.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Groq · Free</span>
+          <span class="feat-tag">Gemini</span>
+          <span class="feat-tag">Claude</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--green)">Configure AI →</a>
+      </div>
+      <div class="feat-card">
+        <div class="feat-ico" style="background:rgba(255,183,131,.1)">⚔</div>
+        <h3>Competitor Analysis</h3>
+        <p>Compare 5 competitors side by side. Keyword gap analysis, dimension scoring (content, tech, UX), and an AI action plan ranked by opportunity.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Keyword Gap</span>
+          <span class="feat-tag">Dimension Scores</span>
+          <span class="feat-tag">AI Actions</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--tertiary)">Try it free →</a>
+      </div>
+      <div class="feat-card">
+        <div class="feat-ico" style="background:rgba(192,193,255,.1)">📊</div>
+        <h3>SERP Intelligence</h3>
+        <p>Bulk position check for any domain, keyword difficulty scorer, and a visibility score across your entire tracked keyword set.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Bulk Check</span>
+          <span class="feat-tag">KW Difficulty</span>
+          <span class="feat-tag">Visibility Score</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--primary)">Check positions →</a>
+      </div>
+      <div class="feat-card">
+        <div class="feat-ico" style="background:rgba(99,102,241,.12)">🔔</div>
+        <h3>Rank Monitoring</h3>
+        <p>Schedule recurring keyword rank checks. Get email alerts when positions drop by your threshold. Weekly digest of all tracked domains.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Scheduled Jobs</span>
+          <span class="feat-tag">Email Alerts</span>
+          <span class="feat-tag">Weekly Digest</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--indigo)">Set up monitoring →</a>
+      </div>
+      <div class="feat-card">
+        <div class="feat-ico" style="background:rgba(16,185,129,.1)">📤</div>
+        <h3>Professional Exports</h3>
+        <p>Excel full-crawl report, white-label PDF with your logo and brand name, and the live optimization table — all downloadable in one click.</p>
+        <div class="feat-tags">
+          <span class="feat-tag">Excel (.xlsx)</span>
+          <span class="feat-tag">White-label PDF</span>
+          <span class="feat-tag">Team sharing</span>
+        </div>
+        <a href="/app" class="feat-link" style="color:var(--green)">Export sample →</a>
+      </div>
+    </div>
+    <div class="feat-chips">
+      <span class="feat-chip">BFS Crawler</span>
+      <span class="feat-chip">Link Graph</span>
+      <span class="feat-chip">Content Dedup</span>
+      <span class="feat-chip">Cloudflare Bypass</span>
+      <span class="feat-chip">Sitemap Import</span>
+      <span class="feat-chip">Schema Detection</span>
+      <span class="feat-chip">GSC Integration</span>
+      <span class="feat-chip">Team Access</span>
+      <span class="feat-chip">API Keys</span>
+      <span class="feat-chip">Issue Tracker</span>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT / STATS -->
+<section class="about-sec">
+  <div class="sec-inner">
+    <div class="about-grid">
+      <div class="about">
+        <div class="about-lbl">Why CrawlIQ</div>
+        <h2>Built for <em>real SEO results</em>, not vanity metrics</h2>
+        <p>Most SEO tools give you scores. CrawlIQ gives you exact fixes — AI-generated title rewrites, meta descriptions, and structured-data patches ready to copy-paste.</p>
+        <p>Every audit is free. Every AI analysis uses the provider you choose. No vendor lock-in, no monthly contract required to start.</p>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="sv">50+</div><div class="sl">Metrics per page</div><div class="sg">↑ Technical depth</div></div>
+          <div class="stat-card"><div class="sv">5</div><div class="sl">AI providers</div><div class="sg">Your choice</div></div>
+          <div class="stat-card"><div class="sv">500</div><div class="sl">Pages per crawl</div><div class="sg">Enterprise scale</div></div>
+        </div>
+      </div>
+      <div class="net-wrap">
+        <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" style="opacity:.7">
+          <defs><radialGradient id="ng" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:rgba(99,102,241,.3)"/><stop offset="100%" style="stop-color:rgba(99,102,241,0)"/></radialGradient></defs>
+          <circle cx="200" cy="150" r="160" fill="url(#ng)"/>
+          <circle cx="200" cy="150" r="4" fill="#6366F1"/>
+          <line x1="200" y1="150" x2="100" y2="80" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
+          <line x1="200" y1="150" x2="300" y2="80" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
+          <line x1="200" y1="150" x2="80" y2="200" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
+          <line x1="200" y1="150" x2="320" y2="200" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
+          <line x1="200" y1="150" x2="200" y2="260" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
+          <circle cx="100" cy="80" r="3" fill="#c0c1ff"/><circle cx="300" cy="80" r="3" fill="#c0c1ff"/>
+          <circle cx="80" cy="200" r="3" fill="#c0c1ff"/><circle cx="320" cy="200" r="3" fill="#c0c1ff"/>
+          <circle cx="200" cy="260" r="3" fill="#c0c1ff"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="sec-inner">
+    <div class="sec-hd">
+      <p class="sec-lbl lbl-i">Got questions?</p>
+      <h2>Frequently Asked</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Is CrawlIQ really free? <div class="faq-chev">▼</div>
+        </div>
+        <div class="faq-a"><div class="faq-a-in">Yes. Guest users can crawl up to 50 pages per session. Free accounts (no credit card needed) get 200 pages/month across 3 projects. Pro and Agency plans unlock higher limits, team seats, and white-label PDF exports.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Which AI provider should I use? <div class="faq-chev">▼</div>
+        </div>
+        <div class="faq-a"><div class="faq-a-in">Groq (Llama 3) is free with a generous API quota and the fastest. Gemini Flash is free with a Google API key. OpenAI and Claude are paid but offer the most nuanced fixes. Ollama runs locally with no API costs at all.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Can I crawl competitor sites? <div class="faq-chev">▼</div>
+        </div>
+        <div class="faq-a"><div class="faq-a-in">Yes — the competitor analysis module lets you audit up to 5 URLs in one run, compare dimension scores, identify keyword gaps, and get an AI-ranked action plan. You can crawl any publicly accessible site.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Does it work on JavaScript-rendered sites? <div class="faq-chev">▼</div>
+        </div>
+        <div class="faq-a"><div class="faq-a-in">CrawlIQ uses curl_cffi to bypass Cloudflare, DataDome, PerimeterX and other bot protection systems. For JS-heavy sites, it still crawls all linked HTML pages — it does not execute JavaScript like a headless browser.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Is my data private? <div class="faq-chev">▼</div>
+        </div>
+        <div class="faq-a"><div class="faq-a-in">Crawl results are stored per-session in memory and optionally in your project history if you're logged in. We never sell data to third parties. API keys you enter are stored server-side per user and never exposed in logs.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-wrap">
+  <h2>Ready to improve your rankings?</h2>
+  <p>Start your free SEO audit in under 10 seconds — no sign-up required.</p>
+  <div class="cta-btns">
+    <a href="/app" class="cta-primary">Run Free Audit →</a>
+    <button class="cta-outline" onclick="authTab('register');openAuthModal()">Create Free Account</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft">
+    <div class="fb">
+      <div class="fb-logo">
+        <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><polygon points="16,2 9,14 14,14 7,26 21,10 15,10 22,2" fill="#22D3EE"/></svg>
+        <span>Crawl<em>IQ</em></span>
+      </div>
+      <p>AI-powered SEO audit platform. Free forever for core features.</p>
+      <div class="socials">
+        <a href="#" class="soc" title="GitHub">GH</a>
+        <a href="#" class="soc" title="Twitter/X">X</a>
+      </div>
+    </div>
+    <div class="fc">
+      <h4>Product</h4>
+      <a href="/app">SEO Audit</a>
+      <a href="/app">Competitor Analysis</a>
+      <a href="/app">Rank Monitoring</a>
+      <a href="/app">SERP Intelligence</a>
+    </div>
+    <div class="fc">
+      <h4>Resources</h4>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="fc">
+      <h4>Account</h4>
+      <a href="#" onclick="openAuthModal()">Sign In</a>
+      <a href="#" onclick="authTab('register');openAuthModal()">Free Sign Up</a>
+      <a href="/app">Go to App</a>
+    </div>
+  </div>
+  <div class="ft-bot">
+    <span class="ft-copy">© 2026 CrawlIQ. Free SEO tools for everyone.</span>
+    <div class="ft-badges">
+      <span class="ft-badge">Open Source</span>
+      <span class="ft-badge">No Credit Card</span>
+      <span class="ft-badge">GDPR Friendly</span>
+    </div>
+  </div>
+</footer>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="/" class="bn-item active">
+    <span class="material-symbols-outlined">home</span>
+    <span class="bn-label">Home</span>
+  </a>
+  <a href="/app" class="bn-item">
+    <span class="material-symbols-outlined">search</span>
+    <span class="bn-label">Audit</span>
+  </a>
+  <a href="#features" class="bn-item">
+    <span class="material-symbols-outlined">star</span>
+    <span class="bn-label">Features</span>
+  </a>
+  <a href="#" onclick="openAuthModal()" class="bn-item">
+    <span class="material-symbols-outlined">person</span>
+    <span class="bn-label">Account</span>
+  </a>
+</nav>
+
+<script src="/static/js/api.js"></script>
+<script>
+function goToApp() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { window.location.href = '/app'; return; }
+  window.location.href = '/app?url=' + encodeURIComponent(url);
+}
+
+window.addEventListener('load', () => {
+  loadCurrentUser();
+});
+</script>
+</body>
+</html>
