@@ -51,6 +51,27 @@ from keyword_pipeline import run_keyword_pipeline
 
 logger = logging.getLogger(__name__)
 
+# ── Image format constants ────────────────────────────────────────────────────
+_MODERN_IMG_EXTS  = frozenset({".webp", ".avif", ".jxl"})
+_LEGACY_IMG_RE    = re.compile(r'\.(jpe?g|png|gif|bmp|tiff?)(\?|#|$)', re.I)
+
+
+def _tls_version(resp) -> str:
+    """
+    Safely extract TLS protocol version from an aiohttp response.
+
+    Returns a string such as "TLSv1.3", "TLSv1.2", or "" if unavailable
+    (non-TLS connections, cffi paths, or aiohttp versions that don't expose it).
+    """
+    try:
+        transport = resp.connection.transport
+        ssl_obj   = transport.get_extra_info("ssl_object")
+        if ssl_obj is not None:
+            return ssl_obj.version() or ""
+    except Exception:
+        pass
+    return ""
+
 # curl_cffi — Chrome TLS fingerprint impersonation.
 # Used as 5th fallback when aiohttp is blocked by Cloudflare/bot-protection.
 # Must be imported AFTER logger is defined.
@@ -728,7 +749,8 @@ class SEOCrawler:
                             return _parse(url, status, html,
                                           self.domain, self._bare_domain,
                                           response_headers=dict(resp.headers),
-                                          redirect_hops=len(resp.history))
+                                          redirect_hops=len(resp.history),
+                                          tls_version=_tls_version(resp))
 
                 except asyncio.TimeoutError:
                     # Separate TimeoutError catch here for clarity
@@ -848,7 +870,8 @@ class SEOCrawler:
 def _parse(url: str, status: int, html: str,
            domain: str, bare_domain: str = "",
            response_headers: dict | None = None,
-           redirect_hops: int = 0) -> dict:
+           redirect_hops: int = 0,
+           tls_version: str = "") -> dict:
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception:
@@ -971,6 +994,35 @@ def _parse(url: str, status: int, html: str,
     breadcrumb_detected = bool(breadcrumbs)
     breadcrumb_source   = "json_ld" if breadcrumbs_jsonld else ("html_nav" if breadcrumbs_html else "")
 
+    # ── RESOURCE COUNT (before _body_text decomposes script/iframe tags) ──────
+    # Counts all HTTP resource references — proxy for page weight/request count.
+    # <script> and <iframe> are removed by _body_text(); count them here.
+    _ext_scripts  = len(soup.find_all("script", src=True))
+    _stylesheets  = len([t for t in soup.find_all("link", rel=True)
+                         if "stylesheet" in (t.get("rel") or [])])
+    _iframes_raw  = len(soup.find_all("iframe", src=True))
+    _videos       = len(soup.find_all("video"))
+    _audio        = len(soup.find_all("audio"))
+    # img / source / picture counted below (after _body_text, they survive)
+    _resource_count_partial = _ext_scripts + _stylesheets + _iframes_raw + _videos + _audio
+
+    # ── PAGINATION (before body_txt — <link> tags survive but count early) ────
+    pagination_next: str = ""
+    pagination_prev: str = ""
+    for _pl in soup.find_all("link", rel=True):
+        _pl_rels = [r.lower() if isinstance(r, str) else r for r in (_pl.get("rel") or [])]
+        _pl_href = (_pl.get("href") or "").strip()
+        if not _pl_href:
+            continue
+        if "next" in _pl_rels and not pagination_next:
+            pagination_next = urljoin(url, _pl_href)
+        if "prev" in _pl_rels or "previous" in _pl_rels:
+            if not pagination_prev:
+                pagination_prev = urljoin(url, _pl_href)
+
+    # ── HTML SIZE ─────────────────────────────────────────────────────────────
+    html_size_kb = round(len(html.encode("utf-8")) / 1024, 1)
+
     body_txt     = _body_text(soup)
     link_objects = _internal_links(soup, url, domain, bare_domain)
     link_hrefs   = [d["href"] for d in link_objects]
@@ -1001,6 +1053,10 @@ def _parse(url: str, status: int, html: str,
     _robots_combined = f"{robots_meta} {x_robots_tag}"
     robots_noindex   = "noindex"  in _robots_combined
     robots_nofollow  = "nofollow" in _robots_combined
+    # ── X-Robots-Tag specific booleans (header only, separate from meta robots) ──
+    # "none" directive is equivalent to "noindex, nofollow" in X-Robots-Tag
+    x_robots_noindex  = "noindex"  in x_robots_tag or "none" in x_robots_tag
+    x_robots_nofollow = "nofollow" in x_robots_tag or "none" in x_robots_tag
 
     # ── NEW: Image src list (format detection: WebP/AVIF vs legacy) ──────────
     img_srcs = [
@@ -1022,6 +1078,22 @@ def _parse(url: str, status: int, html: str,
     # width+height both required to let browser reserve layout space before load
     img_missing_dims = sum(1 for _im in _all_imgs
                            if not (_im.get("width") and _im.get("height")))
+
+    # ── Image format detection (modern vs legacy) ─────────────────────────────
+    # Count images using legacy formats that lack modern compression efficiency.
+    # "Not modern" = has a jpg/png/gif/bmp src and no .webp/.avif equivalent.
+    img_non_modern_count = sum(
+        1 for src in img_srcs
+        if src and _LEGACY_IMG_RE.search(src)
+        and not any(
+            src.lower().endswith(ext) or f"{ext}?" in src.lower()
+            for ext in _MODERN_IMG_EXTS
+        )
+    )
+
+    # ── Finalise resource_count (post _body_text — add img + source counts) ───
+    _picture_sources = len(soup.find_all("source"))   # <source> in <picture>/<video>
+    resource_count = _resource_count_partial + img_total + _picture_sources
 
     # ── External links (for .edu/.gov/.org citation signal in E-E-A-T) ─────────
     # Extracted from actual href attributes — more reliable than body-text search.
@@ -1073,6 +1145,9 @@ def _parse(url: str, status: int, html: str,
         "strict-transport-security", "content-security-policy",
         "x-frame-options", "x-content-type-options", "x-xss-protection",
         "cache-control", "last-modified", "etag", "server", "content-type",
+        "content-encoding",   # required for compression audit (gzip/br/deflate detection)
+        "referrer-policy",    # required for referrer-policy audit
+        "permissions-policy", # required for permissions-policy audit
     ])
     _stored_headers = {k: v for k, v in (_hdrs or {}).items() if k.lower() in _KEEP_HDRS}
 
@@ -1092,6 +1167,7 @@ def _parse(url: str, status: int, html: str,
         "twitter_description": tw_desc, "twitter_image": tw_image,
         "robots_meta": robots_meta, "x_robots_tag": x_robots_tag,
         "robots_noindex": robots_noindex, "robots_nofollow": robots_nofollow,
+        "x_robots_noindex": x_robots_noindex, "x_robots_nofollow": x_robots_nofollow,
         "body_text": body_txt,
         "img_alts": img_alts,   # image alt texts for SEO audit
         # ── NEW fields (additive — no existing field changed) ─────────────────
@@ -1121,6 +1197,15 @@ def _parse(url: str, status: int, html: str,
         "img_srcset_pct":      img_srcset_pct,     # % images with srcset
         "img_missing_alt":     img_missing_alt,    # images with no alt attribute (CLS/a11y)
         "img_missing_dims":    img_missing_dims,   # images missing width or height (CLS risk)
+        "img_non_modern_count": img_non_modern_count,  # legacy-format images (jpg/png/gif, not WebP/AVIF)
+        # ── Performance signals ───────────────────────────────────────────────
+        "resource_count":     resource_count,      # total resource-loading element count
+        "html_size_kb":       html_size_kb,        # HTML response size in KB
+        # ── Pagination ───────────────────────────────────────────────────────
+        "pagination_next":    pagination_next,     # href of <link rel="next"> or ""
+        "pagination_prev":    pagination_prev,     # href of <link rel="prev"> or ""
+        # ── TLS / Security ───────────────────────────────────────────────────
+        "tls_version":        tls_version,         # e.g. "TLSv1.3" or "" if unavailable
         # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": link_hrefs if not is_error_status else [],
         "issues": [], "keywords": [], "keywords_ngrams": [],
@@ -1196,6 +1281,7 @@ def _minimal_record(url: str, status, note: str = "") -> dict:
         "twitter_description": "", "twitter_image": "",
         "robots_meta": "", "x_robots_tag": "",
         "robots_noindex": False, "robots_nofollow": False,
+        "x_robots_noindex": False, "x_robots_nofollow": False,
         "body_text": "",
         "img_alts": [],
         # ── new fields (must match _parse() return keys) ──────────────────────
@@ -1209,6 +1295,10 @@ def _minimal_record(url: str, status, note: str = "") -> dict:
         "img_total": 0, "img_lazy_count": 0, "img_lazy_pct": 0.0,
         "img_srcset_count": 0, "img_srcset_pct": 0.0,
         "img_missing_alt": 0, "img_missing_dims": 0,
+        "img_non_modern_count": 0,
+        "resource_count": 0, "html_size_kb": 0.0,
+        "pagination_next": "", "pagination_prev": "",
+        "tls_version": "",
         # ─────────────────────────────────────────────────────────────────────
         "internal_links_count": 0, "_internal_links": [],
         "issues": [], "keywords": [], "keywords_ngrams": [],

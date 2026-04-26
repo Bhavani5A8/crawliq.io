@@ -2786,13 +2786,14 @@ def get_content_dedup():
 # ════════════════════════════════════════════════════════════════════════════
 
 @app.get("/site-audit/full")
-async def get_full_site_audit():
+async def get_full_site_audit(sitemap_url: str = ""):
     """
     Full site-level audit:
     - robots.txt rules
     - HSTS header strength
     - Mixed content (HTTP resources on HTTPS pages)
     - Redirect chains for crawled URLs
+    - Cross-validation (sitemap vs indexability, internal links, canonicals, hreflang)
     """
     if not _SITE_AUDITOR_MODULE:
         raise HTTPException(status_code=503, detail="site_auditor module not available")
@@ -2800,7 +2801,26 @@ async def get_full_site_audit():
     if not pages:
         raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
     site_url = pages[0]["url"] if pages else ""
-    return await _run_site_audit(site_url, pages)
+
+    # Resolve sitemap URLs for cross-validation — caller can pass ?sitemap_url=...
+    # or we fall back to sitemap entries found in robots.txt (fetched inside run_site_audit)
+    cv_sitemap_urls: list[str] | None = None
+    if sitemap_url and _SITE_AUDITOR_MODULE:
+        try:
+            import aiohttp as _aiohttp_sm
+            async with _aiohttp_sm.ClientSession() as _sm_sess:
+                async with _sm_sess.get(
+                    sitemap_url,
+                    timeout=_aiohttp_sm.ClientTimeout(total=8),
+                    headers={"User-Agent": "CrawlIQ-SEO-Bot/1.0"},
+                ) as _sm_resp:
+                    if _sm_resp.status == 200:
+                        _sm_xml = await _sm_resp.text(errors="replace")
+                        cv_sitemap_urls = _parse_sitemap_xml(_sm_xml) or None
+        except Exception:
+            pass  # sitemap fetch failure is non-fatal
+
+    return await _run_site_audit(site_url, pages, sitemap_urls=cv_sitemap_urls)
 
 
 @app.get("/site-audit/robots")

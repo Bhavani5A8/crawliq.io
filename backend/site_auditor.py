@@ -444,12 +444,338 @@ def parse_sitemap_xml(content: str) -> list[str]:
     return result
 
 
-async def run_site_audit(site_url: str, pages: list[dict]) -> dict:
+# ---------------------------------------------------------------------------
+# Cross-validation layer
+# ---------------------------------------------------------------------------
+
+def _cv_sitemap_indexability(pages: list[dict], sitemap_urls: list[str]) -> list[dict]:
+    """
+    1. SITEMAP vs INDEXABILITY
+    Flag pages that are in the sitemap but:
+      - have noindex (meta robots or X-Robots-Tag)
+      - returned 4xx or 5xx status
+    """
+    if not sitemap_urls:
+        return []
+
+    sitemap_set = {u.rstrip("/") for u in sitemap_urls}
+    issues: list[dict] = []
+
+    for page in pages:
+        url = (page.get("url") or "").rstrip("/")
+        if url not in sitemap_set:
+            continue
+
+        status = page.get("status_code", 200)
+
+        # 4xx / 5xx in sitemap
+        if isinstance(status, int) and status >= 400:
+            issues.append({
+                "type":          "sitemap_error_page",
+                "severity":      "CRITICAL" if status >= 500 else "HIGH",
+                "category":      "sitemap_indexability",
+                "detail":        f"Sitemap lists URL that returns HTTP {status}",
+                "affected_urls": [url],
+                "source_url":    url,
+                "count":         1,
+            })
+
+        # noindex in sitemap
+        noindex_meta   = page.get("noindex", False)
+        noindex_header = page.get("x_robots_noindex", False)
+        if noindex_meta or noindex_header:
+            source = "X-Robots-Tag header" if noindex_header else "meta robots"
+            issues.append({
+                "type":          "sitemap_noindex_conflict",
+                "severity":      "HIGH",
+                "category":      "sitemap_indexability",
+                "detail":        f"Sitemap lists URL that has noindex ({source})",
+                "affected_urls": [url],
+                "source_url":    url,
+                "count":         1,
+            })
+
+    return issues
+
+
+def _cv_internal_links_status(pages: list[dict]) -> list[dict]:
+    """
+    2. INTERNAL LINKS vs STATUS
+    Flag pages that have internal links pointing to:
+      - 4xx pages
+      - pages reached via redirect chains (redirect_hops > 1)
+    """
+    # Build lookup: url → {status_code, redirect_hops}
+    url_info: dict[str, dict] = {}
+    for page in pages:
+        url = (page.get("url") or "").rstrip("/")
+        if url:
+            url_info[url] = {
+                "status": page.get("status_code", 200),
+                "hops":   page.get("redirect_hops", 0),
+            }
+
+    issues: list[dict] = []
+
+    for page in pages:
+        src = page.get("url", "")
+        internal_links = page.get("internal_links") or []
+
+        broken_targets:   list[str] = []
+        redirect_targets: list[str] = []
+
+        for link in internal_links:
+            target = link.rstrip("/") if isinstance(link, str) else ""
+            if not target or target not in url_info:
+                continue
+            info = url_info[target]
+            if isinstance(info["status"], int) and info["status"] >= 400:
+                broken_targets.append(target)
+            elif info["hops"] > 1:
+                redirect_targets.append(target)
+
+        if broken_targets:
+            issues.append({
+                "type":          "internal_link_to_4xx",
+                "severity":      "HIGH",
+                "category":      "internal_links",
+                "detail":        f"{len(broken_targets)} internal link(s) point to error pages",
+                "affected_urls": broken_targets[:20],
+                "source_url":    src,
+                "count":         len(broken_targets),
+            })
+
+        if redirect_targets:
+            issues.append({
+                "type":          "internal_link_redirect_chain",
+                "severity":      "MEDIUM",
+                "category":      "internal_links",
+                "detail":        f"{len(redirect_targets)} internal link(s) pass through redirect chains (>1 hop)",
+                "affected_urls": redirect_targets[:20],
+                "source_url":    src,
+                "count":         len(redirect_targets),
+            })
+
+    return issues
+
+
+def _cv_canonical_consistency(pages: list[dict]) -> list[dict]:
+    """
+    3. CANONICAL CONSISTENCY
+    Detect:
+      - Canonical loops (A → B → A)
+      - Multi-hop chains (A → B → C)
+      - Canonical pointing to non-indexable pages (noindex / 4xx)
+    """
+    # Build lookup: url → {canonical, noindex, x_robots_noindex, status_code}
+    page_info: dict[str, dict] = {}
+    for page in pages:
+        url = (page.get("url") or "").rstrip("/")
+        if url:
+            page_info[url] = {
+                "canonical":        (page.get("canonical") or "").rstrip("/"),
+                "noindex":          page.get("noindex", False),
+                "x_robots_noindex": page.get("x_robots_noindex", False),
+                "status":           page.get("status_code", 200),
+            }
+
+    issues: list[dict] = []
+
+    for url, info in page_info.items():
+        canon = info["canonical"]
+        if not canon or canon == url:
+            continue  # self-canonical or missing — no cross-page problem
+
+        # Multi-hop: canonical target itself has a different canonical
+        target_info = page_info.get(canon)
+        if target_info:
+            target_canon = target_info["canonical"]
+            if target_canon and target_canon != canon:
+                # Could be loop or extended chain — trace up to 5 hops
+                chain = [url, canon]
+                visited = {url, canon}
+                cursor = target_canon
+                loop = False
+                while cursor and cursor not in visited and len(chain) < 6:
+                    chain.append(cursor)
+                    visited.add(cursor)
+                    next_info = page_info.get(cursor)
+                    cursor = (next_info["canonical"] if next_info else "") or ""
+                if cursor in visited:
+                    loop = True
+
+                if loop:
+                    issues.append({
+                        "type":          "canonical_loop",
+                        "severity":      "HIGH",
+                        "category":      "canonical",
+                        "detail":        f"Canonical loop detected: {' → '.join(chain[:5])} → …",
+                        "affected_urls": chain[:5],
+                        "source_url":    url,
+                        "count":         len(chain),
+                    })
+                else:
+                    issues.append({
+                        "type":          "canonical_chain",
+                        "severity":      "MEDIUM",
+                        "category":      "canonical",
+                        "detail":        f"Multi-hop canonical chain ({len(chain) - 1} hops): {url} → … → {chain[-1]}",
+                        "affected_urls": chain,
+                        "source_url":    url,
+                        "count":         len(chain) - 1,
+                    })
+                continue  # already reported, skip noindex check for this URL
+
+            # Canonical target is noindex or error page
+            target_noindex = target_info["noindex"] or target_info["x_robots_noindex"]
+            target_status  = target_info["status"]
+            if target_noindex:
+                issues.append({
+                    "type":          "canonical_to_noindex",
+                    "severity":      "HIGH",
+                    "category":      "canonical",
+                    "detail":        f"Canonical points to a noindex page: {canon}",
+                    "affected_urls": [url, canon],
+                    "source_url":    url,
+                    "count":         1,
+                })
+            elif isinstance(target_status, int) and target_status >= 400:
+                issues.append({
+                    "type":          "canonical_to_error",
+                    "severity":      "CRITICAL",
+                    "category":      "canonical",
+                    "detail":        f"Canonical points to HTTP {target_status} page: {canon}",
+                    "affected_urls": [url, canon],
+                    "source_url":    url,
+                    "count":         1,
+                })
+
+    return issues
+
+
+def _cv_hreflang_canonical(pages: list[dict]) -> list[dict]:
+    """
+    4. HREFLANG vs CANONICAL
+    Ensure hreflang targets are self-canonicalized:
+      - hreflang target's canonical must equal the target URL itself
+    """
+    # Build lookup: url → canonical
+    canon_map: dict[str, str] = {}
+    for page in pages:
+        url = (page.get("url") or "").rstrip("/")
+        if url:
+            canon_map[url] = (page.get("canonical") or "").rstrip("/")
+
+    issues: list[dict] = []
+
+    for page in pages:
+        src = page.get("url", "")
+        hreflang_tags = page.get("hreflang_tags") or {}  # {lang: target_url}
+
+        bad_targets: list[str] = []
+
+        for lang, target in hreflang_tags.items():
+            if not target:
+                continue
+            target_norm = target.rstrip("/")
+            # Only validate targets we actually crawled
+            if target_norm not in canon_map:
+                continue
+            target_canon = canon_map[target_norm]
+            # self-canonical = canonical is empty (not set) or equals the URL
+            if target_canon and target_canon != target_norm:
+                bad_targets.append(
+                    f"{lang}: {target} → canonical={target_canon}"
+                )
+
+        if bad_targets:
+            issues.append({
+                "type":          "hreflang_non_canonical_target",
+                "severity":      "HIGH",
+                "category":      "hreflang_canonical",
+                "detail":        (
+                    f"{len(bad_targets)} hreflang target(s) are not self-canonicalized"
+                ),
+                "affected_urls": [src],
+                "source_url":    src,
+                "count":         len(bad_targets),
+                "details":       bad_targets[:10],
+            })
+
+    return issues
+
+
+def cross_validate(pages: list[dict], sitemap_urls: list[str] | None = None) -> dict:
+    """
+    Run all cross-validation checks across crawled pages.
+
+    Checks performed:
+      1. Sitemap vs Indexability  — noindex / error pages listed in sitemap
+      2. Internal Links vs Status — links to 4xx pages or redirect chains
+      3. Canonical Consistency    — loops, multi-hop chains, canonical → bad target
+      4. Hreflang vs Canonical   — hreflang targets must be self-canonicalized
+
+    Returns:
+    {
+      "consistency_issues": [
+        {
+          "type":          str,
+          "severity":      "CRITICAL" | "HIGH" | "MEDIUM",
+          "category":      str,
+          "detail":        str,
+          "affected_urls": [str],
+          "source_url":    str,
+          "count":         int,
+        }
+      ],
+      "summary": {
+        "total_issues": int,
+        "critical":     int,
+        "high":         int,
+        "medium":       int,
+        "by_category":  {str: int},
+      }
+    }
+    """
+    all_issues: list[dict] = []
+
+    all_issues.extend(_cv_sitemap_indexability(pages, sitemap_urls or []))
+    all_issues.extend(_cv_internal_links_status(pages))
+    all_issues.extend(_cv_canonical_consistency(pages))
+    all_issues.extend(_cv_hreflang_canonical(pages))
+
+    # Build summary
+    by_cat: dict[str, int] = {}
+    n_crit = n_high = n_med = 0
+    for issue in all_issues:
+        sev = issue.get("severity", "MEDIUM")
+        cat = issue.get("category", "other")
+        by_cat[cat] = by_cat.get(cat, 0) + 1
+        if sev == "CRITICAL":
+            n_crit += 1
+        elif sev == "HIGH":
+            n_high += 1
+        else:
+            n_med += 1
+
+    return {
+        "consistency_issues": all_issues,
+        "summary": {
+            "total_issues": len(all_issues),
+            "critical":     n_crit,
+            "high":         n_high,
+            "medium":       n_med,
+            "by_category":  by_cat,
+        },
+    }
+
+
+async def run_site_audit(site_url: str, pages: list[dict], sitemap_urls: list[str] | None = None) -> dict:
     """
     Run all site-level audits.
 
     Returns combined result dict with keys:
-      robots, hsts, mixed_content, redirect_chains
+      robots, hsts, mixed_content, redirect_chains, consistency
     """
     # robots.txt
     robots = await fetch_robots_txt(site_url)
@@ -478,6 +804,9 @@ async def run_site_audit(site_url: str, pages: list[dict]) -> dict:
     ]
     problematic_redirects = [r for r in redir_pages if r["status"] != "ok"]
 
+    # Cross-validation — consistency checks across pages, sitemap, canonicals, hreflang
+    consistency = cross_validate(pages, sitemap_urls)
+
     return {
         "robots": robots,
         "hsts": hsts,
@@ -487,4 +816,5 @@ async def run_site_audit(site_url: str, pages: list[dict]) -> dict:
             "problematic": len(problematic_redirects),
             "issues": problematic_redirects[:20],
         },
+        "consistency": consistency,
     }

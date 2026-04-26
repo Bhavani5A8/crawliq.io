@@ -1,39 +1,49 @@
 """
-seo_audit_engine.py — Production-grade SEO audit orchestrator.
+seo_audit_engine.py — Production-grade SEO audit orchestrator with strict validation.
 
-Integrates every existing validator:
-  issues.py        → per-page + cross-page issue detection
-  technical_seo.py → component scoring, indexability, site summary
-  site_auditor.py  → robots.txt, HSTS, mixed content, redirects
+Scoring architecture
+────────────────────
+  Five equal-weight clusters (20 pts each → 100 pts total):
+    indexability  • on_page  • technical  • performance  • security
 
-Adds net-new layers:
-  • Cluster validation  — 10 clusters, each with required signals + coverage check
-  • Gap detection       — missing signals flagged with minimal fix + impact
-  • Consistency checks  — sitemap ↔ indexability, canonical ↔ noindex,
-                          hreflang reciprocity, internal links ↔ status codes
-  • Security audit      — HTTPS, HSTS, CSP, X-Frame, X-Content-Type, mixed content
-  • Performance audit   — CWV thresholds (LCP>2.5s, CLS>0.1, INP>200ms)
-                          + proxy signals when real CWV data unavailable
-  • Final output        — audit_summary (counts+severity), implementation_roadmap,
-                          final_score 0–100 (capped at 89 if any cluster missing signals)
+  Cluster scoring rules:
+    • 100% signal coverage required per cluster.
+    • If any CRITICAL signal is below its threshold → cluster score capped at 85.
+    • If any CRITICAL issue exists anywhere → site_score capped at 90.
+
+  Three output granularities:
+    page_score    per-page 0-100 score with deduction breakdown + WHY explanation
+    cluster_score {cluster_id: score} dict (each 0-100, capped at 85 if gaps)
+    site_score    final weighted average 0-100 (capped at 90 if CRITICAL issues)
+
+  Grade thresholds:
+    90-100 → A+   (no critical gaps, all signals covered)
+    80-89  → A
+    70-79  → B
+    <70    → Needs Fix
 
 Entry point
 ───────────
     from seo_audit_engine import run_full_audit
 
     result = run_full_audit(
-        pages,                          # list[dict] from SEOCrawler / CrawlEngine
+        pages,                          # list[dict] from SEOCrawler
         sitemap_urls=None,              # list[str] parsed from sitemap XML
-        cwv_data=None,                  # dict[url → {lcp, cls, inp}] from PSI API
+        cwv_data=None,                  # dict[url → {lcp_s, cls, inp_s}] from PSI API
         site_url=None,                  # root URL for robots.txt / HSTS check
         tech_audit=None,                # pre-computed analyze_all() output (optional)
         validation=None,                # pre-computed validate_all() output (optional)
     )
 
-    # result keys:
-    #   cluster_validation, consistency_checks, security_audit,
-    #   performance_audit, gap_report, audit_summary,
-    #   implementation_roadmap, final_score, final_grade
+    # Key result fields:
+    #   page_score            list[{url, page_score, grade, deductions, why}]
+    #   cluster_score         {cluster_id: score}
+    #   site_score            int (0-100)
+    #   final_grade           "A+" | "A" | "B" | "Needs Fix"
+    #   score_cap_reason      str explaining WHY/WHICH signals triggered a cap
+    #   cluster_validation    full per-cluster breakdown with deduction_reasons
+    #   gap_report            missing-signal details + minimal fix guidance
+    #   implementation_roadmap prioritised action list (Critical → High → Medium → Low)
 """
 from __future__ import annotations
 
@@ -49,86 +59,100 @@ logger = logging.getLogger(__name__)
 # and a coverage_threshold — the minimum % of real pages that must have the
 # signal populated before we flag a gap.
 
+# Five equal-weight clusters (5 × 20 = 100).
+# severity "CRITICAL" → cluster capped at 85 if signal below threshold.
+# severity "HIGH"     → penalises cluster score but no hard cap.
+# threshold 0         → not a coverage signal; quality metrics evaluated inside _score_cluster.
 _CLUSTERS: dict[str, dict] = {
+    "indexability": {
+        "label":   "Indexability",
+        "weight":  20,
+        "signals": {
+            # status_ok: every page must return 2xx
+            "status_ok": {
+                "threshold":   100,
+                "severity":    "CRITICAL",
+                "description": "Every page must return HTTP 2xx status",
+            },
+            # canonical: strong majority of pages should declare a canonical
+            "canonical": {
+                "threshold":   80,
+                "severity":    "HIGH",
+                "description": "80%+ of pages should declare a <link rel=canonical>",
+            },
+        },
+    },
     "on_page": {
         "label":   "On-Page SEO",
         "weight":  20,
         "signals": {
-            "title":            {"threshold": 95, "severity": "critical"},
-            "meta_description": {"threshold": 80, "severity": "high"},
-            "h1":               {"threshold": 90, "severity": "high"},
-            "canonical":        {"threshold": 70, "severity": "medium"},
-        },
-    },
-    "indexability": {
-        "label":   "Indexability",
-        "weight":  15,
-        "signals": {
-            "status_code":  {"threshold": 100, "severity": "critical"},
-            "robots_meta":  {"threshold": 0,   "severity": "info"},    # optional — absence is fine
-            "canonical":    {"threshold": 70,   "severity": "medium"},
-        },
-    },
-    "content_quality": {
-        "label":   "Content Quality",
-        "weight":  12,
-        "signals": {
-            "body_text": {"threshold": 80, "severity": "high"},
-            "keywords":  {"threshold": 70, "severity": "medium"},
-        },
-    },
-    "links": {
-        "label":   "Link Graph",
-        "weight":  10,
-        "signals": {
-            "links":               {"threshold": 50, "severity": "medium"},
-            "internal_links_count":{"threshold": 50, "severity": "medium"},
-        },
-    },
-    "images": {
-        "label":   "Images",
-        "weight":  8,
-        "signals": {
-            "img_total": {"threshold": 0, "severity": "info"},   # 0 = skip if no images
-        },
-    },
-    "schema": {
-        "label":   "Structured Data",
-        "weight":  8,
-        "signals": {
-            "schema_types": {"threshold": 20, "severity": "medium"},  # at least 20% of pages
-        },
-    },
-    "social": {
-        "label":   "Social Meta (OG / Twitter)",
-        "weight":  5,
-        "signals": {
-            "og_title":       {"threshold": 60, "severity": "medium"},
-            "og_description": {"threshold": 60, "severity": "medium"},
-        },
-    },
-    "security": {
-        "label":   "Security Headers",
-        "weight":  10,
-        "signals": {
-            "response_headers": {"threshold": 80, "severity": "high"},
-        },
-    },
-    "performance": {
-        "label":   "Performance / Core Web Vitals",
-        "weight":  8,
-        "signals": {
-            # CWV data is injected externally; proxy signals come from crawl data.
-            # Threshold 0 = never flag as missing (data may not be available).
-            "response_time_ms": {"threshold": 0, "severity": "info"},
+            "title": {
+                "threshold":   100,
+                "severity":    "CRITICAL",
+                "description": "Every page must have a <title> tag",
+            },
+            "meta_description": {
+                "threshold":   90,
+                "severity":    "HIGH",
+                "description": "90%+ of pages need a meta description",
+            },
+            "h1": {
+                "threshold":   95,
+                "severity":    "HIGH",
+                "description": "95%+ of pages need at least one H1 heading",
+            },
+            "canonical": {
+                "threshold":   80,
+                "severity":    "HIGH",
+                "description": "80%+ of pages need a self-canonical link",
+            },
         },
     },
     "technical": {
         "label":   "Technical SEO",
-        "weight":  4,
+        "weight":  20,
         "signals": {
-            "viewport":      {"threshold": 80, "severity": "high"},
-            "last_modified": {"threshold": 0,  "severity": "info"},
+            # viewport: missing tag = Google mobile-first penalty
+            "viewport": {
+                "threshold":   100,
+                "severity":    "CRITICAL",
+                "description": "Every page must have a mobile viewport meta tag",
+            },
+            # https: HTTPS is a confirmed ranking signal
+            "https": {
+                "threshold":   100,
+                "severity":    "CRITICAL",
+                "description": "Every page must be served over HTTPS",
+            },
+        },
+    },
+    "performance": {
+        "label":   "Performance",
+        "weight":  20,
+        "signals": {
+            # threshold 0 = quality metric; evaluated per-value not per-coverage
+            "response_time_ms": {
+                "threshold":   0,
+                "severity":    "HIGH",
+                "description": "Server response time (proxy signal for TTFB / LCP)",
+            },
+            "resource_count": {
+                "threshold":   0,
+                "severity":    "HIGH",
+                "description": "Total resource-loading elements per page",
+            },
+        },
+    },
+    "security": {
+        "label":   "Security",
+        "weight":  20,
+        "signals": {
+            # all_security_headers: all 6 required headers must be present on every page
+            "all_security_headers": {
+                "threshold":   100,
+                "severity":    "CRITICAL",
+                "description": "All 6 required security headers must be present on every page",
+            },
         },
     },
 }
@@ -155,6 +179,8 @@ _REQUIRED_SECURITY_HEADERS: dict[str, str] = {
     "content-security-policy":   "CSP missing — no XSS mitigation policy declared",
     "x-frame-options":           "X-Frame-Options missing — page embeddable in iframes (clickjacking risk)",
     "x-content-type-options":    "X-Content-Type-Options missing — MIME sniffing not blocked",
+    "referrer-policy":           "Referrer-Policy missing — full URL leaked in Referer on cross-origin requests",
+    "permissions-policy":        "Permissions-Policy missing — browser features not explicitly restricted",
 }
 
 
@@ -216,46 +242,54 @@ def run_full_audit(
     # ── Layer 2: Gap detection ────────────────────────────────────────────────
     gap_report = _detect_gaps(cluster_validation)
 
-    # ── Layer 3: Consistency checks ───────────────────────────────────────────
+    # ── Layer 3: Per-page scoring ─────────────────────────────────────────────
+    page_scores = _compute_page_scores(real_pages)
+
+    # ── Layer 4: Consistency checks ───────────────────────────────────────────
     consistency = _run_consistency_checks(pages, sitemap_urls, cross_issues)
 
-    # ── Layer 4: Security audit ───────────────────────────────────────────────
+    # ── Layer 5: Security audit ───────────────────────────────────────────────
     security = _run_security_audit(real_pages, site_url)
 
-    # ── Layer 5: Performance / CWV audit ─────────────────────────────────────
+    # ── Layer 6: Performance / CWV audit ─────────────────────────────────────
     performance = _run_performance_audit(real_pages, cwv_data)
 
-    # ── Layer 6: Final score ──────────────────────────────────────────────────
-    final_score, score_breakdown, score_cap_reason = _compute_final_score(
+    # ── Layer 7: Final score ──────────────────────────────────────────────────
+    site_score, cluster_scores, score_cap_reason = _compute_final_score(
         cluster_validation, security, performance, page_audits,
     )
 
-    # ── Layer 7: Audit summary ────────────────────────────────────────────────
+    # ── Layer 8: Audit summary ────────────────────────────────────────────────
     summary = _build_audit_summary(
         pages, real_pages, page_audits, cross_issues,
         cluster_validation, consistency, security, performance,
-        final_score,
+        site_score, page_scores,
     )
 
-    # ── Layer 8: Implementation roadmap ──────────────────────────────────────
+    # ── Layer 9: Implementation roadmap ──────────────────────────────────────
     roadmap = _build_roadmap(
         cluster_validation, consistency, security, performance, gap_report,
         page_audits, cross_issues,
     )
 
     return {
+        # ── Scores (three granularities) ─────────────────────────────────────
+        "page_score":          page_scores,          # per-page: [{url, page_score, grade, deductions, why}]
+        "cluster_score":       cluster_scores,        # {cluster_id: score}
+        "site_score":          site_score,            # final weighted site score (0-100)
+        # ── Full audit data ───────────────────────────────────────────────────
         "cluster_validation":  cluster_validation,
         "gap_report":          gap_report,
         "consistency_checks":  consistency,
         "security_audit":      security,
         "performance_audit":   performance,
-        "score_breakdown":     score_breakdown,
+        "score_breakdown":     cluster_scores,        # alias kept for backward compat
         "score_cap_reason":    score_cap_reason,
         "audit_summary":       summary,
         "implementation_roadmap": roadmap,
-        "final_score":         final_score,
-        "final_grade":         _grade(final_score),
-        "errors":              _errors,   # surfaces any sub-validator failures
+        "final_score":         site_score,            # alias kept for backward compat
+        "final_grade":         _grade(site_score),
+        "errors":              _errors,
     }
 
 
@@ -265,8 +299,12 @@ def run_full_audit(
 
 def _validate_clusters(real_pages: list[dict], page_audits: list[dict]) -> dict:
     """
-    For each cluster: verify signal coverage, flag missing signals,
-    compute cluster score, confirm issue detection completeness.
+    For each cluster:
+      • Measure signal coverage (% of pages where each signal is present).
+      • If any CRITICAL-severity signal is below its threshold → flag
+        critical_signal_missing=True and cap the cluster score at 85.
+      • Record deduction_reasons explaining WHY the score was reduced and
+        WHICH signals are missing.
     """
     n = len(real_pages) or 1
     results: dict[str, dict] = {}
@@ -275,41 +313,67 @@ def _validate_clusters(real_pages: list[dict], page_audits: list[dict]) -> dict:
         signals = cluster_def["signals"]
         coverage: dict[str, float] = {}
         missing_signals: list[dict] = []
+        critical_signal_missing = False
 
         for signal, cfg in signals.items():
             threshold = cfg["threshold"]
+            severity  = cfg["severity"]
+
             if threshold == 0:
-                coverage[signal] = 100.0   # not monitored
+                # Quality metric — not a coverage signal; always mark as covered.
+                coverage[signal] = 100.0
                 continue
 
-            # Compute coverage: % of pages with a non-empty value for this signal
             present = sum(1 for p in real_pages if _signal_present(p, signal))
             pct = round(present / n * 100, 1)
             coverage[signal] = pct
 
             if pct < threshold:
+                if severity == "CRITICAL":
+                    critical_signal_missing = True
                 missing_signals.append({
                     "signal":        signal,
                     "coverage_pct":  pct,
                     "threshold_pct": threshold,
-                    "severity":      cfg["severity"],
+                    "severity":      severity,
                     "gap":           f"{round(threshold - pct, 1)}% below threshold",
                     "fix":           _signal_fix(signal),
                     "impact":        _signal_impact(signal),
                 })
 
-        cluster_score = _score_cluster(cluster_id, real_pages, page_audits, coverage)
+        raw_score     = _score_cluster(cluster_id, real_pages, page_audits, coverage)
+        capped_at_85  = critical_signal_missing and raw_score > 85
+        cluster_score = 85 if capped_at_85 else raw_score
+
+        # Build human-readable deduction reasons
+        deduction_reasons: list[str] = []
+        if capped_at_85:
+            crit_names = [ms["signal"] for ms in missing_signals if ms["severity"] == "CRITICAL"]
+            deduction_reasons.append(
+                f"Score capped at 85 — CRITICAL signal(s) below 100% coverage: "
+                f"{', '.join(crit_names)}"
+            )
+        for ms in missing_signals:
+            deduction_reasons.append(
+                f"[{ms['severity']}] '{ms['signal']}' at {ms['coverage_pct']}% "
+                f"(need {ms['threshold_pct']}%) — {ms['fix']}"
+            )
+
         issues = _cluster_issues(cluster_id, real_pages, page_audits, missing_signals)
 
         results[cluster_id] = {
-            "label":           cluster_def["label"],
-            "weight":          cluster_def["weight"],
-            "score":           cluster_score,
-            "signal_coverage": coverage,
-            "missing_signals": missing_signals,
-            "has_gaps":        bool(missing_signals),
-            "issues":          issues,
-            "issue_count":     len(issues),
+            "label":                   cluster_def["label"],
+            "weight":                  cluster_def["weight"],
+            "score":                   cluster_score,
+            "raw_score":               raw_score,
+            "capped_at_85":            capped_at_85,
+            "critical_signal_missing": critical_signal_missing,
+            "signal_coverage":         coverage,
+            "missing_signals":         missing_signals,
+            "has_gaps":                bool(missing_signals),
+            "deduction_reasons":       deduction_reasons,
+            "issues":                  issues,
+            "issue_count":             len(issues),
         }
 
     return results
@@ -317,6 +381,15 @@ def _validate_clusters(real_pages: list[dict], page_audits: list[dict]) -> dict:
 
 def _signal_present(page: dict, signal: str) -> bool:
     """Return True if the signal field is meaningfully populated on this page."""
+    # Special computed signals
+    if signal == "status_ok":
+        status = page.get("status_code", 200)
+        return isinstance(status, int) and 200 <= status < 400
+    if signal == "https":
+        return (page.get("url") or "").startswith("https://")
+    if signal == "all_security_headers":
+        return _page_has_all_security_headers(page)
+
     val = page.get(signal)
     if val is None or val == "" or val == [] or val == {}:
         return False
@@ -331,36 +404,37 @@ def _signal_present(page: dict, signal: str) -> bool:
 
 def _signal_fix(signal: str) -> str:
     fixes = {
-        "title":            "Add unique, descriptive <title> tags to all pages",
-        "meta_description": "Write unique 120-160 char meta descriptions for every page",
-        "h1":               "Add exactly one H1 tag per page matching the page topic",
-        "canonical":        "Add <link rel='canonical'> to every page (self-referencing where appropriate)",
-        "body_text":        "Add meaningful visible text content — minimum 300 words",
-        "keywords":         "Run keyword extraction pipeline after crawl completes",
-        "links":            "Ensure internal links are crawlable (<a href>), not JS-only",
-        "internal_links_count": "Add contextual internal links from high-authority pages",
-        "og_title":         "Add <meta property='og:title'> to all pages",
-        "og_description":   "Add <meta property='og:description'> to all pages",
-        "schema_types":     "Implement JSON-LD structured data — start with BreadcrumbList + Article/Product",
-        "viewport":         "Add <meta name='viewport' content='width=device-width, initial-scale=1'>",
-        "response_headers": "Configure web server to send security headers on every response",
+        "title":                "Add unique, descriptive <title> tags to all pages",
+        "meta_description":     "Write unique 120-160 char meta descriptions for every page",
+        "h1":                   "Add exactly one H1 tag per page matching the page topic",
+        "canonical":            "Add <link rel='canonical'> to every page (self-referencing where appropriate)",
+        "viewport":             "Add <meta name='viewport' content='width=device-width, initial-scale=1'>",
+        "https":                "Redirect all HTTP URLs to HTTPS with 301 redirects; update internal links",
+        "status_ok":            "Fix or 301-redirect all pages returning 4xx/5xx status codes",
+        "all_security_headers": (
+            "Configure your web server / CDN to send all 6 headers on every response: "
+            "Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, "
+            "X-Content-Type-Options, Referrer-Policy, Permissions-Policy"
+        ),
+        "response_headers":     "Configure web server to send security headers on every response",
     }
-    return fixes.get(signal, f"Populate the '{signal}' field on all pages")
+    return fixes.get(signal, f"Ensure '{signal}' is populated on all pages")
 
 
 def _signal_impact(signal: str) -> str:
     impacts = {
-        "title":            "Title is the primary SERP display text — missing titles get auto-generated (often poorly) by Google",
-        "meta_description": "Meta descriptions directly affect SERP click-through rate",
-        "h1":               "H1 is Google's primary topic-relevance heading signal",
-        "canonical":        "Without canonicals, Google may consolidate ranking signals to an unintended duplicate URL",
-        "body_text":        "Pages with no visible content are unfavourable for ranking and cannot generate keywords",
-        "keywords":         "No keywords means no AI analysis, no competition scoring, and no content gap detection",
-        "links":            "Internal link data is required for PageRank distribution, orphan detection, and link graph analysis",
-        "og_title":         "OG tags control appearance when pages are shared on social networks — missing = poor previews",
-        "schema_types":     "Structured data unlocks rich SERP results (FAQ accordions, star ratings, breadcrumbs)",
-        "viewport":         "Missing viewport tag causes poor mobile rendering — Google mobile-first indexing penalises this",
-        "response_headers": "Security headers missing = known vulnerabilities exposed to users and scanners",
+        "title":                "Title is the primary SERP display text — missing titles get auto-generated (often poorly) by Google",
+        "meta_description":     "Meta descriptions directly affect SERP click-through rate",
+        "h1":                   "H1 is Google's primary topic-relevance heading signal",
+        "canonical":            "Without canonicals, Google may consolidate ranking signals to an unintended duplicate URL",
+        "viewport":             "Missing viewport causes poor mobile rendering — Google mobile-first indexing penalises this",
+        "https":                "HTTPS is a confirmed Google ranking signal; HTTP pages rank lower and trigger browser security warnings",
+        "status_ok":            "4xx/5xx pages waste crawl budget and are excluded from Google's index",
+        "all_security_headers": (
+            "Missing security headers expose users to XSS, clickjacking, and MIME-sniffing attacks; "
+            "also a signal of poor security hygiene to security scanners"
+        ),
+        "response_headers":     "Security headers missing = known vulnerabilities exposed to users and scanners",
     }
     return impacts.get(signal, f"Signal '{signal}' is required for complete SEO analysis")
 
@@ -371,75 +445,92 @@ def _score_cluster(
     page_audits: list[dict],
     coverage: dict[str, float],
 ) -> int:
-    """Compute 0-100 score for a cluster based on coverage + issue rate."""
+    """
+    Compute raw 0-100 score for a cluster based on coverage + quality signals.
+    Capping at 85 for missing CRITICAL signals is applied in _validate_clusters, not here.
+    """
     n = len(real_pages) or 1
 
-    if cluster_id == "on_page":
-        # Average of title/meta/h1/canonical coverage, minus issue deductions
-        base = (
-            coverage.get("title", 0) * 0.35 +
-            coverage.get("meta_description", 0) * 0.25 +
-            coverage.get("h1", 0) * 0.25 +
-            coverage.get("canonical", 0) * 0.15
-        )
-        title_issues = sum(1 for a in page_audits if a.get("title", {}).get("issues"))
-        meta_issues  = sum(1 for a in page_audits if a.get("meta", {}).get("issues"))
-        issue_rate   = (title_issues + meta_issues) / (2 * n) * 100
-        return max(0, min(100, round(base - issue_rate * 0.3)))
-
     if cluster_id == "indexability":
+        # Primary: % of pages that are indexable (2xx, no noindex)
         indexable = sum(
             1 for a in page_audits
             if a.get("indexability", {}).get("status") in ("indexable", "likely_indexable")
         )
-        return round(indexable / n * 100)
-
-    if cluster_id == "content_quality":
-        rich = sum(1 for p in real_pages if len((p.get("body_text") or "").split()) >= 300)
-        thin = sum(1 for p in real_pages if len((p.get("body_text") or "").split()) < 100)
-        return max(0, round((rich / n * 70) + ((n - thin) / n * 30)))
-
-    if cluster_id == "links":
-        with_links = sum(1 for p in real_pages if (p.get("internal_links_count") or 0) > 0)
-        return round(with_links / n * 100)
-
-    if cluster_id == "images":
-        # Score based on alt text coverage across pages with images
-        pages_with_imgs = [p for p in real_pages if (p.get("img_total") or 0) > 0]
-        if not pages_with_imgs:
-            return 100
-        total_imgs = sum(p.get("img_total") or 0 for p in pages_with_imgs)
-        total_alts = sum(len(p.get("img_alts") or []) for p in pages_with_imgs)
-        return round(min(100, total_alts / max(total_imgs, 1) * 100))
-
-    if cluster_id == "schema":
-        with_schema = sum(1 for p in real_pages if p.get("schema_types"))
-        return round(with_schema / n * 100)
-
-    if cluster_id == "social":
-        with_og = sum(1 for p in real_pages if p.get("og_title") and p.get("og_description"))
-        return round(with_og / n * 100)
-
-    if cluster_id == "security":
-        # % of pages with all 4 required security headers
-        full_coverage = sum(
+        base = round(indexable / n * 100)
+        # Deduct for 4xx / 5xx pages (each error page is a wasted crawl-budget slot)
+        errors = sum(
             1 for p in real_pages
-            if _page_has_all_security_headers(p)
+            if isinstance(p.get("status_code"), int) and p.get("status_code", 200) >= 400
         )
-        return round(full_coverage / n * 100)
+        error_penalty = round(errors / n * 30)
+        return max(0, base - error_penalty)
 
-    if cluster_id == "performance":
-        # Proxy: % of image-heavy pages with adequate lazy-loading
-        img_pages = [p for p in real_pages if (p.get("img_total") or 0) > 2]
-        if not img_pages:
-            return 100
-        good_lazy = sum(1 for p in img_pages if (p.get("img_lazy_pct") or 0) >= 50)
-        return round(good_lazy / len(img_pages) * 100)
+    if cluster_id == "on_page":
+        # Weighted coverage of the four on-page signals
+        base = (
+            coverage.get("title",            0) * 0.35 +
+            coverage.get("meta_description", 0) * 0.25 +
+            coverage.get("h1",               0) * 0.25 +
+            coverage.get("canonical",        0) * 0.15
+        )
+        # Deduct for quality issues (duplicate / overlength titles and metas)
+        dup_titles  = sum(1 for a in page_audits if a.get("title", {}).get("issues"))
+        dup_metas   = sum(1 for a in page_audits if a.get("meta",  {}).get("issues"))
+        issue_rate  = (dup_titles + dup_metas) / (2 * n) * 100
+        return max(0, min(100, round(base - issue_rate * 0.3)))
 
     if cluster_id == "technical":
+        # viewport coverage (50%) + HTTPS coverage (50%)
+        # Bonus: correct viewport (width=device-width AND NOT user-scalable=no)
         with_viewport = sum(1 for p in real_pages if p.get("viewport"))
         https_pages   = sum(1 for p in real_pages if (p.get("url") or "").startswith("https://"))
-        return round((with_viewport / n * 50) + (https_pages / n * 50))
+        correct_vp    = sum(
+            1 for p in real_pages
+            if "width=device-width" in (p.get("viewport") or "").lower()
+            and "user-scalable=no"  not in (p.get("viewport") or "").lower()
+        )
+        return max(0, round(
+            (with_viewport / n * 40) +
+            (https_pages   / n * 40) +
+            (correct_vp    / n * 20)
+        ))
+
+    if cluster_id == "performance":
+        # Four proxy signals — each gets a sub-score, then weighted average
+        # 1. Lazy-loading: % of image-heavy pages using lazy-load on 50%+ images
+        img_pages  = [p for p in real_pages if (p.get("img_total") or 0) > 2]
+        good_lazy  = (
+            sum(1 for p in img_pages if (p.get("img_lazy_pct") or 0) >= 50)
+            if img_pages else n
+        )
+        lazy_score = round(good_lazy / len(img_pages) * 100) if img_pages else 100
+
+        # 2. Request budget: penalise pages with >100 resource-loading elements
+        bad_requests   = sum(1 for p in real_pages if (p.get("resource_count") or 0) > 100)
+        request_score  = max(0, 100 - round(bad_requests / n * 100))
+
+        # 3. Page weight: penalise pages with >2 MB HTML
+        oversized      = sum(1 for p in real_pages if (p.get("html_size_kb") or 0) > 2048)
+        size_score     = max(0, 100 - round(oversized / n * 100))
+
+        # 4. Image format: penalise legacy formats (JPEG/PNG/GIF instead of WebP/AVIF)
+        legacy_img     = sum(1 for p in real_pages if (p.get("img_non_modern_count") or 0) > 0)
+        format_score   = max(0, 100 - round(legacy_img / n * 60))
+
+        return round(
+            lazy_score    * 0.35 +
+            request_score * 0.30 +
+            size_score    * 0.20 +
+            format_score  * 0.15
+        )
+
+    if cluster_id == "security":
+        # % of pages with ALL six required security headers
+        full_coverage = sum(
+            1 for p in real_pages if _page_has_all_security_headers(p)
+        )
+        return round(full_coverage / n * 100)
 
     return 0
 
@@ -450,70 +541,35 @@ def _cluster_issues(
     page_audits: list[dict],
     missing_signals: list[dict],
 ) -> list[dict]:
-    """Return structured issues for a cluster."""
+    """
+    Return structured issues for each cluster.
+    Each issue includes: type, severity, detail (WHAT), reason (WHY), fix (HOW).
+    """
     issues: list[dict] = []
+    n = len(real_pages) or 1
 
+    # Always lead with missing-signal issues so the explanation is clear
     for ms in missing_signals:
         issues.append({
             "type":     "missing_signal",
             "signal":   ms["signal"],
             "severity": ms["severity"],
-            "detail":   f"Signal '{ms['signal']}' present on only {ms['coverage_pct']}% of pages "
-                        f"(threshold: {ms['threshold_pct']}%)",
+            "detail":   (
+                f"Signal '{ms['signal']}' present on only {ms['coverage_pct']}% of pages "
+                f"(need {ms['threshold_pct']}%)"
+            ),
             "reason":   ms["impact"],
             "fix":      ms["fix"],
         })
 
-    n = len(real_pages) or 1
-
-    if cluster_id == "on_page":
-        dup_titles = sum(
-            1 for p in real_pages if "Duplicate Title" in (p.get("issues") or [])
-        )
-        dup_meta = sum(
-            1 for p in real_pages if "Duplicate Meta Description" in (p.get("issues") or [])
-        )
-        long_title = sum(
-            1 for p in real_pages if len(p.get("title") or "") > 60
-        )
-        long_meta = sum(
-            1 for p in real_pages if len(p.get("meta_description") or "") > 160
-        )
-        if dup_titles:
-            issues.append({
-                "type": "duplicate_titles", "severity": "high",
-                "detail": f"{dup_titles} pages share duplicate title tags",
-                "reason": "Duplicate titles confuse Google about which page to rank for a query",
-                "fix": "Write a unique title for each page",
-            })
-        if dup_meta:
-            issues.append({
-                "type": "duplicate_meta", "severity": "medium",
-                "detail": f"{dup_meta} pages share duplicate meta descriptions",
-                "reason": "Duplicate meta descriptions reduce SERP click diversity",
-                "fix": "Write unique meta descriptions for each page",
-            })
-        if long_title:
-            issues.append({
-                "type": "title_too_long", "severity": "medium",
-                "detail": f"{long_title} pages have titles exceeding 60 characters",
-                "reason": "Titles truncated in SERP lose keyword visibility beyond ~580px",
-                "fix": "Rewrite titles to 30-60 characters; put primary keyword first",
-            })
-        if long_meta:
-            issues.append({
-                "type": "meta_too_long", "severity": "low",
-                "detail": f"{long_meta} pages have meta descriptions exceeding 160 characters",
-                "reason": "Google truncates long meta descriptions in SERP, cutting off the CTA",
-                "fix": "Trim meta descriptions to 120-160 characters",
-            })
+    # ── Cluster-specific quality issues ──────────────────────────────────────
 
     if cluster_id == "indexability":
         noindex = sum(
             1 for p in real_pages
-            if p.get("robots_noindex")
+            if p.get("noindex")
             or "noindex" in (p.get("robots_meta") or "").lower()
-            or "noindex" in (p.get("x_robots_tag") or "").lower()
+            or p.get("x_robots_noindex")
         )
         errors_4xx = sum(
             1 for p in real_pages if str(p.get("status_code", "")).startswith("4")
@@ -521,130 +577,179 @@ def _cluster_issues(
         errors_5xx = sum(
             1 for p in real_pages if str(p.get("status_code", "")).startswith("5")
         )
-        if noindex:
+        if errors_5xx:
             issues.append({
-                "type": "noindex_pages", "severity": "critical",
-                "detail": f"{noindex} pages carry a noindex directive",
-                "reason": "These pages are excluded from Google's index and will not rank",
-                "fix": "Verify each noindex page is intentionally excluded — remove directive if not",
+                "type":     "5xx_pages",
+                "severity": "CRITICAL",
+                "detail":   f"{errors_5xx} pages return 5xx server errors",
+                "reason":   "Server errors block indexing and signal instability to Google",
+                "fix":      "Investigate server logs and resolve the root cause",
             })
         if errors_4xx:
             issues.append({
-                "type": "4xx_pages", "severity": "critical",
-                "detail": f"{errors_4xx} pages return 4xx errors",
-                "reason": "4xx pages cannot be indexed and waste crawl budget",
-                "fix": "Fix broken pages or redirect them with 301 to a valid URL",
+                "type":     "4xx_pages",
+                "severity": "CRITICAL",
+                "detail":   f"{errors_4xx} pages return 4xx errors",
+                "reason":   "4xx pages cannot be indexed and waste crawl budget",
+                "fix":      "Fix broken pages or 301-redirect them to a valid URL",
             })
-        if errors_5xx:
+        if noindex:
             issues.append({
-                "type": "5xx_pages", "severity": "critical",
-                "detail": f"{errors_5xx} pages return 5xx server errors",
-                "reason": "Server errors block indexing and signal site instability to Google",
-                "fix": "Investigate server errors in application logs and resolve the root cause",
+                "type":     "noindex_pages",
+                "severity": "CRITICAL",
+                "detail":   f"{noindex} pages carry a noindex directive",
+                "reason":   "Noindex pages are excluded from Google's index and will not rank",
+                "fix":      "Verify each noindex page is intentionally excluded — remove the directive if not",
             })
 
-    if cluster_id == "content_quality":
-        thin = sum(1 for p in real_pages if len((p.get("body_text") or "").split()) < 300)
-        no_keywords = sum(1 for p in real_pages if not p.get("keywords"))
-        if thin:
-            issues.append({
-                "type": "thin_content", "severity": "high",
-                "detail": f"{thin} pages have fewer than 300 words of body text",
-                "reason": "Thin pages provide little value to users and are at risk of ranking penalties",
-                "fix": "Expand content to 300+ words; focus on answering user intent thoroughly",
-            })
-        if no_keywords:
-            issues.append({
-                "type": "no_keywords_extracted", "severity": "medium",
-                "detail": f"{no_keywords} pages have no extracted keywords",
-                "reason": "Without keywords, AI analysis and content gap detection cannot run",
-                "fix": "Run the keyword extraction pipeline after crawl; ensure body_text is populated",
-            })
-
-    if cluster_id == "links":
-        no_internal = sum(
-            1 for p in real_pages if (p.get("internal_links_count") or 0) == 0
+    if cluster_id == "on_page":
+        long_title = sum(1 for p in real_pages if len(p.get("title") or "") > 60)
+        long_meta  = sum(1 for p in real_pages if len(p.get("meta_description") or "") > 160)
+        dup_title  = sum(
+            1 for p in real_pages if "Duplicate Title" in (p.get("issues") or [])
         )
-        if no_internal:
-            issues.append({
-                "type": "no_internal_links", "severity": "medium",
-                "detail": f"{no_internal} pages have zero inbound internal links",
-                "reason": "Pages with no internal links receive no PageRank and are hard for Googlebot to discover",
-                "fix": "Add contextual internal links from topically related pages",
-            })
-
-    if cluster_id == "images":
-        pages_with_imgs = [p for p in real_pages if (p.get("img_total") or 0) > 0]
-        if pages_with_imgs:
-            total_imgs    = sum(p.get("img_total") or 0 for p in pages_with_imgs)
-            missing_alt   = sum(p.get("img_missing_alt") or 0 for p in pages_with_imgs)
-            missing_dims  = sum(p.get("img_missing_dims") or 0 for p in pages_with_imgs)
-            if missing_alt:
-                pct = round(missing_alt / max(total_imgs, 1) * 100, 1)
-                issues.append({
-                    "type": "images_missing_alt", "severity": "medium",
-                    "detail": f"{missing_alt} images ({pct}%) missing alt text across {len(pages_with_imgs)} pages",
-                    "reason": "Alt text is the primary accessibility and image-search signal for crawlers",
-                    "fix": "Add descriptive alt attributes to every informational image; leave decorative images as alt=''",
-                })
-            if missing_dims:
-                issues.append({
-                    "type": "images_missing_dimensions", "severity": "medium",
-                    "detail": f"{missing_dims} images missing explicit width/height attributes",
-                    "reason": "Images without dimensions cause cumulative layout shift (CLS) as the browser resizes them",
-                    "fix": "Add width and height attributes to every <img>; CSS can still override them",
-                })
-
-    if cluster_id == "schema":
-        with_schema   = sum(1 for p in real_pages if p.get("schema_types"))
-        schema_pct    = round(with_schema / n * 100, 1)
-        if schema_pct < 20:
-            issues.append({
-                "type": "schema_absent", "severity": "medium",
-                "detail": f"Structured data present on only {schema_pct}% of pages ({with_schema}/{n})",
-                "reason": "Structured data unlocks rich results (star ratings, FAQ accordions, breadcrumbs) — absent = missed SERP real estate",
-                "fix": "Implement JSON-LD BreadcrumbList on all pages; add Article/Product/FAQPage on relevant pages",
-            })
-
-    if cluster_id == "social":
-        missing_og = sum(
-            1 for p in real_pages
-            if not p.get("og_title") or not p.get("og_description")
+        dup_meta   = sum(
+            1 for p in real_pages if "Duplicate Meta Description" in (p.get("issues") or [])
         )
-        if missing_og:
+        if dup_title:
             issues.append({
-                "type": "og_tags_missing", "severity": "medium",
-                "detail": f"{missing_og} pages missing og:title or og:description",
-                "reason": "Missing OG tags produce generic or broken link previews on social networks — reduces CTR from social traffic",
-                "fix": "Add og:title, og:description, and og:image to every page",
+                "type":     "duplicate_titles",
+                "severity": "HIGH",
+                "detail":   f"{dup_title} pages share duplicate <title> tags",
+                "reason":   "Duplicate titles confuse Google about which page to rank for a query",
+                "fix":      "Write a unique, descriptive title for each page",
+            })
+        if dup_meta:
+            issues.append({
+                "type":     "duplicate_meta",
+                "severity": "HIGH",
+                "detail":   f"{dup_meta} pages share duplicate meta descriptions",
+                "reason":   "Duplicate meta descriptions reduce SERP click diversity",
+                "fix":      "Write unique 120–160 character meta descriptions for each page",
+            })
+        if long_title:
+            issues.append({
+                "type":     "title_too_long",
+                "severity": "MEDIUM",
+                "detail":   f"{long_title} pages have titles exceeding 60 characters",
+                "reason":   "Titles truncated in SERP lose keyword visibility beyond ~580px",
+                "fix":      "Trim titles to 30–60 characters; put primary keyword first",
+            })
+        if long_meta:
+            issues.append({
+                "type":     "meta_too_long",
+                "severity": "MEDIUM",
+                "detail":   f"{long_meta} pages have meta descriptions exceeding 160 characters",
+                "reason":   "Google truncates long meta descriptions, cutting off the CTA",
+                "fix":      "Trim meta descriptions to 120–160 characters",
             })
 
     if cluster_id == "technical":
         no_viewport = sum(1 for p in real_pages if not p.get("viewport"))
-        http_pages  = sum(1 for p in real_pages if (p.get("url") or "").startswith("http://"))
-        if no_viewport:
-            issues.append({
-                "type": "missing_viewport", "severity": "high",
-                "detail": f"{no_viewport} pages missing mobile viewport meta tag",
-                "reason": "Missing viewport causes poor rendering on mobile — Google mobile-first indexing will penalise these pages",
-                "fix": "Add <meta name='viewport' content='width=device-width, initial-scale=1'> to every page <head>",
-            })
+        http_pages  = sum(
+            1 for p in real_pages if (p.get("url") or "").startswith("http://")
+        )
+        bad_viewport = sum(
+            1 for p in real_pages
+            if "user-scalable=no" in (p.get("viewport") or "").lower()
+        )
         if http_pages:
             issues.append({
-                "type": "http_urls", "severity": "critical",
-                "detail": f"{http_pages} pages served over unencrypted HTTP",
-                "reason": "HTTPS is a confirmed Google ranking signal; HTTP pages rank lower and show browser security warnings",
-                "fix": "Redirect all HTTP URLs to HTTPS with 301 redirects; update internal links",
+                "type":     "http_pages",
+                "severity": "CRITICAL",
+                "detail":   f"{http_pages} pages served over unencrypted HTTP",
+                "reason":   "HTTPS is a confirmed Google ranking signal; HTTP shows browser security warnings",
+                "fix":      "Redirect all HTTP URLs to HTTPS with 301 redirects; update internal links",
+            })
+        if no_viewport:
+            issues.append({
+                "type":     "missing_viewport",
+                "severity": "CRITICAL",
+                "detail":   f"{no_viewport} pages missing mobile viewport meta tag",
+                "reason":   "Missing viewport causes poor mobile rendering — Google mobile-first indexing penalises this",
+                "fix":      "Add <meta name='viewport' content='width=device-width, initial-scale=1'> to every page",
+            })
+        if bad_viewport:
+            issues.append({
+                "type":     "restrictive_viewport",
+                "severity": "HIGH",
+                "detail":   f"{bad_viewport} pages use user-scalable=no or maximum-scale=1",
+                "reason":   "Disabling user zoom is an accessibility violation and a mobile UX signal for Google",
+                "fix":      "Remove user-scalable=no and maximum-scale=1 from all viewport tags",
             })
 
     if cluster_id == "performance":
         slow = sum(1 for p in real_pages if (p.get("response_time_ms") or 0) > 2500)
+        heavy_requests = sum(
+            1 for p in real_pages if (p.get("resource_count") or 0) > 100
+        )
+        oversized = sum(1 for p in real_pages if (p.get("html_size_kb") or 0) > 2048)
+        legacy_img = sum(
+            1 for p in real_pages if (p.get("img_non_modern_count") or 0) > 0
+        )
         if slow:
             issues.append({
-                "type": "slow_response_time", "severity": "high",
-                "detail": f"{slow} pages have server response time > 2500ms",
-                "reason": "High TTFB is the strongest crawl-time predictor of poor LCP — Google recommends < 800ms",
-                "fix": "Add server-side caching, use a CDN, or optimise database queries to reduce TTFB",
+                "type":     "slow_response_time",
+                "severity": "HIGH",
+                "detail":   f"{slow} pages have server response time > 2500ms",
+                "reason":   "High TTFB is the strongest crawl-time predictor of poor LCP — Google recommends < 800ms",
+                "fix":      "Add server-side caching, use a CDN, or optimise database queries to reduce TTFB",
+            })
+        if heavy_requests:
+            issues.append({
+                "type":     "excessive_resource_requests",
+                "severity": "HIGH",
+                "detail":   f"{heavy_requests} pages load more than 100 resource elements",
+                "reason":   "Each additional request adds round-trip latency — a key LCP risk factor",
+                "fix":      "Bundle scripts/styles, lazy-load below-fold resources, remove unused third-party scripts",
+            })
+        if oversized:
+            issues.append({
+                "type":     "oversized_html",
+                "severity": "HIGH",
+                "detail":   f"{oversized} pages have HTML response > 2 MB",
+                "reason":   "Large HTML payloads delay Time-to-First-Byte and parsing start",
+                "fix":      "Enable GZIP/Brotli compression; defer large inline scripts/styles to external files",
+            })
+        if legacy_img:
+            issues.append({
+                "type":     "legacy_image_formats",
+                "severity": "MEDIUM",
+                "detail":   f"{legacy_img} pages use JPEG/PNG/GIF instead of WebP or AVIF",
+                "reason":   "Legacy formats are 25–50% larger than WebP — increases LCP and wastes bandwidth",
+                "fix":      "Convert images to WebP or AVIF; use <picture> srcset for progressive adoption",
+            })
+
+    if cluster_id == "security":
+        missing_header_counts: dict[str, int] = {}
+        for p in real_pages:
+            hdrs = {k.lower(): v for k, v in (p.get("response_headers") or {}).items()}
+            for header in _REQUIRED_SECURITY_HEADERS:
+                if header not in hdrs:
+                    missing_header_counts[header] = missing_header_counts.get(header, 0) + 1
+
+        for header, count in sorted(missing_header_counts.items(), key=lambda x: -x[1]):
+            pct = round(count / n * 100, 1)
+            sev = "CRITICAL" if header == "strict-transport-security" else "HIGH"
+            issues.append({
+                "type":     "missing_security_header",
+                "severity": sev,
+                "detail":   f"{header} missing on {count} pages ({pct}%)",
+                "reason":   _REQUIRED_SECURITY_HEADERS.get(header, f"{header} not set"),
+                "fix":      f"Configure your web server/CDN to send the '{header}' header on every response",
+            })
+
+        tls_issues = [
+            p for p in real_pages
+            if p.get("tls_version") and p["tls_version"] in ("TLSv1", "TLSv1.1", "SSLv3", "SSLv2")
+        ]
+        if tls_issues:
+            issues.append({
+                "type":     "legacy_tls",
+                "severity": "CRITICAL",
+                "detail":   f"{len(tls_issues)} pages negotiated a legacy TLS version (< TLS 1.2)",
+                "reason":   "TLS < 1.2 has known cryptographic weaknesses and fails PCI-DSS compliance",
+                "fix":      "Disable TLS 1.0/1.1 on the server; enforce TLS 1.2+ minimum",
             })
 
     return issues
@@ -689,6 +794,115 @@ def _detect_gaps(cluster_validation: dict) -> dict:
         "score_cap_applies":   len(clusters_with_gaps) > 0,
         "gaps":                gaps,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Per-page scoring
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Each entry: (signal_key, severity, max_points, description_when_missing)
+# Points sum to 100; missing a signal deducts its points from the page score.
+_PAGE_SIGNAL_WEIGHTS: list[tuple[str, str, int, str]] = [
+    ("title",                "CRITICAL", 20, "Missing <title> tag"),
+    ("viewport",             "CRITICAL", 15, "Missing mobile viewport meta tag"),
+    ("https",                "CRITICAL", 15, "Page not served over HTTPS"),
+    ("h1",                   "HIGH",     12, "Missing H1 heading"),
+    ("meta_description",     "HIGH",     10, "Missing meta description"),
+    ("canonical",            "HIGH",      8, "Missing <link rel=canonical>"),
+    ("all_security_headers", "HIGH",     10, "One or more required security headers absent"),
+    ("no_noindex",           "CRITICAL",  7, "Page has a noindex directive (excluded from index)"),
+    # total = 97; remaining 3 pts are a baseline everyone starts with
+]
+# Status-code overrides (applied after deductions)
+_STATUS_CAP = {4: 30, 5: 20}   # 4xx → cap score at 30; 5xx → cap score at 20
+
+
+def _compute_page_scores(real_pages: list[dict]) -> list[dict]:
+    """
+    Compute a per-page score (0–100) for every crawled page.
+
+    Each page starts at 100. Missing signals subtract their weight.
+    4xx/5xx pages are capped at 30/20 respectively.
+
+    Returns a list of dicts, one per page:
+    {
+        "url":        str,
+        "page_score": int,           # 0-100
+        "grade":      str,           # A+ / A / B / Needs Fix
+        "deductions": [
+            {"signal": str, "severity": str, "points_lost": int, "reason": str}
+        ],
+        "why":        str,           # human-readable score explanation
+    }
+    """
+    results: list[dict] = []
+
+    for page in real_pages:
+        score = 100
+        deductions: list[dict] = []
+
+        for signal, severity, points, reason in _PAGE_SIGNAL_WEIGHTS:
+            # "no_noindex" is an inverse signal — penalise if noindex IS present
+            if signal == "no_noindex":
+                is_noindex = (
+                    page.get("noindex")
+                    or page.get("x_robots_noindex")
+                    or "noindex" in (page.get("robots_meta") or "").lower()
+                )
+                present = not is_noindex
+            else:
+                present = _signal_present(page, signal)
+
+            if not present:
+                score -= points
+                deductions.append({
+                    "signal":      signal,
+                    "severity":    severity,
+                    "points_lost": points,
+                    "reason":      reason,
+                })
+
+        # Status-code override
+        status = page.get("status_code", 200)
+        if isinstance(status, int):
+            prefix = status // 100
+            if prefix in _STATUS_CAP:
+                cap = _STATUS_CAP[prefix]
+                if score > cap:
+                    deductions.append({
+                        "signal":      "status_code",
+                        "severity":    "CRITICAL",
+                        "points_lost": score - cap,
+                        "reason":      f"HTTP {status} error page — page cannot be indexed",
+                    })
+                    score = cap
+
+        score = max(0, min(100, score))
+        grade = _grade(score)
+
+        # Build a single-sentence WHY explanation
+        if not deductions:
+            why = "All required signals present — no deductions applied."
+        else:
+            crit_items = [d["reason"] for d in deductions if d["severity"] == "CRITICAL"]
+            high_items = [d["reason"] for d in deductions if d["severity"] == "HIGH"]
+            parts: list[str] = []
+            if crit_items:
+                parts.append("CRITICAL: " + "; ".join(crit_items))
+            if high_items:
+                parts.append("HIGH: " + "; ".join(high_items))
+            total_lost = sum(d["points_lost"] for d in deductions)
+            why = f"-{total_lost} pts — {' | '.join(parts)}" if parts else f"-{total_lost} pts"
+
+        results.append({
+            "url":        page.get("url", ""),
+            "page_score": score,
+            "grade":      grade,
+            "deductions": deductions,
+            "why":        why,
+        })
+
+    return results
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -976,12 +1190,62 @@ def _run_security_audit(real_pages: list[dict], site_url: str | None) -> dict:
             "affected": [p.get("url") for p in mixed_pages[:10]],
         })
 
+    # ── Referrer-Policy ───────────────────────────────────────────────────────
+    rp_pages = [p for p in real_pages if "referrer-policy" in (p.get("response_headers") or {})]
+    rp_pct   = round(len(rp_pages) / n * 100, 1)
+    if rp_pct < 80:
+        issues.append({
+            "type":     "referrer_policy_missing",
+            "severity": "high",
+            "coverage": rp_pct,
+            "detail":   f"Referrer-Policy header present on only {rp_pct}% of pages",
+            "reason":   "Without Referrer-Policy, browsers send full URL in Referer header on cross-origin requests — leaks internal URL structure and query params",
+            "fix":      "Add 'Referrer-Policy: strict-origin-when-cross-origin' to all responses",
+        })
+
+    # ── Permissions-Policy ────────────────────────────────────────────────────
+    pp_pages = [p for p in real_pages if "permissions-policy" in (p.get("response_headers") or {})]
+    pp_pct   = round(len(pp_pages) / n * 100, 1)
+    if pp_pct < 80:
+        issues.append({
+            "type":     "permissions_policy_missing",
+            "severity": "high",
+            "coverage": pp_pct,
+            "detail":   f"Permissions-Policy header present on only {pp_pct}% of pages",
+            "reason":   "Without Permissions-Policy, malicious iframes or injected scripts can access camera, microphone, and geolocation APIs",
+            "fix":      "Add 'Permissions-Policy: geolocation=(), microphone=(), camera=()' as a restrictive baseline",
+        })
+
+    # ── TLS version (where detected) ─────────────────────────────────────────
+    import re as _re
+    weak_tls_pages = []
+    for p in real_pages:
+        _tls = (p.get("tls_version") or "").strip()
+        if _tls:
+            _m = _re.search(r"(\d+\.\d+)", _tls)
+            if _m and float(_m.group(1)) < 1.2:
+                weak_tls_pages.append(p)
+    if weak_tls_pages:
+        _ver_sample = (weak_tls_pages[0].get("tls_version") or "unknown")
+        issues.append({
+            "type":     "weak_tls",
+            "severity": "critical",
+            "count":    len(weak_tls_pages),
+            "version":  _ver_sample,
+            "detail":   f"{len(weak_tls_pages)} page(s) served over {_ver_sample} (TLS < 1.2)",
+            "reason":   "TLS 1.0 and 1.1 are deprecated by RFC 8996 — all major browsers block these connections; PCI-DSS 3.2+ requires TLS 1.2+",
+            "fix":      "Upgrade server TLS configuration to TLS 1.2 minimum; enable TLS 1.3 for forward secrecy",
+            "affected": [p.get("url") for p in weak_tls_pages[:10]],
+        })
+
     # Coverage summary
     header_coverage = {
-        "hsts_pct":  hsts_pct,
-        "csp_pct":   csp_pct,
-        "xfo_pct":   xfo_pct,
-        "xcto_pct":  xcto_pct,
+        "hsts_pct":             hsts_pct,
+        "csp_pct":              csp_pct,
+        "xfo_pct":              xfo_pct,
+        "xcto_pct":             xcto_pct,
+        "referrer_policy_pct":  rp_pct,
+        "permissions_policy_pct": pp_pct,
         "https_pct": round(sum(1 for p in real_pages if (p.get("url") or "").startswith("https://")) / n * 100, 1),
     }
     all_secure_pct = round(sum(1 for p in real_pages if _page_has_all_security_headers(p)) / n * 100, 1)
@@ -1099,6 +1363,73 @@ def _run_performance_audit(
             "fix":      "Remove loading='lazy' from the first/hero image; keep it only on below-fold images",
         })
 
+    # ── Resource request count (LCP budget) ───────────────────────────────────
+    high_request_pages = [
+        p for p in real_pages
+        if (p.get("resource_count") or 0) > 100
+    ]
+    if high_request_pages:
+        avg_rc = round(sum(p.get("resource_count", 0) for p in high_request_pages) / len(high_request_pages))
+        issues.append({
+            "type":     "excessive_resource_requests",
+            "severity": "high",
+            "count":    len(high_request_pages),
+            "avg_resources": avg_rc,
+            "detail":   f"{len(high_request_pages)} page(s) have >100 resource references (avg: {avg_rc})",
+            "reason":   "Each resource is an HTTP round-trip; >100 requests significantly inflates LCP and Time to Interactive",
+            "fix":      "Consolidate scripts/CSS, lazy-load below-fold media, use HTTP/2 push or prefetch hints",
+            "affected": [p.get("url") for p in high_request_pages[:5]],
+        })
+
+    # ── HTML page size (>2MB is abnormal) ─────────────────────────────────────
+    oversized_pages = [
+        p for p in real_pages
+        if (p.get("html_size_kb") or 0) > 2048
+    ]
+    if oversized_pages:
+        max_size = max(p.get("html_size_kb", 0) for p in oversized_pages)
+        issues.append({
+            "type":     "oversized_html_response",
+            "severity": "high",
+            "count":    len(oversized_pages),
+            "max_kb":   max_size,
+            "detail":   f"{len(oversized_pages)} page(s) have HTML response >2MB (largest: {max_size:.0f}KB)",
+            "reason":   "Oversized HTML delays HTML parse start, increasing TTFB and FCP; common cause: inline base64 assets or server-side rendered data",
+            "fix":      "Remove inline SVG/base64, move large data out of HTML into async fetches, enable gzip/Brotli compression",
+            "affected": [p.get("url") for p in oversized_pages[:5]],
+        })
+
+    # ── Legacy image formats (not WebP / AVIF) ────────────────────────────────
+    legacy_img_pages = [
+        p for p in real_pages
+        if (p.get("img_non_modern_count") or 0) > 0
+    ]
+    if legacy_img_pages:
+        total_legacy = sum(p.get("img_non_modern_count", 0) for p in legacy_img_pages)
+        issues.append({
+            "type":     "legacy_image_formats",
+            "severity": "medium",
+            "count":    len(legacy_img_pages),
+            "total_images": total_legacy,
+            "detail":   f"{total_legacy} image(s) on {len(legacy_img_pages)} page(s) served in legacy format (JPEG/PNG/GIF)",
+            "reason":   "WebP is 25–34% smaller than JPEG at equal quality; AVIF is 50% smaller — converting reduces image payload and improves LCP",
+            "fix":      "Convert images to WebP (libvips, squoosh, sharp); serve AVIF with WebP fallback via <picture> element",
+            "affected": [p.get("url") for p in legacy_img_pages[:5]],
+        })
+
+    # ── Mobile viewport coverage ──────────────────────────────────────────────
+    no_viewport_pages = [p for p in real_pages if not (p.get("viewport") or "").strip()]
+    if no_viewport_pages:
+        issues.append({
+            "type":     "missing_viewport",
+            "severity": "high",
+            "count":    len(no_viewport_pages),
+            "detail":   f"{len(no_viewport_pages)} page(s) missing mobile viewport meta tag",
+            "reason":   "Google uses mobile-first indexing — pages without viewport tag render at desktop width on mobile, suppressing mobile rankings",
+            "fix":      "Add <meta name='viewport' content='width=device-width, initial-scale=1'> to every page <head>",
+            "affected": [p.get("url") for p in no_viewport_pages[:5]],
+        })
+
     timed_pages = [p for p in real_pages if (p.get("response_time_ms") or 0) > 0]
     avg_rt = (
         round(sum(p["response_time_ms"] for p in timed_pages) / len(timed_pages))
@@ -1198,38 +1529,79 @@ def _compute_final_score(
     page_audits: list[dict],
 ) -> tuple[int, dict, str | None]:
     """
-    Weighted cluster scores → final score 0-100.
-    Rule: if any cluster has missing signals → cap at 89 (below 90).
+    Compute the final site score (0-100) from cluster scores.
+
+    Rules applied in order:
+      1. site_score = weighted average of all cluster scores
+         (cluster scores are already capped at 85 if a CRITICAL signal is missing)
+      2. If any CRITICAL issue exists anywhere → cap site_score at 90
+      3. Returns (site_score, cluster_scores_dict, cap_reason_or_None)
     """
-    breakdown: dict[str, int] = {}
+    cluster_scores: dict[str, int] = {}
     weighted_sum = 0
 
     for cluster_id, cluster in cluster_validation.items():
         weight = cluster["weight"]
-        score  = cluster["score"]
+        score  = cluster["score"]   # already ≤85 if critical signal missing
         weighted_sum += score * weight
-        breakdown[cluster_id] = score
+        cluster_scores[cluster_id] = score
 
-    raw_score = round(weighted_sum / 100)
+    site_score = round(weighted_sum / 100)
 
-    # Security and performance deductions (not in cluster weights but affect final score)
-    sec_penalty  = min(20, len(security.get("issues", [])) * 3)
-    perf_penalty = min(10, len(performance.get("issues", [])) * 2)
-    raw_score    = max(0, raw_score - sec_penalty - perf_penalty)
+    # ── Collect every CRITICAL issue from all audit layers ──────────────────
+    critical_sources: list[str] = []
 
-    # Score cap: any cluster with missing signals → max 89
-    any_gaps = any(c["has_gaps"] for c in cluster_validation.values())
+    for cluster in cluster_validation.values():
+        for iss in cluster.get("issues", []):
+            if iss.get("severity", "").upper() == "CRITICAL":
+                critical_sources.append(
+                    f"[{cluster['label']}] {iss['detail'][:70]}"
+                )
+        # Also flag clusters whose CRITICAL signal coverage is below threshold
+        if cluster.get("critical_signal_missing"):
+            for ms in cluster.get("missing_signals", []):
+                if ms.get("severity") == "CRITICAL":
+                    critical_sources.append(
+                        f"[{cluster['label']}] Signal '{ms['signal']}' at "
+                        f"{ms['coverage_pct']}% coverage (need {ms['threshold_pct']}%)"
+                    )
+
+    for iss in security.get("issues", []):
+        if iss.get("severity", "").upper() == "CRITICAL":
+            critical_sources.append(f"[Security] {iss['detail'][:70]}")
+
+    for iss in performance.get("issues", []):
+        if iss.get("severity", "").upper() == "CRITICAL":
+            critical_sources.append(f"[Performance] {iss['detail'][:70]}")
+
+    # ── Apply caps and build explanation ────────────────────────────────────
     cap_reason: str | None = None
-    if any_gaps:
-        cap_clusters = [c["label"] for c in cluster_validation.values() if c["has_gaps"]]
-        if raw_score > 89:
-            raw_score  = 89
-            cap_reason = (
-                f"Score capped at 89 — missing signals in: {', '.join(cap_clusters)}. "
-                "Fill all signal gaps to unlock a score above 90."
-            )
 
-    return max(0, min(100, raw_score)), breakdown, cap_reason
+    if critical_sources and site_score > 90:
+        site_score = 90
+        cap_reason = (
+            f"Score capped at 90 — {len(critical_sources)} CRITICAL issue(s) present. "
+            f"WHY: {' | '.join(critical_sources[:4])}"
+        )
+    elif critical_sources:
+        # Score already ≤90 but still explain WHY CRITICAL issues exist
+        cap_reason = (
+            f"{len(critical_sources)} CRITICAL issue(s) are blocking a top score. "
+            f"WHY: {' | '.join(critical_sources[:4])}"
+        )
+
+    # Signal-gap cap context (cluster-level ≤85 caps already applied; surface which ones)
+    capped_clusters = [
+        f"{c['label']} (capped at 85 — missing: "
+        f"{', '.join(ms['signal'] for ms in c['missing_signals'] if ms['severity'] == 'CRITICAL')})"
+        for c in cluster_validation.values()
+        if c.get("capped_at_85")
+    ]
+    if capped_clusters:
+        gap_note = "Clusters capped at 85 due to missing CRITICAL signals: " + "; ".join(capped_clusters)
+        cap_reason = f"{cap_reason} | {gap_note}" if cap_reason else gap_note
+
+    return max(0, min(100, site_score)), cluster_scores, cap_reason
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1246,15 +1618,16 @@ def _build_audit_summary(
     security: dict,
     performance: dict,
     final_score: int,
+    page_scores: list[dict] | None = None,
 ) -> dict:
     n = len(real_pages) or 1
 
-    # Severity buckets — collect all issues from every layer
+    # Severity buckets — collect issues from every layer, normalise to lowercase
     severity_counts: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
     def _tally(issue_list: list[dict]) -> None:
         for issue in issue_list:
-            sev = issue.get("severity", "medium")
+            sev = issue.get("severity", "medium").lower()
             if sev in severity_counts:
                 severity_counts[sev] += 1
 
@@ -1274,32 +1647,61 @@ def _build_audit_summary(
         for a in page_audits
     )
 
+    # Page-score distribution
+    ps = page_scores or []
+    grade_dist: dict[str, int] = {"A+": 0, "A": 0, "B": 0, "Needs Fix": 0}
+    for p in ps:
+        g = p.get("grade", "Needs Fix")
+        grade_dist[g] = grade_dist.get(g, 0) + 1
+    avg_page_score = round(sum(p["page_score"] for p in ps) / len(ps)) if ps else 0
+
+    # Cluster scores snapshot
+    cluster_snapshot = {
+        cid: {
+            "score":          c["score"],
+            "grade":          _grade(c["score"]),
+            "capped_at_85":   c.get("capped_at_85", False),
+            "has_gaps":       c["has_gaps"],
+            "deductions":     c.get("deduction_reasons", []),
+        }
+        for cid, c in cluster_validation.items()
+    }
+
     return {
-        "pages_crawled":      len(pages),
-        "pages_analysed":     len(real_pages),
-        "error_pages":        len(pages) - len(real_pages),
-        "final_score":        final_score,
-        "final_grade":        _grade(final_score),
-        "severity_counts":    severity_counts,
-        "total_issues":       sum(severity_counts.values()),
-        "cross_page_issues":  {
-            "total":              len(cross_issues),
-            "broken_links":       xp_type_counts.get("broken_internal_link", 0),
-            "canonical_loops":    xp_type_counts.get("canonical_loop", 0),
-            "canonical_chains":   xp_type_counts.get("canonical_chain", 0),
-            "orphan_pages":       xp_type_counts.get("orphan_page", 0),
-            "duplicate_content":  xp_type_counts.get("duplicate_content", 0),
-            "hreflang_broken":    xp_type_counts.get("hreflang_missing_reciprocal", 0),
+        # ── Scale ─────────────────────────────────────────────────────────────
+        "pages_crawled":     len(pages),
+        "pages_analysed":    len(real_pages),
+        "error_pages":       len(pages) - len(real_pages),
+        # ── Three score granularities ─────────────────────────────────────────
+        "site_score":        final_score,
+        "site_grade":        _grade(final_score),
+        "cluster_score":     cluster_snapshot,
+        "avg_page_score":    avg_page_score,
+        "page_grade_distribution": grade_dist,
+        # ── Issues overview ───────────────────────────────────────────────────
+        "severity_counts":   severity_counts,
+        "total_issues":      sum(severity_counts.values()),
+        "cross_page_issues": {
+            "total":             len(cross_issues),
+            "broken_links":      xp_type_counts.get("broken_internal_link", 0),
+            "canonical_loops":   xp_type_counts.get("canonical_loop", 0),
+            "canonical_chains":  xp_type_counts.get("canonical_chain", 0),
+            "orphan_pages":      xp_type_counts.get("orphan_page", 0),
+            "duplicate_content": xp_type_counts.get("duplicate_content", 0),
+            "hreflang_broken":   xp_type_counts.get("hreflang_missing_reciprocal", 0),
         },
         "indexability": {
-            "indexable":          idx.get("indexable", 0) + idx.get("likely_indexable", 0),
-            "blocked":            idx.get("not_indexable_noindex", 0) + idx.get("not_indexable_error", 0),
-            "canonical_mismatch": idx.get("canonical_mismatch", 0),
-            "redirect":           idx.get("not_indexable_redirect", 0),
+            "indexable":         idx.get("indexable", 0) + idx.get("likely_indexable", 0),
+            "blocked":           idx.get("not_indexable_noindex", 0) + idx.get("not_indexable_error", 0),
+            "canonical_mismatch":idx.get("canonical_mismatch", 0),
+            "redirect":          idx.get("not_indexable_redirect", 0),
         },
-        "security_score":     max(0, 100 - len(security.get("issues", [])) * 10),
-        "performance_issues": len(performance.get("issues", [])),
-        "clusters_with_gaps": sum(1 for c in cluster_validation.values() if c["has_gaps"]),
+        "clusters_with_gaps":sum(1 for c in cluster_validation.values() if c["has_gaps"]),
+        # backward-compat aliases
+        "final_score":       final_score,
+        "final_grade":       _grade(final_score),
+        "security_score":    max(0, 100 - len(security.get("issues", [])) * 10),
+        "performance_issues":len(performance.get("issues", [])),
     }
 
 
@@ -1464,15 +1866,17 @@ def _build_roadmap(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _grade(score: int) -> str:
-    if score >= 85: return "A"
+    if score >= 90: return "A+"
+    if score >= 80: return "A"
     if score >= 70: return "B"
-    if score >= 55: return "C"
-    if score >= 40: return "D"
-    return "F"
+    return "Needs Fix"
 
 
 def _empty_result(reason: str) -> dict:
     return {
+        "page_score":             [],
+        "cluster_score":          {},
+        "site_score":             0,
         "cluster_validation":     {},
         "gap_report":             {"total_gaps": 0, "gaps": []},
         "consistency_checks":     {"total_violations": 0, "checks": {}},
@@ -1483,7 +1887,7 @@ def _empty_result(reason: str) -> dict:
         "audit_summary":          {"error": reason},
         "implementation_roadmap": [],
         "final_score":            0,
-        "final_grade":            "F",
+        "final_grade":            "Needs Fix",
         "errors":                 [reason],
     }
 
