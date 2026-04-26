@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+
+<!-- ── TITLE & CORE META ─────────────────────────────────────────────────── -->
+<title>CrawlIQ — Free AI Technical SEO Audit Tool | Built by Teki Bhavani Shankar</title>
+<meta name="description" content="Free AI-powered SEO crawler built by Technical SEO Specialist Teki Bhavani Shankar. Crawl any site, detect 50+ issues, get AI fixes from Claude, Gemini &amp; Groq. No signup needed."/>
+<link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/app/"/>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="keywords" content="Technical SEO, SEO audit tool, free SEO crawler, Python SEO, Core Web Vitals, site audit, Teki Bhavani Shankar"/>
+<meta name="author" content="Teki Bhavani Shankar"/>
+<meta name="google-site-verification" content="CWOGPe7yCVzbPTd9yDBTf7tKeg382FAt_xi-4fFSP-I"/>
+
+<!-- ── OPEN GRAPH ────────────────────────────────────────────────────────── -->
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="CrawlIQ — Free AI Technical SEO Audit Tool | Built by Teki Bhavani Shankar"/>
+<meta property="og:description" content="Free AI-powered SEO crawler built by Technical SEO Specialist Teki Bhavani Shankar. Crawl any site, detect 50+ issues, get AI fixes from Claude, Gemini &amp; Groq. No signup needed."/>
+<meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/"/>
+<meta property="og:site_name" content="CrawlIQ"/>
+<meta property="og:locale" content="en_US"/>
+
+<!-- ── TWITTER CARD ──────────────────────────────────────────────────────── -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="CrawlIQ — Free AI Technical SEO Audit Tool | Built by Teki Bhavani Shankar"/>
+<meta name="twitter:description" content="Free AI-powered SEO crawler by Teki Bhavani Shankar. Detect 50+ SEO issues, get AI fixes from Claude, Gemini &amp; Groq. No signup needed."/>
+
+<!-- ── STRUCTURED DATA: WebApplication ──────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "CrawlIQ",
+  "url": "https://bhavani5a8.github.io/crawliq.io/",
+  "description": "Free AI-powered technical SEO audit tool. Crawl any website, detect 50+ SEO issues, get AI-generated fixes from Claude, Gemini and Groq. Built with Python and FastAPI.",
+  "applicationCategory": "SEO Tool",
+  "applicationSubCategory": "Technical SEO Auditing",
+  "operatingSystem": "Web Browser",
+  "browserRequirements": "Requires JavaScript",
+  "inLanguage": "en",
+  "datePublished": "2024-01-01",
+  "dateModified": "2026-04-16",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free to use, no credit card required"
+  },
+  "featureList": [
+    "Technical SEO audit with scoring (0-100)",
+    "HTTP status code analysis",
+    "Indexability assessment per page",
+    "robots.txt and sitemap.xml validation",
+    "Title tag and meta description auditing",
+    "Canonical URL detection and validation",
+    "H1, H2, H3 heading structure analysis",
+    "Open Graph tag coverage check",
+    "Image alt text audit",
+    "Core Web Vitals assessment",
+    "Crawl budget analysis",
+    "Keyword extraction and TF-IDF scoring",
+    "AI-powered content analysis (Groq, Gemini, OpenAI, Claude)",
+    "Live Optimization Table with paste-ready fixes",
+    "Excel report export (.xlsx)",
+    "Per-page SEO ranking score (A-F grade)"
+  ],
+  "creator": {
+    "@type": "Person",
+    "name": "Teki Bhavani Shankar",
+    "jobTitle": "Technical SEO Specialist",
+    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
+  },
+  "codeRepository": "https://github.com/Bhavani5A8/crawliq.io",
+  "sameAs": "https://huggingface.co/spaces/bhavani7/seo-project"
+}
+</script>
+
+<!-- ── STRUCTURED DATA: Organization ────────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "CrawlIQ",
+  "url": "https://bhavani5a8.github.io/crawliq.io/",
+  "description": "CrawlIQ provides free, open-source AI-powered technical SEO auditing tools for developers, SEO professionals, and small businesses.",
+  "founder": {
+    "@type": "Person",
+    "name": "Teki Bhavani Shankar",
+    "jobTitle": "Technical SEO Specialist",
+    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
+  },
+  "sameAs": [
+    "https://github.com/Bhavani5A8/crawliq.io",
+    "https://huggingface.co/spaces/bhavani7/seo-project"
+  ]
+}
+</script>
+
+<!-- ── STRUCTURED DATA: FAQPage (AEO + GEO) ─────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How does CrawlIQ's AI SEO analysis work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ crawls your website using an async BFS (breadth-first search) crawler and sends each page to an AI model — Groq (Llama 3), Gemini, OpenAI, or Claude, configurable via environment variable. The AI analyzes content quality, keyword optimization, readability, semantic relevance, and heading structure, then generates specific actionable recommendations ranked by impact. Output includes optimized title tags, meta descriptions, H1 rewrites, and full paragraph content."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What SEO issues does CrawlIQ detect?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ detects over 15 categories of SEO issues: missing title tags, title too short (under 30 chars) or too long (over 60 chars), missing meta descriptions, missing or multiple H1 tags, missing H2 tags, canonical tag absent or pointing to a different URL, duplicate meta descriptions across pages, broken pages (4xx and 5xx HTTP errors), thin content (under 300 words), images with empty alt text, HTTP pages (not HTTPS), URLs with underscores, uppercase characters, or excessive depth, and high link density."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What data formats can I export from CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ exports three types of Excel (.xlsx) reports: a Full SEO Report with all crawled pages, issues, keywords, and AI fixes; a Per-Field Issues Report with field-level issue breakdowns; a Live Optimization Table with paste-ready optimized titles, meta descriptions, and H1 tags; and a Technical SEO Audit with per-page scores (0-100), grades (A-F), and indexability status."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many pages can I crawl with CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ is free to use with no credit card required. Without an account you can crawl up to 50 pages per session. Creating a free account gives you 200 pages per month across saved projects. The crawler uses breadth-first search from your root URL, following internal links and handling SSL failures with automatic HTTP fallback."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is my website data secure when using CrawlIQ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. CrawlIQ processes all crawl data in isolated in-memory sessions. No crawl data is stored to a database or disk permanently. All data exists only for the duration of your active session and is cleared when a new crawl starts. The tool is fully open-source on GitHub and hosted on HuggingFace Spaces."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does CrawlIQ support JavaScript-rendered websites?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "CrawlIQ uses an aiohttp-based async crawler with BeautifulSoup for HTML parsing. It works best with server-side rendered, static, and WordPress sites. The crawler extracts content from the initial HTML response including title, meta tags, headings, canonical, Open Graph tags, body text, internal links, and image alt texts. For fully JavaScript-rendered SPAs, server-side rendering or static generation is recommended for best crawl coverage."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- ── STRUCTURED DATA: SoftwareApplication ─────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CrawlIQ",
+  "url": "https://bhavani5a8.github.io/crawliq.io/",
+  "applicationCategory": "SEOApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Teki Bhavani Shankar",
+    "jobTitle": "Technical SEO Specialist",
+    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
+    "sameAs": [
+      "https://github.com/Bhavani5A8",
+      "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
+    ]
+  },
+  "description": "Free AI-powered Technical SEO audit tool. Crawl any website, detect 50+ SEO issues, get AI-generated fixes. Built with Python, FastAPI, and Gemini AI."
+}
+</script>
+
+<!-- ── STRUCTURED DATA: WebPage ──────────────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
+  "url": "https://bhavani5a8.github.io/crawliq.io/",
+  "description": "Free AI-powered SEO crawler built by Technical SEO Specialist Teki Bhavani Shankar. Detect 50+ issues, get AI fixes from Claude, Gemini and Groq.",
+  "inLanguage": "en",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "CrawlIQ",
+    "url": "https://bhavani5a8.github.io/crawliq.io/"
+  },
+  "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
+      "item": "https://bhavani5a8.github.io/crawliq.io/"
+    }]
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Teki Bhavani Shankar",
+    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
+  }
+}
+</script>
+
+<!-- ── STRUCTURED DATA: Person ───────────────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Teki Bhavani Shankar",
+  "jobTitle": "Technical SEO Specialist",
+  "description": "Technical SEO Specialist and developer based in India. Built CrawlIQ — a free, open-source AI-powered SEO audit platform.",
+  "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
+  "sameAs": [
+    "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
+    "https://github.com/Bhavani5A8"
+  ],
+  "knowsAbout": [
+    "Technical SEO",
+    "On-page SEO",
+    "Python",
+    "FastAPI",
+    "Web Crawling",
+    "Core Web Vitals",
+    "Crawl Budget Optimization"
+  ],
+  "creator": {
+    "@type": "SoftwareApplication",
+    "name": "CrawlIQ",
+    "url": "https://bhavani5a8.github.io/crawliq.io/"
+  }
+}
+</script>
+
+<!-- ── STRUCTURED DATA: BreadcrumbList ──────────────────────────────────── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [{
+    "@type": "ListItem",
+    "position": 1,
+    "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
+    "item": "https://bhavani5a8.github.io/crawliq.io/"
+  }]
+}
+</script>
+
+<!-- Load icon font async + display=swap so text renders before icons arrive -->
+<!-- ══ PERFORMANCE: FONTS + STYLES ════════════════════════════════════════ -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
+
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/></noscript>
+
+<link rel="stylesheet" href="../static/css/main.css?v=1.0.4"/>
+
+
+<style>
+/* ── M3 DESIGN TOKENS ── */
+:root{
+  /* ── Surface stack (DESIGN.md Luminance Layering) ── */
+  --bg:#0f131d;           /* Level 0: infinite canvas */
+  --surf-lowest:#0a0e18;  /* recessed: inputs, code blocks */
+  --surf-low:#171b26;     /* Level 1 secondary */
+  --surf:#1c1f2a;         /* Level 1: large structural areas */
+  --surf2:#262a35;        /* Level 2: cards / modules */
+  --surf3:#353944;        /* Level 3: popovers / hover state */
+  --surf-highest:#313540; /* modals */
+  /* ── Brand ── */
+  --indigo:#6366F1;
+  --primary:#c0c1ff;
+  --primary-container:#8083ff;
+  --tertiary:#ffb783;
+  --tertiary-container:rgba(255,183,131,.12);
+  /* ── Semantic ── */
+  --green:#10B981;
+  --green-container:rgba(16,185,129,.12);
+  --yellow:#F59E0B;
+  --red:#ff6b6b;
+  --red-container:rgba(255,107,107,.12);
+  /* ── Text ── */
+  --text:#dfe2f1;
+  --dim:#c7c4d7;
+  --muted:#908fa0;
+  --dark-muted:#464554;
+  /* ── Borders (DESIGN.md "Ghost Border" rule) ── */
+  --border:rgba(70,69,84,.45);        /* legacy — dashboard internals */
+  --border-strong:rgba(70,69,84,.7);
+  --ghost:rgba(70,69,84,.15);         /* ghost border — "felt not seen" */
+  /* ── Fonts ── */
+  --headline:'Plus Jakarta Sans',system-ui,sans-serif;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono','Courier New',monospace;
+  /* ── Radius ── */
+  --r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;
+  /* ── Legacy aliases for JS-generated HTML ── */
+  --cyan:var(--primary);
+  --purple:var(--indigo);
+  --accent:var(--primary);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;font-synthesis:none;
+  min-height:100vh;overflow-x:hidden;padding-bottom:72px;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(99,102,241,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(99,102,241,.03) 1px,transparent 1px);
+  background-size:44px 44px;}
+@media(min-width:768px){body{padding-bottom:0;}}
+h1,h2,h3,h4{font-family:var(--headline);}
+
+/* ── MATERIAL SYMBOLS ── */
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;
+  font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;
+  white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';
+  font-feature-settings:'liga';-webkit-font-smoothing:antialiased;}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;width:100%;z-index:100;
+  background:rgba(15,19,29,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(70,69,84,.15);display:flex;align-items:center;padding:0 32px;gap:28px;height:64px;
+  box-shadow:0 40px 40px rgba(223,226,241,.06);}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0;}
+.nav-logo-icon{color:var(--primary);font-size:24px;}
+.nav-logo-text{font-family:var(--headline);font-size:18px;font-weight:800;color:white;letter-spacing:-.5px;}
+.nav-logo-text em{font-style:normal;color:var(--primary);}
+/* System Active pill */
+.sys-active-pill{display:flex;align-items:center;gap:6px;
+  background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);
+  border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);
+  color:var(--dim);font-weight:600;flex-shrink:0;}
+.sys-active-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);
+  animation:ping 2s ease-in-out infinite;flex-shrink:0;}
+.nav-links{display:none;gap:24px;margin-left:8px;}
+@media(min-width:768px){.nav-links{display:flex;}}
+.nav-links a{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s;}
+.nav-links a:hover,.nav-links a.active{color:var(--primary);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+/* ── Landing nav hamburger (mobile only) ── */
+.nav-hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--text);}
+.nav-hamburger span{display:block;width:22px;height:2px;background:currentColor;border-radius:1px;transition:all .2s;}
+@media(min-width:768px){.nav-hamburger{display:none;}}
+.app-topbar{display:none;}.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay.open{display:block;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid rgba(70,69,84,.15);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer.open{left:0;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(70,69,84,.15);min-height:64px;}
+.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
+.mob-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;}
+.mob-nav-link{display:flex;align-items:center;gap:10px;padding:13px 20px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;border-bottom:1px solid rgba(70,69,84,.12);transition:color .15s,background .15s;}
+.mob-nav-link:hover{color:var(--text);background:rgba(70,69,84,.1);}
+.mob-drawer-auth{display:flex;flex-direction:column;gap:8px;padding:16px 20px;}
+.btn-nav-cta{background:var(--primary);color:#1a1c40;
+  font-family:var(--headline);font-weight:700;font-size:13px;padding:9px 22px;
+  border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;
+  transition:opacity .15s,transform .1s;letter-spacing:-.2px;}
+.btn-nav-cta:hover{opacity:.88;transform:scale(.98);}
+.ai-pill{display:flex;align-items:center;gap:7px;background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);
+  border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;transition:border-color .15s;}
+.ai-pill:hover{border-color:var(--primary);}
+.ai-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--green);position:relative;flex-shrink:0;}
+.ai-pill-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);opacity:.3;animation:ping 2s ease-in-out infinite;}
+@keyframes ping{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.8);opacity:0}}
+.gemini-pill{font-size:12px;color:var(--muted);font-family:var(--mono);background:none;border:none;padding:0;cursor:pointer;transition:color .15s;}
+.gemini-pill.up{color:var(--green);}
+.gemini-pill.down{color:var(--red);}
+.nav-login{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s;}
+.nav-login:hover{color:var(--text);}
+
+/* ── HERO ── */
+.hero{position:relative;z-index:1;min-height:calc(100vh - 64px);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:100px 24px 60px;text-align:center;overflow:hidden;}
+.orb1{position:absolute;left:25%;top:25%;width:384px;height:384px;border-radius:50%;
+  background:var(--primary);filter:blur(120px);opacity:.18;pointer-events:none;}
+.orb2{position:absolute;right:25%;bottom:25%;width:384px;height:384px;border-radius:50%;
+  background:var(--tertiary);filter:blur(120px);opacity:.14;pointer-events:none;}
+.orb3{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(192,193,255,.07) 0%,transparent 65%);pointer-events:none;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--surf-highest);
+  border:1px solid rgba(70,69,84,.2);border-radius:20px;padding:6px 16px;
+  font-size:12px;color:var(--dim);font-weight:600;margin-bottom:32px;letter-spacing:.2px;font-family:var(--mono);}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);animation:ping 2s ease-in-out infinite;}
+.hero-badge-new{background:linear-gradient(90deg,var(--primary),var(--primary-container));color:#1a1c40;
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:2px;}
+.hero h1{font-size:clamp(42px,7vw,88px);font-weight:800;line-height:1.02;letter-spacing:-.04em;color:white;margin-bottom:20px;font-family:var(--headline);}
+.hero h1 .grad{background:linear-gradient(120deg,var(--primary),var(--primary-container));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:18px;color:var(--dim);max-width:540px;margin:0 auto 44px;line-height:1.7;font-weight:400;}
+/* ── Hero input ── */
+.hero-input-row{display:flex;flex-direction:column;max-width:720px;width:100%;margin:0 auto 28px;
+  gap:10px;background:var(--surf-low);border-radius:20px;padding:8px;
+  border:1px solid rgba(70,69,84,.2);box-shadow:0 24px 80px rgba(0,0,0,.5);
+  transition:box-shadow .25s,border-color .25s;}
+.hero-input-row:focus-within{border-color:rgba(99,102,241,.35);
+  box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 2px rgba(99,102,241,.18);}
+@media(min-width:600px){.hero-input-row{flex-direction:row;gap:0;padding:6px;}}
+.hero-input-wrap{flex:1;background:transparent;display:flex;align-items:center;gap:10px;padding:0 18px;}
+.hero-input-wrap input{flex:1;background:transparent;border:none;outline:none;color:var(--text);
+  font-size:15px;font-family:var(--sans);padding:16px 0;}
+.hero-input-wrap input::placeholder{color:rgba(144,143,160,.5);}
+.hero-input-icon{color:var(--muted);font-size:20px;flex-shrink:0;}
+.hero-crawl-btn{background:var(--primary);border:none;color:#1a1c40;
+  font-family:var(--headline);font-weight:700;font-size:14px;padding:14px 32px;
+  border-radius:var(--r-xl);cursor:pointer;display:flex;align-items:center;gap:8px;
+  transition:opacity .15s,transform .15s,box-shadow .15s;white-space:nowrap;letter-spacing:-.2px;
+  box-shadow:0 8px 28px rgba(192,193,255,.25);}
+.hero-crawl-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 12px 32px rgba(192,193,255,.35);}
+.hero-crawl-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.hero-crawl-btn .sub{font-size:11px;opacity:.8;font-weight:400;font-family:var(--sans);}
+.trust-row{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.trust-text{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;}
+.stars-row{display:flex;align-items:center;gap:8px;}
+.stars{color:var(--tertiary);letter-spacing:1px;}
+.scroll-ind{margin-top:48px;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;}
+.scroll-mouse{width:20px;height:34px;border-radius:10px;border:1.5px solid var(--dark-muted);display:flex;justify-content:center;padding-top:5px;}
+.scroll-dot{width:2.5px;height:7px;border-radius:2px;background:var(--indigo);animation:scrollDn 1.6s ease-in-out infinite;}
+@keyframes scrollDn{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(8px);opacity:.3}}
+
+
+/* ── CLS STABILITY — reserved dimensions prevent layout shift ── */
+button{min-height:32px;}
+.hero-crawl-btn{min-height:52px;min-width:140px;}
+.btn-nav-cta{min-height:36px;min-width:80px;}
+nav{min-height:64px;}
+.ai-pill{min-height:32px;}
+.hero-input-row{min-height:64px;}
+</style>
+<!-- ── Critical JS (inline — nav/button/input handlers, <1KB) ─────────────── -->
+<script>
+/* These functions are called via onclick attributes in the HTML body.
+   Inlining them avoids any gap between HTML parse and user interaction,
+   even before the deferred app.js executes. */
+function startCrawlHero(){
+  var raw=(document.getElementById('url-input').value||'').trim();
+  if(!raw){document.getElementById('url-input').focus();return;}
+  var url=raw.startsWith('http')?raw:'https://'+raw;
+  window.location.href='backend/pages/tech-seo.html?url='+encodeURIComponent(url);
+}
+function toggleLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.toggle('open');
+  document.getElementById('landing-mob-overlay').classList.toggle('open');
+}
+function closeLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.remove('open');
+  document.getElementById('landing-mob-overlay').classList.remove('open');
+}
+function toggleFaq(item){
+  var isOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(function(i){
+    i.classList.remove('open');
+    var c=i.querySelector('.faq-chev .material-symbols-outlined');
+    if(c)c.textContent='expand_more';
+  });
+  if(!isOpen){
+    item.classList.add('open');
+    var c=item.querySelector('.faq-chev .material-symbols-outlined');
+    if(c)c.textContent='expand_less';
+  }
+}
+function closeAuthModal(){document.getElementById('auth-modal').style.display='none';}
+function closeAiSetup(){
+  document.getElementById('ai-overlay').classList.remove('open');
+}
+/* Prevent undefined-function errors before app.js defers — safe stubs */
+['exitAppMode','openAiSetup','openAuthModal','authTab','showPanel',
+ 'openKwGap','openSettings','toggleUserMenu'].forEach(function(fn){
+  if(!window[fn]) window[fn]=function(){};
+});
+</script>
+</head>
+<body>
+
+
+<!-- ══ APP TOPBAR (shown only in app-mode) ════════════════════════════════ -->
+<div class="app-topbar" id="app-topbar">
+  <!-- Row 1: Brand + URL input + auth -->
+  <div class="app-topbar-main">
+    <a class="nav-logo" href="#" onclick="exitAppMode();return false;" style="text-decoration:none;flex-shrink:0">
+      <span class="material-symbols-outlined nav-logo-icon" style="font-size:20px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
+      <span class="nav-logo-text" style="font-size:15px">Crawl<em>IQ</em></span>
+    </a>
+    <!-- URL input (inline, replaces hero input in app mode) -->
+    <div class="app-crawl-bar" id="app-crawl-bar" style="margin:0;flex:1;max-width:580px">
+      <div class="app-crawl-wrap">
+        <span class="material-symbols-outlined app-crawl-icon">language</span>
+        <input id="url-input-app" type="text" class="app-crawl-input" placeholder="Enter website URL… e.g. mysite.com"
+          oninput="document.getElementById('url-input').value=this.value"
+          onkeydown="if(event.key==='Enter'){document.getElementById('url-input').value=this.value;startCrawlHero();}"/>
+      </div>
+      <button class="app-crawl-btn" onclick="document.getElementById('url-input').value=document.getElementById('url-input-app').value;startCrawlHero()">
+        <span class="material-symbols-outlined" style="font-size:16px">bolt</span>
+        Audit
+      </button>
+    </div>
+    <div class="app-topbar-spacer"></div>
+    <div class="app-topbar-actions">
+      <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer;" title="AI Setup">
+        <div class="ai-pill-dot"></div>
+        <span id="gemini-pill-topbar" class="gemini-pill" style="display:none">AI</span>
+      </div>
+      <div id="nav-auth-user-topbar" style="display:none;align-items:center;gap:8px">
+        <div class="user-chip" onclick="toggleUserMenu()">
+          <div class="user-avatar" id="user-avatar-initials-tb">U</div>
+          <span id="user-display-name-tb" style="font-size:12px;color:var(--text)">User</span>
+        </div>
+      </div>
+      <div id="nav-auth-guest-topbar" style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
+        <button class="btn btn-sm" onclick="authTab('register');openAuthModal()" style="font-size:11px;background:var(--primary);color:#1a1c40;border:none;font-weight:700">Sign Up</button>
+      </div>
+    </div>
+  </div>
+  <!-- Row 2: Panel navigation tabs -->
+  <div class="app-panel-tabs">
+    <button class="apt active" id="sn-dashboard"   onclick="showPanel('dashboard')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">dashboard</span>Dashboard
+    </button>
+    <button class="apt" id="sn-serp"        onclick="showPanel('serp')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bar_chart</span>SERP Intel
+    </button>
+    <button class="apt" id="sn-monitor"     onclick="showPanel('monitor')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">notifications</span>Rank Monitor
+    </button>
+    <button class="apt" id="sn-competitors" onclick="showPanel('competitors')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">compare_arrows</span>Competitors
+    </button>
+    <button class="apt" id="sn-schema"      onclick="showPanel('schema')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">data_object</span>Schema
+    </button>
+    <button class="apt" id="sn-content-lab" onclick="showPanel('content-lab')">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">auto_fix_high</span>Content Lab
+    </button>
+    <button class="apt" onclick="openKwGap()" style="margin-left:auto">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">search</span>Keyword Gap
+    </button>
+    <button class="apt" onclick="openSettings()">
+      <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">settings</span>Settings
+    </button>
+  </div>
+</div>
+
+<!-- ══ AUTH MODAL ═══════════════════════════════════════════════════════════ -->
+<div id="auth-modal" class="modal-overlay" style="display:none">
+<div class="modal-box">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><polygon points="16,2 9,14 14,14 7,26 21,10 15,10 22,2" fill="#22D3EE"/></svg>
+    <span style="font-size:16px;font-weight:800;color:var(--text)">Crawl<em style="color:var(--cyan)">IQ</em></span>
+    <span id="auth-tier-info" style="margin-left:auto;font-size:10px;color:var(--dim)">Sign in to save projects & track rankings</span>
+  </div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tab-login"    onclick="authTab('login')">Sign In</button>
+    <button class="auth-tab"        id="tab-register" onclick="authTab('register')">Create Account</button>
+  </div>
+  <div id="auth-error" class="auth-error"></div>
+
+  <!-- Login form -->
+  <div id="auth-form-login">
+    <div class="auth-field"><label>Email</label><input id="login-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="auth-field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doLogin()">Sign In</button>
+    <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
+  </div>
+
+  <!-- Register form -->
+  <div id="auth-form-register" style="display:none">
+    <div class="auth-field"><label>Name</label><input id="reg-name" type="text" placeholder="Your name" autocomplete="name"/></div>
+    <div class="auth-field"><label>Email</label><input id="reg-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="auth-field"><label>Password</label><input id="reg-pass" type="password" placeholder="Min 6 characters" autocomplete="new-password"/></div>
+    <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="doRegister()">Create Free Account</button>
+    <div style="font-size:10px;color:var(--dim);text-align:center;margin-top:8px">Free plan: 200 pages/month · 3 projects · No credit card required</div>
+    <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:11px" onclick="closeAuthModal()">Continue without account</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ SETTINGS MODAL ════════════════════════════════════════════════════════ -->
+<div id="settings-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:500px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <h2>⚙ Settings</h2>
+    <button onclick="closeSettings()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+
+  <!-- Usage -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Usage This Month</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text);margin-bottom:4px">
+      <span id="usage-label">Pages crawled</span>
+      <span id="usage-count" style="font-family:var(--mono)">0 / 200</span>
+    </div>
+    <div class="usage-bar-wrap"><div id="usage-bar" class="usage-bar" style="width:0%;background:var(--indigo)"></div></div>
+    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Loading…</div>
+    <div id="billing-actions" style="margin-top:10px;display:none"></div>
+  </div>
+
+  <!-- Profile -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Profile</div>
+    <div class="auth-field"><label>Display Name</label><input id="set-name" type="text" placeholder="Your name"/></div>
+    <div class="auth-field"><label>Alert Email (for rank-drop notifications)</label><input id="set-alert-email" type="email" placeholder="alerts@example.com"/></div>
+    <div class="auth-field">
+      <label>Rank Drop Threshold (alert when position drops by)</label>
+      <input id="set-drop-threshold" type="number" min="1" max="50" value="5" style="width:80px"/>
+    </div>
+    <button class="btn btn-green" onclick="saveSettings()">Save Profile</button>
+  </div>
+
+  <!-- White-label / branding -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">White-Label PDF Branding</div>
+    <div class="auth-field"><label>Brand Name (shown on PDF header)</label><input id="set-brand-name" type="text" placeholder="Your Company Name"/></div>
+    <div class="auth-field">
+      <label>Logo (PNG/JPG, max 512 KB)</label>
+      <input type="file" id="logo-upload" accept="image/*" onchange="uploadLogo(this)"/>
+    </div>
+    <div id="logo-status" style="font-size:10px;color:var(--dim);margin-top:4px"></div>
+  </div>
+
+  <!-- API Key -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">API Access</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Use your API key to call CrawlIQ endpoints programmatically.</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="api-key-display" type="password" readonly style="flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;font-family:var(--mono);color:var(--text)"/>
+      <button class="btn btn-outline btn-sm" onclick="toggleApiKeyVisibility()">👁</button>
+      <button class="btn btn-outline btn-sm" onclick="rotateApiKey()">Rotate</button>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:6px">Add header: <code style="color:var(--cyan)">X-API-Key: &lt;your-key&gt;</code></div>
+  </div>
+
+  <!-- GSC Integration -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Google Search Console</div>
+    <div id="gsc-not-connected">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Connect GSC to pull real impressions, CTR, and ranking data.</div>
+      <button class="btn btn-outline" onclick="connectGSC()" id="gsc-connect-btn">Connect Google Search Console</button>
+    </div>
+    <div id="gsc-connected-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="color:var(--green);font-size:11px;font-weight:600">Connected</span>
+        <select id="gsc-site-select" class="serp-input" style="flex:1;font-size:11px" onchange="loadGscData()"></select>
+        <button class="btn btn-outline btn-sm" onclick="disconnectGSC()" style="font-size:10px;padding:4px 8px">Disconnect</button>
+      </div>
+      <div id="gsc-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px"></div>
+      <div id="gsc-kw-table" style="max-height:220px;overflow-y:auto"></div>
+      <div style="font-size:9px;color:var(--dim);margin-top:6px" id="gsc-date-range"></div>
+    </div>
+    <div id="gsc-status" style="font-size:10px;color:var(--dim);margin-top:6px"></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ PROJECTS PANEL ════════════════════════════════════════════════════════ -->
+<div id="projects-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:640px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <h2>📁 Projects</h2>
+    <button onclick="closeProjects()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <input id="new-proj-name" class="serp-input" placeholder="Project name" style="flex:1"/>
+    <input id="new-proj-url"  class="serp-input" placeholder="https://example.com" style="flex:2"/>
+    <button class="btn btn-green" onclick="createProject()">+ Create</button>
+  </div>
+  <div id="proj-list" style="display:flex;flex-direction:column;gap:8px">
+    <div style="text-align:center;color:var(--dim);font-size:11px;padding:20px">Loading projects…</div>
+  </div>
+</div>
+</div>
+
+<!-- ══ KEYWORD GAP PANEL ═════════════════════════════════════════════════════ -->
+<div id="kwgap-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:700px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2>🔍 Keyword Gap Analysis</h2>
+    <button onclick="document.getElementById('kwgap-modal').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:10px;color:var(--dim);margin-bottom:4px;font-weight:700">YOUR KEYWORDS (one per line)</div>
+      <textarea id="kwgap-yours" class="serp-input" rows="6" placeholder="keyword 1&#10;keyword 2&#10;..." style="width:100%;resize:vertical"></textarea>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:10px;color:var(--dim);margin-bottom:4px;font-weight:700">COMPETITOR KEYWORDS (one per line)</div>
+      <textarea id="kwgap-theirs" class="serp-input" rows="6" placeholder="keyword 1&#10;keyword 2&#10;..." style="width:100%;resize:vertical"></textarea>
+    </div>
+  </div>
+  <div style="margin-bottom:12px;font-size:10px;color:var(--dim)">Paste keywords from the crawler results, a keyword tool, or your GSC export.</div>
+  <button class="btn btn-green" onclick="runKeywordGap()">▶ Analyze Gap</button>
+  <div id="kwgap-results" style="display:none;margin-top:16px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px" id="kwgap-summary"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="kw-gap-box" style="flex:2">
+        <h4 style="color:var(--red)">Gap Opportunities — Only Competitor Ranks</h4>
+        <div id="kwgap-only-comp" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div class="kw-gap-box" style="flex:1">
+        <h4 style="color:var(--green)">Your Unique Keywords</h4>
+        <div id="kwgap-only-you" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div class="kw-gap-box" style="flex:1">
+        <h4 style="color:var(--yellow)">Shared Keywords</h4>
+        <div id="kwgap-shared" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ CRAWL DIFF MODAL ══════════════════════════════════════════════════════ -->
+<div id="diff-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:680px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2>🔄 Crawl Comparison</h2>
+    <button onclick="document.getElementById('diff-modal').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div id="diff-loading" style="text-align:center;color:var(--dim);padding:20px;font-size:12px">Loading diff…</div>
+  <div id="diff-content" style="display:none">
+    <div id="diff-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:8px">New Issues <span id="diff-new-count" style="color:var(--red)"></span></div>
+        <div id="diff-new-list" style="max-height:250px;overflow-y:auto;font-size:11px;font-family:var(--mono)"></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:8px">Fixed Issues <span id="diff-fixed-count" style="color:var(--green)"></span></div>
+        <div id="diff-fixed-list" style="max-height:250px;overflow-y:auto;font-size:11px;font-family:var(--mono)"></div>
+      </div>
+    </div>
+  </div>
+  <div id="diff-no-data" style="display:none;text-align:center;color:var(--dim);padding:20px;font-size:11px"></div>
+</div>
+</div>
+
+<!-- ══ TEAM MODAL ════════════════════════════════════════════════════════════ -->
+<div id="team-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:500px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2>👥 Team Access</h2>
+    <button onclick="document.getElementById('team-modal').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div id="team-proj-name" style="font-size:12px;color:var(--cyan);font-family:var(--mono);margin-bottom:14px"></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <input id="invite-email" class="serp-input" type="email" placeholder="colleague@example.com" style="flex:2"/>
+    <select id="invite-role" class="serp-input" style="flex:1">
+      <option value="viewer">Viewer</option>
+      <option value="editor">Editor</option>
+    </select>
+    <button class="btn btn-green" onclick="inviteTeamMember()">Invite</button>
+  </div>
+  <div id="invite-msg" style="font-size:10px;color:var(--dim);margin-bottom:10px;display:none"></div>
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Current Members</div>
+  <div id="team-members-list" style="font-size:11px;font-family:var(--mono)">
+    <div style="color:var(--muted);padding:10px 0">Loading…</div>
+  </div>
+  <div style="font-size:10px;color:var(--dim);margin-top:10px">
+    <b>Viewer</b>: can see project results &nbsp;·&nbsp; <b>Editor</b>: can save crawl snapshots
+  </div>
+</div>
+</div>
+
+<!-- ══ SITEMAP CRAWL MODAL ═══════════════════════════════════════════════════ -->
+<div id="sitemap-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:480px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2>🗺 Sitemap Crawl</h2>
+    <button onclick="document.getElementById('sitemap-modal').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <p style="font-size:11px;color:var(--dim);margin-bottom:16px">Parse a <code style="color:var(--cyan)">sitemap.xml</code> and crawl only those URLs instead of BFS discovery. Useful for large sites where you want targeted crawl coverage.</p>
+  <div class="auth-field"><label>Sitemap URL</label><input id="sitemap-url-input" type="url" placeholder="https://example.com/sitemap.xml"/></div>
+  <div class="auth-field">
+    <label>Max Pages</label>
+    <input id="sitemap-max-pages" type="number" min="1" max="500" value="100" style="width:100px"/>
+  </div>
+  <div id="sitemap-error" style="font-size:11px;color:var(--red);margin-bottom:8px;display:none"></div>
+  <button class="btn btn-green" style="width:100%" onclick="startSitemapCrawl()">▶ Start Sitemap Crawl</button>
+</div>
+</div>
+
+<!-- ══ SCORE HISTORY PANEL ═══════════════════════════════════════════════════ -->
+<div id="score-history-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:640px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2>📈 Score History</h2>
+    <button onclick="document.getElementById('score-history-modal').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div style="font-size:11px;color:var(--dim);margin-bottom:12px">Health score trend across crawl snapshots for the active project.</div>
+  <div id="score-chart-wrap" style="background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:12px">
+    <canvas id="score-chart" height="180"></canvas>
+  </div>
+  <div id="score-history-table" style="margin-top:12px;overflow-x:auto">
+    <table style="width:100%;font-size:11px;border-collapse:collapse;font-family:var(--mono)">
+      <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
+        <th style="padding:6px 10px;text-align:left">Date</th>
+        <th style="padding:6px 10px;text-align:center">Pages</th>
+        <th style="padding:6px 10px;text-align:center">Issues</th>
+        <th style="padding:6px 10px;text-align:center">Health Score</th>
+      </tr></thead>
+      <tbody id="score-history-tbody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- COLD-START BANNER: shown while HF Space is waking up -->
+<div id="cold-banner">
+  <div class="cold-banner-row">
+    <div class="spin-sm"></div>
+    <span class="cold-banner-label">Starting up</span>
+    <span id="cold-banner-text">Warming up the crawler engine — first load takes ~30 seconds</span>
+    <span class="cold-elapsed" id="cold-elapsed">90s</span>
+  </div>
+  <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
+</div>
+
+<div style="display:none" id="dash-sec">
+  <div class="sec-inner">
+    <div class="dash-card">
+      <div class="dash-chrome">
+        <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+        <span class="tab">crawliq.io/dashboard · Site Audit Report</span>
+      </div>
+      <div class="metric-grid">
+        <div class="mc">
+          <div class="mc-lbl">Pages Crawled</div>
+          <div class="mc-val" id="s-total" style="color:white">0</div>
+          <div class="mc-sub" style="color:var(--green)" id="s-ok-sub"></div>
+          <div class="mc-ico" style="background:rgba(99,102,241,.1)">🔍</div>
+        </div>
+        <div class="mc">
+          <div class="mc-lbl">Issues Found</div>
+          <div class="mc-val" id="s-issues" style="color:var(--red)">0</div>
+          <div class="mc-sub" style="color:var(--red)" id="s-high-sub"></div>
+          <div class="mc-ico" style="background:rgba(239,68,68,.1)">⚠</div>
+        </div>
+        <div class="mc">
+          <div class="mc-lbl">Clean Pages</div>
+          <div class="mc-val" id="s-ok" style="color:var(--green)">0</div>
+          <div class="mc-sub" style="color:var(--green)">No issues detected</div>
+          <div class="mc-ico" style="background:rgba(16,185,129,.1)">✓</div>
+        </div>
+        <div class="mc">
+          <div class="mc-lbl">High Priority</div>
+          <div class="mc-val" id="s-high" style="color:var(--red)">0</div>
+          <div class="mc-sub" style="color:var(--muted)" id="s-med-sub"></div>
+          <div class="mc-ico" style="background:rgba(239,68,68,.1)">🔴</div>
+        </div>
+      </div>
+
+      <div id="cbar" class="sbar c-bar"><div class="spin g" id="cspin"></div><span id="ctxt">Crawling…</span></div>
+      <div id="gbar" class="sbar g-bar"><div class="spin p" id="gspin"></div><span id="gtxt">AI running…</span></div>
+      <div id="obar" class="sbar" style="display:none;border-left:3px solid var(--yellow)"><div class="spin" style="border-top-color:var(--yellow);display:block" id="ospin"></div><span id="otxt">⚡ Optimizer running…</span></div>
+      <div id="tseo-bar" class="sbar tseo-bar-accent" style="display:none"><div class="spin" style="border-top-color:var(--green);display:none" id="tseo-spin"></div><span id="tseo-txt">🔬 Tech SEO ready</span></div>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-info">
+          <span id="prog-text">0 / 0 pages crawled</span>
+          <span id="prog-elapsed">0s</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+
+      <div class="dash-actions">
+        <button class="btn btn-cyan"    id="gemini-btn"  onclick="startGeminiAll()" disabled>✨ AI (All)</button>
+        <button class="btn btn-cyan"    id="sel-ai-btn"  onclick="startGeminiSelected()" disabled style="display:none">✨ AI (Selected)</button>
+        <button class="btn btn-orange"  id="opt-btn"     onclick="startOptimizer()" disabled>⚡ Optimize</button>
+        <button class="btn btn-purple"  id="popup-btn"   onclick="openPopup()" disabled>◈ Popup</button>
+        <button class="btn btn-outline" id="export-btn"  onclick="openExportModal()" disabled>↓ Export</button>
+        <button class="btn" style="border:1px solid var(--green);color:var(--green);background:transparent" id="tseo-btn" onclick="runTechSEO()" disabled>🔬 Tech SEO</button>
+        <button class="btn" style="border:1px solid var(--cyan);color:var(--cyan);background:transparent" id="serp-btn" onclick="openSerpPanel()" disabled>📊 SERP Intel</button>
+        <button class="btn" style="border:1px solid var(--indigo);color:var(--indigo);background:transparent" id="monitor-btn" onclick="openMonitorPanel()">🔔 Monitor</button>
+        <button class="btn" style="border:1px solid var(--yellow);color:var(--yellow);background:transparent" id="pdf-btn" onclick="exportPDF()" disabled>⬇ PDF</button>
+        <button class="btn" style="border:1px solid var(--green);color:var(--green);background:transparent" id="save-project-btn" onclick="saveToProject()" disabled>💾 Save to Project</button>
+        <button class="btn btn-outline" onclick="openSitemapCrawl()" style="font-size:11px" title="Crawl from sitemap.xml instead of BFS">🗺 Sitemap Crawl</button>
+        <button class="btn btn-outline" onclick="openKwGap()" style="font-size:11px">🔍 Keyword Gap</button>
+      </div>
+
+      <div class="summary" id="summary">
+        <div class="card" style="border-color:rgba(239,68,68,.3)"><span class="val" id="s-high-bar" style="color:var(--red)">0</span><span class="lbl">High</span></div>
+        <div class="card warn"><span class="val" id="s-med">0</span><span class="lbl">Medium</span></div>
+        <div class="card"><span class="val" id="s-low">0</span><span class="lbl">Low</span></div>
+      </div>
+
+      <div class="ibreak" id="ibreak"><h3>Issue Breakdown</h3><div class="igrid" id="igrid"></div></div>
+
+      <div class="sel-toolbar" id="sel-toolbar">
+        <span><span class="sel-count" id="sel-count">0</span> pages selected</span>
+        <button class="btn btn-cyan btn-sm" onclick="startGeminiSelected()">✨ Analyze Selected with AI</button>
+        <button class="btn btn-sm btn-outline" onclick="clearSelection()">✕ Clear</button>
+      </div>
+
+      <div class="opt-panel" id="opt-panel">
+        <div class="opt-panel-head">
+          <h3>⚡ Live Optimization Table</h3>
+          <span id="opt-row-count" style="font-size:10px;color:var(--muted)"></span>
+          <button class="btn btn-outline btn-sm" onclick="downloadOptimizer()" style="margin-left:auto">↓ Export (.xlsx)</button>
+        </div>
+        <div class="opt-filters">
+          <select id="opt-field-filter" onchange="renderOptimizerTable()">
+            <option value="">All Fields</option>
+            <option value="Title">Title</option>
+            <option value="Meta Description">Meta Description</option>
+            <option value="H1">H1</option><option value="H2">H2</option>
+            <option value="Canonical">Canonical</option>
+            <option value="URL Slug">URL Slug</option>
+          </select>
+          <select id="opt-status-filter" onchange="renderOptimizerTable()">
+            <option value="">All Statuses</option>
+            <option value="Missing">Missing</option>
+            <option value="Too Long">Too Long</option>
+            <option value="Duplicate">Duplicate</option>
+            <option value="Multiple">Multiple</option>
+            <option value="Mismatch">Mismatch</option>
+            <option value="Weak">Weak</option>
+          </select>
+          <input id="opt-search" type="text" placeholder="Search URL or value…" oninput="renderOptimizerTable()"/>
+          <span class="opt-count" id="opt-count-label">0 rows</span>
+        </div>
+        <div class="opt-wrap">
+          <table class="otable">
+            <thead><tr><th>URL</th><th>Field</th><th>Status</th><th>Current Value</th><th style="color:var(--cyan)">✦ Optimized Value</th><th>SEO Logic</th></tr></thead>
+            <tbody id="opt-tbody"><tr><td colspan="6"><div class="opt-empty">Run ⚡ Optimize after crawl to generate the Live Optimization Table.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TECH SEO PANEL -->
+      <div class="tseo-panel" id="tseo-panel">
+        <div class="tseo-panel-head">
+          <h3>🔬 Technical SEO Audit</h3>
+          <span id="tseo-row-count" style="font-size:10px;color:var(--muted)"></span>
+          <button class="btn btn-outline btn-sm" onclick="downloadTechSEO()" style="margin-left:auto;border-color:var(--green);color:var(--green)">↓ Export (.xlsx)</button>
+        </div>
+        <!-- Site summary cards -->
+        <div class="tseo-summary-grid" id="tseo-summary-grid">
+          <div class="tseo-mc"><div class="tv" id="ts-score" style="color:var(--cyan)">—</div><div class="tl">Avg Tech Score</div><div class="ts" id="ts-grade" style="color:var(--cyan)">—</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-total" style="color:white">—</div><div class="tl">Pages Audited</div><div class="ts" style="color:var(--dim)">all crawled</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-indexable" style="color:var(--green)">—</div><div class="tl">Indexable Pages</div><div class="ts" id="ts-idx-pct" style="color:var(--green)">—</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-issues" style="color:var(--red)">—</div><div class="tl">Critical Issues</div><div class="ts" style="color:var(--dim)">across all pages</div></div>
+          <div class="tseo-mc"><div class="tv" id="ts-https" style="color:var(--green)">—</div><div class="tl">HTTPS Coverage</div><div class="ts" id="ts-https-status" style="color:var(--dim)">—</div></div>
+        </div>
+        <!-- Domain health -->
+        <div class="tseo-domain-grid" id="tseo-domain-grid">
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">🤖</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">robots.txt</div>
+              <div class="tseo-domain-val" id="td-robots">Checking…</div>
+            </div>
+          </div>
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">🗺</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">sitemap.xml</div>
+              <div class="tseo-domain-val" id="td-sitemap">Checking…</div>
+            </div>
+          </div>
+          <div class="tseo-domain-card">
+            <div class="tseo-domain-ico">📊</div>
+            <div class="tseo-domain-info">
+              <div class="tseo-domain-title">HTTP Status Distribution</div>
+              <div class="tseo-domain-val" id="td-status-dist">—</div>
+            </div>
+          </div>
+        </div>
+        <!-- Per-page table filters -->
+        <div class="tseo-filters">
+          <select id="tseo-idx-filter" onchange="renderTechSEOTable()">
+            <option value="">All Indexability</option>
+            <option value="indexable">Indexable</option>
+            <option value="likely_indexable">Likely Indexable</option>
+            <option value="canonical_mismatch">Canonical Mismatch</option>
+            <option value="not_indexable_redirect">Redirect</option>
+            <option value="not_indexable_error">Error</option>
+          </select>
+          <select id="tseo-grade-filter" onchange="renderTechSEOTable()">
+            <option value="">All Grades</option>
+            <option value="A">A (85-100)</option>
+            <option value="B">B (70-84)</option>
+            <option value="C">C (55-69)</option>
+            <option value="D">D (40-54)</option>
+            <option value="F">F (0-39)</option>
+          </select>
+          <input id="tseo-search" type="text" placeholder="Search URL…" oninput="renderTechSEOTable()"/>
+          <span class="tseo-count" id="tseo-count-label">0 pages</span>
+        </div>
+        <!-- Per-page table -->
+        <div class="tseo-wrap">
+          <table class="tseo-table">
+            <thead><tr>
+              <th>URL</th>
+              <th>HTTP</th>
+              <th>Indexability</th>
+              <th>Tech Score</th>
+              <th>Grade</th>
+              <th>Title</th>
+              <th>Meta</th>
+              <th>Canonical</th>
+              <th>H1</th>
+              <th>Content</th>
+              <th>HTTPS</th>
+              <th>Issues</th>
+              <th>Detail</th>
+            </tr></thead>
+            <tbody id="tseo-tbody"><tr><td colspan="13"><div class="opt-empty">Run 🔬 Tech SEO after crawl to audit all pages.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="filters">
+          <label><input type="checkbox" id="f-issues" onchange="applyFilters()"/> Issues only</label>
+          <select id="f-priority" onchange="applyFilters()">
+            <option value="">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <label><input type="checkbox" id="f-selected" onchange="applyFilters()"/> Selected only</label>
+        </div>
+        <div class="count">Showing <span id="page-count">0</span> pages</div>
+      </div>
+
+      <div class="twrap">
+        <table>
+          <thead><tr>
+            <th class="check-cell"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"/></th>
+            <th onclick="sortBy('url')">URL <span class="sa">↕</span></th>
+            <th onclick="sortBy('status_code')">Status <span class="sa">↕</span></th>
+            <th onclick="sortBy('title')">Title <span class="sa">↕</span></th>
+            <th onclick="sortBy('meta_description')">Meta <span class="sa">↕</span></th>
+            <th onclick="sortBy('h1')">H1 <span class="sa">↕</span></th>
+            <th onclick="sortBy('issues')">Issues <span class="sa">↕</span></th>
+            <th onclick="sortBy('priority')">Priority <span class="sa">↕</span></th>
+            <th>Score</th><th>Keywords</th><th>Competition</th><th>AI Fix</th><th>Status</th><th>Action</th>
+          </tr></thead>
+          <tbody id="results-body">
+            <tr><td colspan="14"><div class="empty-state"><div class="icon">🔍</div><p>Enter a URL above and click Start Crawling.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- TECH SEO DETAIL MODAL -->
+<div class="tseo-overlay" id="tseo-overlay" onclick="tseoOverlayClick(event)">
+<div class="tseo-modal" id="tseo-modal">
+  <div class="tseo-modal-head">
+    <div style="flex:1;min-width:0">
+      <h2>Technical SEO Detail</h2>
+      <span class="tseo-modal-url" id="td-url"></span>
+    </div>
+    <button class="popup-close" onclick="closeTechSEODetail()">✕</button>
+  </div>
+  <div class="tseo-modal-score">
+    <div class="tseo-score-circle" id="td-circle">
+      <span class="sc-val" id="td-sc-val">—</span>
+      <span class="sc-grade" id="td-sc-grade">—</span>
+    </div>
+    <div class="tseo-score-meta">
+      <div class="sm-title" id="td-sm-title">Technical Score</div>
+      <div class="sm-idx" id="td-sm-idx"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px" id="td-all-issues"></div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px">HTTP STATUS</div>
+      <div id="td-http-badge"></div>
+    </div>
+  </div>
+  <div class="tseo-component-grid" id="td-component-grid"></div>
+  <div class="tseo-modal-foot">
+    <div class="tseo-modal-nav">
+      <button class="nav-btn" id="td-prev" onclick="navTechPage(-1)">←</button>
+      <span class="nav-counter"><strong id="td-cur">1</strong> / <strong id="td-tot">1</strong></span>
+      <button class="nav-btn" id="td-next" onclick="navTechPage(1)">→</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-sm" style="border:1px solid var(--green);color:var(--green);background:transparent" onclick="downloadTechSEO()">↓ Export Tech SEO</button>
+  </div>
+</div>
+</div>
+
+<!-- POPUP -->
+<div class="overlay" id="popup-overlay" onclick="overlayClick(event)">
+<div class="popup" id="popup">
+  <div class="popup-head">
+    <div class="popup-head-left">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+        <h2>SEO Analysis</h2><span id="pp-priority" class="pb"></span>
+      </div>
+      <div class="purl" id="pp-url"></div>
+    </div>
+    <div class="popup-head-right">
+      <span id="pp-ai-status" class="ai-status-row" style="display:none"><div class="spin p" style="width:10px;height:10px;border-width:1.5px"></div> AI running…</span>
+      <button class="btn btn-cyan btn-sm" onclick="analyzeThisPage()">✨ AI This Page</button>
+      <button class="popup-close" onclick="closePopup()">✕</button>
+    </div>
+  </div>
+  <div class="rank-card" id="rank-card">
+    <div class="rank-circle" id="rank-circle"><span class="rs" id="rank-score">—</span><span class="rg" id="rank-grade">—</span></div>
+    <div class="rank-details">
+      <div class="rank-feedback" id="rank-feedback"></div>
+      <div class="rank-bars" id="rank-bars"></div>
+    </div>
+  </div>
+  <div class="popup-kw" id="pp-kw"><span class="lbl">Keywords:</span><div id="pp-kw-tags"></div></div>
+  <div class="popup-meta">
+    <span style="font-size:10px;color:var(--muted)">Competition:</span><span id="pp-competition"></span>
+    <span style="font-size:10px;color:var(--muted);margin-left:10px">Issues:</span>
+    <div id="pp-issues" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+  </div>
+  <div class="popup-body">
+    <table class="ptable">
+      <thead><tr>
+        <th>Field</th><th>Current Value</th><th>Issue</th><th>Why It Matters</th>
+        <th>Exact Fix</th><th style="color:var(--cyan)">✦ Optimized Value</th><th>Real Example</th><th>Impact</th>
+      </tr></thead>
+      <tbody id="pp-tbody"></tbody>
+    </table>
+  </div>
+  <div class="popup-foot">
+    <button class="nav-btn" id="nav-prev" onclick="navPage(-1)">←</button>
+    <span class="nav-counter"><strong id="nav-cur">1</strong> / <strong id="nav-tot">1</strong></span>
+    <button class="nav-btn" id="nav-next" onclick="navPage(1)">→</button>
+    <div class="spacer"></div>
+    <button class="btn btn-outline btn-sm" onclick="openExportFromPopup()">↓ Export</button>
+  </div>
+</div>
+</div>
+
+<!-- EXPORT MODAL -->
+<!-- ── AI Setup Modal ── -->
+<div class="ai-overlay" id="ai-overlay" onclick="aiOverlayClick(event)">
+<div class="ai-modal" id="ai-modal">
+  <div class="ai-modal-head">
+    <h2>⚙ AI Setup</h2>
+    <button class="ai-modal-close" onclick="closeAiSetup()">✕</button>
+  </div>
+  <div class="ai-modal-body">
+    <div class="ai-current-status">
+      <div class="ai-current-dot" id="ai-dot"></div>
+      <div>
+        <div class="ai-current-provider" id="ai-cur-provider">Loading…</div>
+        <div class="ai-current-hint" id="ai-cur-hint"></div>
+      </div>
+    </div>
+    <div class="ai-providers-label">Select AI Provider</div>
+    <div class="ai-provider-grid" id="ai-provider-grid">
+      <div class="ai-provider-card" data-provider="groq" onclick="aiSelectProvider('groq')">
+        <div class="ai-pcard-icon">⚡</div>
+        <div class="ai-pcard-name">Groq</div>
+        <div class="ai-pcard-desc">Llama 3 · Free · Fast</div>
+      </div>
+      <div class="ai-provider-card" data-provider="gemini" onclick="aiSelectProvider('gemini')">
+        <div class="ai-pcard-icon">✨</div>
+        <div class="ai-pcard-name">Gemini</div>
+        <div class="ai-pcard-desc">Google AI · Free quota</div>
+      </div>
+      <div class="ai-provider-card" data-provider="openai" onclick="aiSelectProvider('openai')">
+        <div class="ai-pcard-icon">🤖</div>
+        <div class="ai-pcard-name">OpenAI</div>
+        <div class="ai-pcard-desc">GPT-4o-mini · Paid</div>
+      </div>
+      <div class="ai-provider-card" data-provider="claude" onclick="aiSelectProvider('claude')">
+        <div class="ai-pcard-icon">🧠</div>
+        <div class="ai-pcard-name">Claude</div>
+        <div class="ai-pcard-desc">Anthropic · Haiku</div>
+      </div>
+      <div class="ai-provider-card" data-provider="ollama" onclick="aiSelectProvider('ollama')">
+        <div class="ai-pcard-icon">🏠</div>
+        <div class="ai-pcard-name">Ollama</div>
+        <div class="ai-pcard-desc">Local · No key needed</div>
+      </div>
+      <div class="ai-provider-card" data-provider="rules" onclick="aiSelectProvider('rules')">
+        <div class="ai-pcard-icon">📋</div>
+        <div class="ai-pcard-name">Rules Only</div>
+        <div class="ai-pcard-desc">No AI · Always works</div>
+      </div>
+    </div>
+    <div class="ai-no-key-notice" id="ai-no-key-notice">
+      This provider does not require an API key. Click <strong>Apply</strong> to activate it.
+    </div>
+    <div class="ai-key-group" id="ai-key-group">
+      <label class="ai-key-label" for="ai-key-input">API Key</label>
+      <div class="ai-key-row">
+        <input class="ai-key-input" id="ai-key-input" type="password"
+          placeholder="Paste your API key here…"
+          oninput="aiOnKeyInput(this.value)"
+          autocomplete="off" spellcheck="false"/>
+        <button class="ai-key-toggle" onclick="aiToggleKeyVisible()" id="ai-key-toggle" title="Show / hide key">👁</button>
+      </div>
+      <div class="ai-detect-badge" id="ai-detect-badge">
+        <span>🔍</span><span id="ai-detect-text"></span>
+      </div>
+    </div>
+    <div class="ai-feedback" id="ai-feedback"></div>
+    <div class="ai-modal-foot">
+      <button class="btn btn-outline btn-sm" style="font-size:11px;padding:6px 14px" onclick="closeAiSetup()">Cancel</button>
+      <button class="btn btn-cyan btn-sm" style="font-size:11px;padding:6px 14px" onclick="aiTestConnection()" id="ai-test-btn">Test Connection</button>
+      <button class="btn btn-green btn-sm" style="font-size:11px;padding:6px 14px" onclick="aiApplyKey()" id="ai-apply-btn">Apply</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="eoverlay" id="eoverlay">
+<div class="emodal">
+  <button class="eclose" onclick="closeExportModal()">✕</button>
+  <h2>Export Report</h2>
+  <p>Download the full SEO audit as Excel including ranking scores, issues, and AI fixes.</p>
+  <div class="estat">
+    <div><span class="ev" id="em-pages">0</span><span class="el">Pages</span></div>
+    <div><span class="ev" id="em-issues">0</span><span class="el">Issues</span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button class="btn btn-green" style="width:100%" onclick="downloadExcel('full')">↓ Full Report (.xlsx)</button>
+    <button class="btn btn-outline" style="width:100%" onclick="downloadExcel('popup')">↓ Per-Field Issues (.xlsx)</button>
+    <button class="btn btn-orange" style="width:100%" onclick="downloadOptimizer()">⚡ Live Optimization Table (.xlsx)</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ AI DRAWER (Neural Fix Engine — slide-in from right) ════════════════ -->
+<div id="ai-drawer-overlay" onclick="closeAiDrawer()"></div>
+<div id="ai-drawer" role="dialog" aria-label="Neural Fix Engine">
+  <div class="aid-head">
+    <div>
+      <div class="aid-title">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#4f46e5;font-variation-settings:'FILL' 1">auto_fix_high</span>
+        Neural Fix Engine
+      </div>
+      <div class="aid-url" id="aid-url">Analyzing…</div>
+    </div>
+    <button class="aid-close" onclick="closeAiDrawer()" aria-label="Close">✕</button>
+  </div>
+  <div class="aid-body">
+    <!-- Provider selection -->
+    <div class="aid-section-label">Select AI Intelligence</div>
+    <div class="aid-pills" id="aid-pills">
+      <button class="aid-pill active" onclick="aidSelectProvider(this,'groq')">⚡ Groq</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'gemini')">✨ Gemini</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'openai')">🤖 OpenAI</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'claude')">🧠 Claude</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'ollama')">🏠 Ollama</button>
+      <button class="aid-pill" onclick="aidSelectProvider(this,'rules')">📋 Rules Only</button>
+    </div>
+    <div class="aid-key-wrap" id="aid-key-wrap" style="display:none">
+      <span class="aid-key-icon material-symbols-outlined">lock</span>
+      <input type="password" id="aid-api-key" placeholder="Enter API Key…" autocomplete="off"/>
+    </div>
+
+    <!-- Optimization Strategy -->
+    <div class="aid-section-label" style="margin-top:20px">Optimization Strategy</div>
+    <div id="aid-cards-wrap">
+      <!-- Populated by openAiDrawer() -->
+      <div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px">Click "AI Fix" on any row to see optimization strategy here.</div>
+    </div>
+  </div>
+  <div class="aid-foot">
+    <button class="aid-btn-test" id="aid-test-btn" onclick="aidTestConnection()">
+      <span class="material-symbols-outlined" style="font-size:16px;color:#4f46e5">bolt</span>
+      Test Connection
+    </button>
+    <button class="aid-btn-apply" onclick="aidApplyFixes()">
+      <span class="material-symbols-outlined" style="font-size:16px">check_circle</span>
+      Apply Fixes
+    </button>
+  </div>
+</div>
+
+
+<!-- MOBILE BOTTOM NAV — Dashboard / Tools / Docs / Profile (matches code.html prototype) -->
+<nav class="bottom-nav" aria-label="Mobile navigation">
+  <a class="bn-item active" href="#dash-sec" onclick="document.querySelectorAll('.bn-item').forEach(x=>x.classList.remove('active'));this.classList.add('active')">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">dashboard</span>
+    <span class="bn-label">Dashboard</span>
+  </a>
+  <a class="bn-item" href="#features" onclick="document.querySelectorAll('.bn-item').forEach(x=>x.classList.remove('active'));this.classList.add('active')">
+    <span class="material-symbols-outlined">build_circle</span>
+    <span class="bn-label">Tools</span>
+  </a>
+  <a class="bn-item" href="#how-it-works" onclick="document.querySelectorAll('.bn-item').forEach(x=>x.classList.remove('active'));this.classList.add('active')">
+    <span class="material-symbols-outlined">description</span>
+    <span class="bn-label">Docs</span>
+  </a>
+  <a class="bn-item" href="#about" onclick="document.querySelectorAll('.bn-item').forEach(x=>x.classList.remove('active'));this.classList.add('active')">
+    <span class="material-symbols-outlined">account_circle</span>
+    <span class="bn-label">Profile</span>
+  </a>
+</nav>
+
+<!-- ══ APP SHELL OVERRIDES ════════════════════════════════════════════════ -->
+
+<!-- FIXED BUILDER BADGE -->
+<a id="builder-badge" href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" title="Built by Teki Bhavani Shankar — Technical SEO Specialist">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+  Built by Teki Bhavani Shankar
+</a>
+
+
+<!-- ══ DEFERRED SCRIPTS ════════════════════════════════════════════════════ -->
+<script src="../static/js/app.js?v=1.0.4" defer></script>
+<script>
+(function(){
+  function loadNC(){var s=document.createElement('script');s.src='../static/js/noncritical.js?v=1.0.4';s.defer=true;document.body.appendChild(s);}
+  window.addEventListener('load',function(){setTimeout(loadNC,2000);});
+})();
+</script>
+
+</body>
+</html>

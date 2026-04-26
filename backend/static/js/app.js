@@ -2974,3 +2974,54 @@ function closeLandingMobileNav(){
   document.getElementById('landing-mob-drawer').classList.remove('open');
   document.getElementById('landing-mob-overlay').classList.remove('open');
 }
+
+/* ── URL param auto-trigger — fires when /app/?url=... is opened ─────────────
+   Safe: checks for presence, validates, no infinite loop (runs once on load).
+   Works on direct link, refresh, and page open from startCrawlHero redirect. */
+(function(){
+  'use strict';
+  var params = new URLSearchParams(window.location.search);
+  var targetUrl = params.get('url');
+  if(!targetUrl) return;
+
+  // Decode and normalise
+  var url = decodeURIComponent(targetUrl).trim();
+  if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+  // Wait for DOM + app init, then auto-start
+  function tryAutoStart(){
+    var appInput = document.getElementById('url-input-app');
+    var crawlBtn = document.getElementById('crawl-btn-app') || document.getElementById('crawl-btn');
+    if(!appInput) {
+      // App not ready yet — retry after 200ms, max 10 times
+      if((tryAutoStart._tries = (tryAutoStart._tries||0) + 1) < 10)
+        setTimeout(tryAutoStart, 200);
+      return;
+    }
+    appInput.value = url;
+    // Also fill hero input if present
+    var heroInput = document.getElementById('url-input');
+    if(heroInput) heroInput.value = url;
+    // Store for session
+    localStorage.setItem('ciq_last_url', url);
+    // Enter app mode if not already
+    if(typeof enterAppMode === 'function') enterAppMode();
+    // Trigger crawl — use the real startCrawl function
+    if(typeof startCrawl === 'function'){
+      startCrawl(url);
+    } else if(crawlBtn) {
+      crawlBtn.click();
+    }
+    // Clean the URL param so refresh doesn't re-trigger
+    if(window.history && window.history.replaceState){
+      var cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }
+
+  // Auth check: defer to after DOMContentLoaded + a short grace period
+  window.addEventListener('DOMContentLoaded', function(){
+    setTimeout(tryAutoStart, 600);
+  });
+})();
