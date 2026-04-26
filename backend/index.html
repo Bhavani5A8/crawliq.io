@@ -823,7 +823,7 @@ function closeAiSetup(){
 </div>
 
 <!-- NAV -->
-<nav class="landing-nav">
+<nav class="landing-nav" aria-label="Primary navigation" role="navigation">
   <a class="nav-logo" href="#">
     <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
@@ -850,7 +850,7 @@ function closeAiSetup(){
     <!-- Unauthenticated state -->
     <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
-      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
+      <a class="btn-nav-cta" href="javascript:void(0)" onclick="startCrawlHero()" role="button">
         <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
       </a>
     </div>
@@ -872,7 +872,7 @@ function closeAiSetup(){
           <button class="user-menu-item" style="color:var(--red)" onclick="doLogout()">Sign Out</button>
         </div>
       </div>
-      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
+      <a class="btn-nav-cta" href="javascript:void(0)" onclick="startCrawlHero()" role="button">
         <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
       </a>
     </div>
@@ -881,7 +881,7 @@ function closeAiSetup(){
 
 <!-- Mobile nav overlay + drawer -->
 <div class="mob-overlay" id="landing-mob-overlay" onclick="closeLandingMobileNav()"></div>
-<aside class="mob-drawer" id="landing-mob-drawer">
+<aside class="mob-drawer" id="landing-mob-drawer" role="navigation" aria-label="Mobile navigation">
   <div class="mob-drawer-head">
     <a class="mob-drawer-logo" href="#">
       <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>CrawlIQ
@@ -895,7 +895,7 @@ function closeAiSetup(){
   <a class="mob-nav-link" href="#pricing" onclick="closeLandingMobileNav()">Pricing</a>
   <div class="mob-drawer-auth">
     <button class="btn btn-outline btn-sm" onclick="closeLandingMobileNav();openAuthModal()">Sign In</button>
-    <a class="btn-nav-cta" href="#" onclick="closeLandingMobileNav();startCrawlHero();return false;" style="text-align:center">Analyze Free</a>
+    <a class="btn-nav-cta" href="javascript:void(0)" onclick="closeLandingMobileNav();startCrawlHero()" role="button" style="text-align:center">Analyze Free</a>
   </div>
 </aside>
 
@@ -1415,7 +1415,7 @@ function closeAiSetup(){
           <span class="feat-tag" style="color:var(--tertiary)">Auto-fix</span>
           <span class="feat-tag" style="color:var(--tertiary)">15 schema types</span>
         </div>
-        <a class="feat-link" href="#schema" style="color:var(--tertiary)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
+        <a class="feat-link" href="#tools-suite" style="color:var(--tertiary)">Explore Tools <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
       </div>
     </div>
     <div class="feat-chips">
@@ -1758,6 +1758,7 @@ function closeAiSetup(){
         </a>
       </div>
     </div>
+    <nav aria-label="Footer navigation">
     <div class="fc">
       <h4>Tools</h4>
       <a href="#dash-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">travel_explore</span>SEO Crawler</a>
@@ -1781,6 +1782,7 @@ function closeAiSetup(){
       <a href="https://github.com/Bhavani5A8/crawliq.io" target="_blank" rel="noopener"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">code</span>GitHub Repo</a>
       <a href="https://huggingface.co/spaces/bhavani7/seo-project" target="_blank" rel="noopener"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">cloud</span>HuggingFace Space</a>
     </div>
+    </nav><!-- /footer nav -->
   </div>
   <div class="ft-bot">
     <span class="ft-copy">© 2026 CrawlIQ — Free Technical SEO Platform. Built by <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none">Teki Bhavani Shankar, Technical SEO Specialist</a>.</span>
