@@ -227,7 +227,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
 
 /* ── Laptop (≤1200px) ── */
 @media(max-width:1200px){
-  nav{padding:0 24px;}
+  .landing-nav{padding:0 24px;}
   section{padding:72px 32px;}
   #dash-sec{padding:56px 32px;}
   #checklist-sec{padding:72px 32px;}
@@ -274,7 +274,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
   .nav-links{display:none!important;}
   .btn-ai-setup{display:none;}
   .ai-pill{display:none;}
-  nav{padding:0 16px;gap:12px;height:60px;}
+  .landing-nav{padding:0 16px;gap:12px;height:60px;}
   .nav-right{gap:8px;}
   /* Hero */
   .hero{padding:84px 20px 48px;}
@@ -328,7 +328,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
 /* ── Mobile (≤480px) ── */
 @media(max-width:480px){
   /* Nav */
-  nav{height:56px;}
+  .landing-nav{height:56px;}
   .nav-logo-text{font-size:16px;}
   .btn-nav-cta{font-size:12px;padding:7px 14px;}
   .btn.btn-green.btn-sm,.btn.btn-outline.btn-sm{display:none;}/* hide Sign In / Sign Up — use auth from menu */
@@ -390,7 +390,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.1);padd
   .metric-grid{grid-template-columns:1fr;}
   .stat-grid{grid-template-columns:1fr;}
   .btn-nav-cta{padding:6px 10px;font-size:11px;}
-  nav{padding:0 12px;}
+  .landing-nav{padding:0 12px;}
 }
 /* ── AI Setup button in nav ── */
 .btn-ai-setup{font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px solid var(--indigo);color:var(--indigo);background:transparent;cursor:pointer;transition:background .15s;white-space:nowrap;}

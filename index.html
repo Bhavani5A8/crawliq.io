@@ -340,10 +340,12 @@ h1,h2,h3,h4{font-family:var(--headline);}
   font-feature-settings:'liga';-webkit-font-smoothing:antialiased;}
 
 /* ── NAV ── */
-nav{position:fixed;top:0;width:100%;z-index:100;
+.landing-nav{position:fixed;top:0;width:100%;z-index:100;
   background:rgba(15,19,29,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid rgba(70,69,84,.15);display:flex;align-items:center;padding:0 32px;gap:28px;height:64px;
   box-shadow:0 40px 40px rgba(223,226,241,.06);}
+/* Footer nav must NOT inherit fixed positioning */
+footer nav{display:contents;}
 .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0;}
 .nav-logo-icon{color:var(--primary);font-size:24px;}
 .nav-logo-text{font-family:var(--headline);font-size:18px;font-weight:800;color:white;letter-spacing:-.5px;}
@@ -444,7 +446,7 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 button{min-height:32px;}
 .hero-crawl-btn{min-height:52px;min-width:140px;}
 .btn-nav-cta{min-height:36px;min-width:80px;}
-nav{min-height:64px;}
+.landing-nav{min-height:64px;}
 .ai-pill{min-height:32px;}
 .hero-input-row{min-height:64px;}
 </style>
