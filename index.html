@@ -258,9 +258,25 @@
 }
 </script>
 
+<!-- ── FONT PERFORMANCE: preconnect both origins before any font request ──── -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+
+<!-- Load body fonts async (non-render-blocking) -->
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+</noscript>
+
+<!-- Load icon font async + display=swap so text renders before icons arrive -->
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</noscript>
 <style>
 /* ── M3 DESIGN TOKENS ── */
 :root{
@@ -3316,8 +3332,8 @@ let allResults=[], sortKey='', sortAsc=true, crawlTimer=null, geminiTimer=null;
 let selectedUrls=new Set(), popupPages=[], popupIndex=0, maxPages=50;
 let optimizerRows=[], optTimer=null;
 
-window.addEventListener('load', checkGemini);
-
+// Delay HF backend ping — runs 3s after load so it never blocks FCP/LCP
+window.addEventListener('load', () => setTimeout(checkGemini, 3000));
 async function checkGemini() {
   try {
     const d = await (await fetch(`${API}/ai-config`)).json();

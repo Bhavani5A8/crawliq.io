@@ -258,9 +258,25 @@
 }
 </script>
 
+<!-- ── FONT PERFORMANCE: preconnect both origins before any font request ──── -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+
+<!-- Load body fonts async (non-render-blocking) -->
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+</noscript>
+
+<!-- Load icon font async + display=swap so text renders before icons arrive -->
+<link rel="preload" as="style"
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</noscript>
 <style>
 /* ── M3 DESIGN TOKENS ── */
 :root{
@@ -300,7 +316,7 @@
   /* ── Radius ── */
   --r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;
   /* ── Legacy aliases for JS-generated HTML ── */
-  --cyan:#4edea3;
+  --cyan:var(--primary);
   --purple:var(--indigo);
   --accent:var(--primary);
 }
@@ -348,14 +364,13 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 @media(min-width:768px){.nav-hamburger{display:none;}}
 .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
 .mob-overlay.open{display:block;}
-.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid var(--ghost);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
+.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid rgba(70,69,84,.15);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
 .mob-drawer.open{left:0;}
-.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ghost);min-height:64px;}
+.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(70,69,84,.15);min-height:64px;}
 .mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
 .mob-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;}
-.mob-nav-link{display:flex;align-items:center;gap:10px;padding:13px 20px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;border-bottom:1px solid var(--ghost);transition:color .15s,background .15s;}
-.mob-nav-link:hover{color:var(--text);background:var(--ghost);}
-.mob-nav-link.active{color:var(--primary);}
+.mob-nav-link{display:flex;align-items:center;gap:10px;padding:13px 20px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;border-bottom:1px solid rgba(70,69,84,.12);transition:color .15s,background .15s;}
+.mob-nav-link:hover{color:var(--text);background:rgba(70,69,84,.1);}
 .mob-drawer-auth{display:flex;flex-direction:column;gap:8px;padding:16px 20px;}
 .btn-nav-cta{background:var(--primary);color:#1a1c40;
   font-family:var(--headline);font-weight:700;font-size:13px;padding:9px 22px;
@@ -1779,7 +1794,6 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 /* Number roll flash on update */
 .num-updated{animation:countRoll .35s cubic-bezier(.22,.61,.36,1);}
 </style>
-<link rel="stylesheet" href="/static/css/design-v2.css"/>
 </head>
 <body>
 
@@ -1886,151 +1900,82 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </div>
 </div>
 
-<!-- ══ ACCOUNT SETTINGS MODAL V2 (glassmorphism + left tabs) ═══════════ -->
-<div id="settings-modal" style="display:none;position:fixed;inset:0;z-index:400;align-items:center;justify-content:center;padding:24px"
-     onclick="closeSettings()">
-<div class="settings-v2-box" onclick="event.stopPropagation()">
-
-  <!-- Header -->
-  <div class="settings-v2-head">
-    <span class="settings-v2-title">Account Settings</span>
-    <button class="settings-v2-close" onclick="closeSettings()" aria-label="Close settings">✕</button>
+<!-- ══ SETTINGS MODAL ════════════════════════════════════════════════════════ -->
+<div id="settings-modal" class="modal-overlay" style="display:none">
+<div class="modal-box" style="max-width:500px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <h2>⚙ Settings</h2>
+    <button onclick="closeSettings()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px">✕</button>
   </div>
 
-  <div class="settings-v2-body">
-
-    <!-- Left: vertical tabs -->
-    <div class="settings-v2-tabs" role="tablist">
-      <button class="settings-v2-tab active" id="stab-profile" onclick="settingsTab('profile')" role="tab" aria-selected="true">
-        <span class="material-symbols-outlined">person</span>Profile
-      </button>
-      <button class="settings-v2-tab" id="stab-apikeys" onclick="settingsTab('apikeys')" role="tab" aria-selected="false">
-        <span class="material-symbols-outlined">key</span>API Keys
-      </button>
-      <button class="settings-v2-tab" id="stab-billing" onclick="settingsTab('billing')" role="tab" aria-selected="false">
-        <span class="material-symbols-outlined">credit_card</span>Billing
-      </button>
+  <!-- Usage -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Usage This Month</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text);margin-bottom:4px">
+      <span id="usage-label">Pages crawled</span>
+      <span id="usage-count" style="font-family:var(--mono)">0 / 200</span>
     </div>
+    <div class="usage-bar-wrap"><div id="usage-bar" class="usage-bar" style="width:0%;background:var(--indigo)"></div></div>
+    <div id="usage-tier" style="font-size:10px;color:var(--dim);margin-top:4px">Loading…</div>
+    <div id="billing-actions" style="margin-top:10px;display:none"></div>
+  </div>
 
-    <!-- Right: pane content -->
-    <div class="settings-v2-content">
+  <!-- Profile -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Profile</div>
+    <div class="auth-field"><label>Display Name</label><input id="set-name" type="text" placeholder="Your name"/></div>
+    <div class="auth-field"><label>Alert Email (for rank-drop notifications)</label><input id="set-alert-email" type="email" placeholder="alerts@example.com"/></div>
+    <div class="auth-field">
+      <label>Rank Drop Threshold (alert when position drops by)</label>
+      <input id="set-drop-threshold" type="number" min="1" max="50" value="5" style="width:80px"/>
+    </div>
+    <button class="btn btn-green" onclick="saveSettings()">Save Profile</button>
+  </div>
 
-      <!-- ── Profile pane ── -->
-      <div id="spane-profile" class="settings-v2-pane active">
-        <div class="settings-v2-pane-title">Profile</div>
+  <!-- White-label / branding -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">White-Label PDF Branding</div>
+    <div class="auth-field"><label>Brand Name (shown on PDF header)</label><input id="set-brand-name" type="text" placeholder="Your Company Name"/></div>
+    <div class="auth-field">
+      <label>Logo (PNG/JPG, max 512 KB)</label>
+      <input type="file" id="logo-upload" accept="image/*" onchange="uploadLogo(this)"/>
+    </div>
+    <div id="logo-status" style="font-size:10px;color:var(--dim);margin-top:4px"></div>
+  </div>
 
-        <!-- Usage -->
-        <div class="sv2-field">
-          <label>Pages Used This Month</label>
-          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text);margin-bottom:6px">
-            <span id="usage-label" style="color:var(--dim)">Pages crawled</span>
-            <span id="usage-count" style="font-family:var(--mono)">0 / 200</span>
-          </div>
-          <div class="sv2-usage-bar-track">
-            <div id="usage-bar" class="sv2-usage-bar-fill" style="width:0%"></div>
-          </div>
-          <div id="usage-tier" style="font-size:12px;color:var(--muted);margin-top:6px">Loading…</div>
-        </div>
+  <!-- API Key -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">API Access</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Use your API key to call CrawlIQ endpoints programmatically.</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="api-key-display" type="password" readonly style="flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;font-family:var(--mono);color:var(--text)"/>
+      <button class="btn btn-outline btn-sm" onclick="toggleApiKeyVisibility()">👁</button>
+      <button class="btn btn-outline btn-sm" onclick="rotateApiKey()">Rotate</button>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:6px">Add header: <code style="color:var(--cyan)">X-API-Key: &lt;your-key&gt;</code></div>
+  </div>
 
-        <hr class="sv2-divider"/>
-
-        <div class="sv2-field">
-          <label>Display Name</label>
-          <input id="set-name" type="text" class="sv2-input" placeholder="Your name" autocomplete="name"/>
-        </div>
-        <div class="sv2-field">
-          <label>Alert Email</label>
-          <input id="set-alert-email" type="email" class="sv2-input" placeholder="alerts@example.com"/>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px">Receive rank-drop alerts at this address.</div>
-        </div>
-        <div class="sv2-field">
-          <label>Rank Drop Threshold (positions)</label>
-          <input id="set-drop-threshold" type="number" min="1" max="50" value="5" class="sv2-input" style="max-width:96px"/>
-        </div>
-
-        <hr class="sv2-divider"/>
-
-        <div class="sv2-field">
-          <label>Brand Name (PDF reports)</label>
-          <input id="set-brand-name" type="text" class="sv2-input" placeholder="Your Company Name"/>
-        </div>
-        <div class="sv2-field">
-          <label>Logo (PNG / JPG, max 512 KB)</label>
-          <input type="file" id="logo-upload" accept="image/*" onchange="uploadLogo(this)" style="font-size:13px;color:var(--dim)"/>
-          <div id="logo-status" style="font-size:12px;color:var(--muted);margin-top:5px"></div>
-        </div>
-
-        <button class="sv2-save-btn" onclick="saveSettings()">Save Changes</button>
+  <!-- GSC Integration -->
+  <div class="settings-section">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px">Google Search Console</div>
+    <div id="gsc-not-connected">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Connect GSC to pull real impressions, CTR, and ranking data.</div>
+      <button class="btn btn-outline" onclick="connectGSC()" id="gsc-connect-btn">Connect Google Search Console</button>
+    </div>
+    <div id="gsc-connected-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="color:var(--green);font-size:11px;font-weight:600">Connected</span>
+        <select id="gsc-site-select" class="serp-input" style="flex:1;font-size:11px" onchange="loadGscData()"></select>
+        <button class="btn btn-outline btn-sm" onclick="disconnectGSC()" style="font-size:10px;padding:4px 8px">Disconnect</button>
       </div>
-
-      <!-- ── API Keys pane ── -->
-      <div id="spane-apikeys" class="settings-v2-pane">
-        <div class="settings-v2-pane-title">API Keys</div>
-
-        <div class="sv2-field">
-          <label>Your CrawlIQ API Key</label>
-          <div class="sv2-input-row">
-            <input id="api-key-display" type="password" readonly class="sv2-input" style="font-family:var(--mono);font-size:12px"/>
-            <button class="sv2-action-btn" onclick="toggleApiKeyVisibility()">Show</button>
-            <button class="sv2-action-btn" onclick="rotateApiKey()">Rotate</button>
-          </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px">
-            Pass as header: <code style="color:var(--primary);font-family:var(--mono);font-size:11px">X-API-Key: your-key</code>
-          </div>
-        </div>
-
-        <hr class="sv2-divider"/>
-
-        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px">Google Search Console</div>
-        <div id="gsc-not-connected">
-          <div style="font-size:13px;color:var(--dim);margin-bottom:14px;line-height:1.6">
-            Connect GSC to pull real impressions, CTR, and ranking data into your audits.
-          </div>
-          <button class="sv2-save-btn" onclick="connectGSC()" id="gsc-connect-btn"
-                  style="background:rgba(66,133,244,.18);border:1px solid rgba(66,133,244,.35);box-shadow:none">
-            Connect Google Search Console
-          </button>
-        </div>
-        <div id="gsc-connected-panel" style="display:none">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-            <span style="color:var(--green);font-size:13px;font-weight:600">● Connected</span>
-            <select id="gsc-site-select" class="sv2-input" style="flex:1;font-size:12px" onchange="loadGscData()"></select>
-            <button class="sv2-action-btn" onclick="disconnectGSC()">Disconnect</button>
-          </div>
-          <div id="gsc-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px"></div>
-          <div id="gsc-kw-table" style="max-height:200px;overflow-y:auto"></div>
-          <div id="gsc-date-range" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
-        </div>
-        <div id="gsc-status" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
-      </div>
-
-      <!-- ── Billing pane ── -->
-      <div id="spane-billing" class="settings-v2-pane">
-        <div class="settings-v2-pane-title">Billing</div>
-
-        <div class="sv2-billing-card">
-          <div class="sv2-billing-card-name">Free Plan</div>
-          <div class="sv2-billing-card-desc">200 pages/month · 3 projects · AI analysis · Excel export · No credit card required</div>
-          <div id="billing-actions">
-            <button class="sv2-save-btn" onclick="upgradePlan('pro')">Upgrade to Pro →</button>
-          </div>
-        </div>
-
-        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px">Pro Plan Includes</div>
-        <div style="font-size:13px;color:var(--dim);line-height:2;display:flex;flex-direction:column;gap:4px">
-          <span>✓ Unlimited pages per month</span>
-          <span>✓ Priority crawl queue</span>
-          <span>✓ Team access &amp; collaboration</span>
-          <span>✓ White-label PDF reports</span>
-          <span>✓ Full API access</span>
-          <span>✓ Dedicated support</span>
-        </div>
-      </div>
-
-    </div><!-- /settings-v2-content -->
-  </div><!-- /settings-v2-body -->
-</div><!-- /settings-v2-box -->
-</div><!-- /settings-modal -->
+      <div id="gsc-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px"></div>
+      <div id="gsc-kw-table" style="max-height:220px;overflow-y:auto"></div>
+      <div style="font-size:9px;color:var(--dim);margin-top:6px" id="gsc-date-range"></div>
+    </div>
+    <div id="gsc-status" style="font-size:10px;color:var(--dim);margin-top:6px"></div>
+  </div>
+</div>
+</div>
 
 <!-- ══ PROJECTS PANEL ════════════════════════════════════════════════════════ -->
 <div id="projects-modal" class="modal-overlay" style="display:none">
@@ -2190,29 +2135,41 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <span class="material-symbols-outlined nav-logo-icon" style="font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
   </a>
+  <div class="sys-active-pill" style="flex-shrink:0">
+    <span class="sys-active-dot"></span>
+    System Active
+  </div>
   <div class="nav-links">
-    <a href="#tools-sec">Tools</a>
+    <a href="backend/pages/tech-seo.html">SEO Audit</a>
+    <a href="#tools-suite">Tools</a>
     <a href="#features">Features</a>
+    <a href="#checklist-sec">Checklist</a>
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-right">
     <button class="nav-hamburger" onclick="toggleLandingMobileNav()" aria-label="Open menu">
       <span></span><span></span><span></span>
     </button>
-    <!-- Guest state: Sign In (secondary) + Start Audit (primary) -->
-    <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
-      <button class="btn-nav-secondary" onclick="openAuthModal()">Sign In</button>
-      <a class="btn-nav-cta" href="#dash-sec">Start Audit</a>
+    <div class="ai-pill" onclick="openAiSetup()" style="cursor:pointer" title="Click to configure AI">
+      <div class="ai-pill-dot"></div>
+      <span id="gemini-pill" class="gemini-pill">Checking AI…</span>
     </div>
-    <!-- Authenticated state: one primary CTA + profile avatar -->
+    <!-- Unauthenticated state -->
+    <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-outline btn-sm" onclick="openAuthModal()" style="font-size:11px">Sign In</button>
+      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
+      </a>
+    </div>
+    <!-- Authenticated state -->
     <div id="nav-auth-user" style="display:none;align-items:center;gap:8px">
-      <a class="btn-nav-cta" href="#dash-sec">Start Audit</a>
-      <div class="user-chip" onclick="toggleUserMenu()" style="position:relative">
-        <div class="nav-avatar" id="user-avatar-initials">U</div>
-        <span id="user-display-name" style="display:none"></span>
-        <span id="user-tier-badge" class="tier-badge tier-free" style="display:none">Free</span>
+      <button class="btn btn-outline btn-sm" onclick="openProjects()" style="font-size:11px">📁 Projects</button>
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="user-avatar-initials">U</div>
+        <span id="user-display-name" style="font-size:12px;color:var(--text)">User</span>
+        <span id="user-tier-badge" class="tier-badge tier-free">Free</span>
         <div class="user-menu" id="user-menu">
-          <button class="user-menu-item" onclick="openSettings()">⚙ Account Settings</button>
+          <button class="user-menu-item" onclick="openSettings()">⚙ Settings &amp; API Key</button>
           <button class="user-menu-item" onclick="openProjects()">📁 My Projects</button>
           <button class="user-menu-item" onclick="openScoreHistory()">📈 Score History</button>
           <button class="user-menu-item" onclick="openCrawlDiff()">🔄 Crawl Comparison</button>
@@ -2222,13 +2179,14 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <button class="user-menu-item" style="color:var(--red)" onclick="doLogout()">Sign Out</button>
         </div>
       </div>
+      <a class="btn-nav-cta" href="#" onclick="startCrawlHero();return false;">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
+      </a>
     </div>
-    <!-- Hidden pill kept for JS health check -->
-    <span id="gemini-pill" style="display:none"></span>
   </div>
 </nav>
 
-<!-- Mobile nav overlay + drawer (landing page) -->
+<!-- Mobile nav overlay + drawer -->
 <div class="mob-overlay" id="landing-mob-overlay" onclick="closeLandingMobileNav()"></div>
 <aside class="mob-drawer" id="landing-mob-drawer">
   <div class="mob-drawer-head">
@@ -2237,33 +2195,45 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     </a>
     <button class="mob-close" onclick="closeLandingMobileNav()" aria-label="Close menu">✕</button>
   </div>
-  <a class="mob-nav-link" href="#tools-sec" onclick="closeLandingMobileNav()">Tools</a>
+  <a class="mob-nav-link" href="backend/pages/tech-seo.html">SEO Audit</a>
+  <a class="mob-nav-link" href="#tools-suite" onclick="closeLandingMobileNav()">Tools</a>
   <a class="mob-nav-link" href="#features" onclick="closeLandingMobileNav()">Features</a>
+  <a class="mob-nav-link" href="#checklist-sec" onclick="closeLandingMobileNav()">Checklist</a>
   <a class="mob-nav-link" href="#pricing" onclick="closeLandingMobileNav()">Pricing</a>
   <div class="mob-drawer-auth">
-    <button class="btn-nav-secondary" style="width:100%;justify-content:center;padding:11px" onclick="closeLandingMobileNav();openAuthModal()">Sign In</button>
-    <a class="btn-nav-cta" href="#dash-sec" onclick="closeLandingMobileNav()" style="display:block;text-align:center;padding:11px 22px">Start Audit</a>
+    <button class="btn btn-outline btn-sm" onclick="closeLandingMobileNav();openAuthModal()">Sign In</button>
+    <a class="btn-nav-cta" href="#" onclick="closeLandingMobileNav();startCrawlHero();return false;" style="text-align:center">Analyze Free</a>
   </div>
 </aside>
 
 <!-- HERO -->
 <section class="hero">
   <div class="orb1"></div><div class="orb2"></div><div class="orb3"></div>
-  <p class="hero-label" style="animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .05s both">AI-Powered Technical SEO Audit</p>
-  <h1 style="animation:fadeUp .6s cubic-bezier(.22,.61,.36,1) .12s both">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
-  <p class="hero-sub" style="animation:fadeUp .6s cubic-bezier(.22,.61,.36,1) .2s both">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes.</p>
-  <div class="hero-input-row" id="hero-input-row" style="animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) .28s both">
+  <div class="hero-badge reveal">
+    <span class="hero-badge-dot"></span>
+    AI-Powered Precision SEO Platform
+    <span class="hero-badge-new">Free</span>
+  </div>
+  <h1 class="reveal" style="animation-delay:.05s">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
+  <p class="hero-sub reveal" style="animation-delay:.1s">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
+  <div class="hero-input-row reveal" id="hero-input-row" style="animation-delay:.15s">
     <div class="hero-input-wrap">
       <span class="material-symbols-outlined hero-input-icon">language</span>
-      <input id="url-input" type="text" placeholder="Enter a website URL… e.g. example.com" autocomplete="off" aria-label="Website URL to audit"/>
+      <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com"/>
     </div>
     <button class="hero-crawl-btn" id="crawl-btn" onclick="startCrawlHero()">
       <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
-      Start Audit
+      <span>Start Audit</span>
     </button>
   </div>
-  <p class="hero-note" style="animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .36s both">No signup required · Up to 50 pages free · No credit card needed</p>
-  <div class="scroll-ind" style="animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) .44s both">
+  <p class="trust-text reveal" style="animation-delay:.2s;margin-bottom:16px">Free &amp; open-source · 50 pages guest · 200 pages/mo free account · No credit card</p>
+  <div class="reveal" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;animation-delay:.25s">
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">⚡ Groq · Gemini · Claude · OpenAI</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">🔓 Open Source</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">📊 50+ SEO Metrics</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 16px;border-radius:20px;font-weight:600;font-family:var(--mono)">📤 Excel Export</span>
+  </div>
+  <div class="scroll-ind">
     <div class="scroll-mouse"><div class="scroll-dot"></div></div>
     <span>Scroll to explore</span>
   </div>
@@ -2273,89 +2243,27 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 <section class="stats-strip" id="stats-strip">
   <div class="stats-strip-inner">
     <div class="stat-strip-item reveal">
-      <div class="stat-strip-val">10,000<span style="color:var(--primary)">+</span></div>
-      <div class="stat-strip-label">Pages Analyzed</div>
-      <div class="stat-strip-sub">across all audits</div>
+      <div class="stat-strip-val" data-target="50">0<span style="color:var(--primary)">+</span></div>
+      <div class="stat-strip-label">SEO Metrics Tracked</div>
+      <div class="stat-strip-sub">per page audit</div>
     </div>
     <div class="stat-strip-divider"></div>
     <div class="stat-strip-item reveal" style="transition-delay:.08s">
-      <div class="stat-strip-val">500<span style="color:var(--primary)">+</span></div>
-      <div class="stat-strip-label">Audits Completed</div>
-      <div class="stat-strip-sub">by SEO professionals</div>
-    </div>
-    <div class="stat-strip-divider"></div>
-    <div class="stat-strip-item reveal" style="transition-delay:.16s">
-      <div class="stat-strip-val">50<span style="color:var(--primary)">+</span></div>
-      <div class="stat-strip-label">Metrics Per Page</div>
-      <div class="stat-strip-sub">technical + content signals</div>
-    </div>
-    <div class="stat-strip-divider"></div>
-    <div class="stat-strip-item reveal" style="transition-delay:.24s">
-      <div class="stat-strip-val" style="color:var(--green)">4</div>
+      <div class="stat-strip-val"><span data-target="4">0</span></div>
       <div class="stat-strip-label">AI Providers</div>
       <div class="stat-strip-sub">Groq · Gemini · Claude · OpenAI</div>
     </div>
-  </div>
-</section>
-
-<!-- ── TOOLS GRID ── -->
-<section id="tools-sec">
-  <div class="sec-inner">
-    <div class="sec-hd reveal">
-      <div class="sec-lbl lbl-i">Tools</div>
-      <h2>Everything You Need to Dominate Search</h2>
-      <p>Purpose-built SEO tools that work together — each one surfacing insights the others reinforce.</p>
+    <div class="stat-strip-divider"></div>
+    <div class="stat-strip-item reveal" style="transition-delay:.16s">
+      <div class="stat-strip-val"><span data-target="200">0</span><span style="color:var(--tertiary)">/mo</span></div>
+      <div class="stat-strip-label">Pages — Free Plan</div>
+      <div class="stat-strip-sub">no credit card needed</div>
     </div>
-    <div class="tools-grid reveal" style="transition-delay:.08s">
-
-      <div class="tool-card" onclick="document.getElementById('dash-sec').scrollIntoView({behavior:'smooth'})" role="button" tabindex="0"
-           onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
-        <div class="tool-card-icon" style="background:rgba(99,102,241,.12);color:var(--primary)">
-          <span class="material-symbols-outlined">travel_explore</span>
-        </div>
-        <div class="tool-card-title">Site Audit</div>
-        <div class="tool-card-desc">Crawl your entire site and surface 50+ technical SEO issues — broken pages, thin content, missing tags, and more.</div>
-        <div class="tool-card-cta">
-          <span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>Run Audit
-        </div>
-      </div>
-
-      <div class="tool-card" onclick="openKwGap()" role="button" tabindex="0"
-           onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
-        <div class="tool-card-icon" style="background:rgba(78,222,163,.1);color:var(--green)">
-          <span class="material-symbols-outlined">compare_arrows</span>
-        </div>
-        <div class="tool-card-title">Keyword Gap</div>
-        <div class="tool-card-desc">Compare your keyword coverage against competitors and find the exact opportunities they rank for that you don't.</div>
-        <div class="tool-card-cta">
-          <span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>Analyze Gap
-        </div>
-      </div>
-
-      <div class="tool-card" onclick="openSitemapCrawl()" role="button" tabindex="0"
-           onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
-        <div class="tool-card-icon" style="background:rgba(245,158,11,.1);color:var(--yellow)">
-          <span class="material-symbols-outlined">account_tree</span>
-        </div>
-        <div class="tool-card-title">Sitemap Analyzer</div>
-        <div class="tool-card-desc">Parse any sitemap.xml and audit targeted URLs — ideal for large sites where breadth-first crawl isn't enough.</div>
-        <div class="tool-card-cta">
-          <span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>Analyze Sitemap
-        </div>
-      </div>
-
-      <div class="tool-card" onclick="document.getElementById('dash-sec').scrollIntoView({behavior:'smooth'})" role="button" tabindex="0"
-           onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
-        <div class="tool-card-icon" style="background:rgba(192,193,255,.1);color:var(--primary)">
-          <span class="material-symbols-outlined">auto_fix_high</span>
-        </div>
-        <div class="tool-card-title">Content Audit</div>
-        <div class="tool-card-desc">AI-generated title, meta description, and H1 rewrites based on your actual content — paste-ready fixes for every page.</div>
-        <div class="tool-card-cta">
-          <span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>Audit Content
-        </div>
-      </div>
-
+    <div class="stat-strip-divider"></div>
+    <div class="stat-strip-item reveal" style="transition-delay:.24s">
+      <div class="stat-strip-val" style="color:var(--green)">Free</div>
+      <div class="stat-strip-label">Always Free</div>
+      <div class="stat-strip-sub">open-source on GitHub</div>
     </div>
   </div>
 </section>
@@ -2389,7 +2297,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
-<!-- COLD-START BANNER: shown when HF Space is waking up -->
+<!-- COLD-START BANNER: shown while HF Space is waking up -->
 <div id="cold-banner">
   <div class="cold-banner-row">
     <div class="spin-sm"></div>
@@ -2400,8 +2308,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
 </div>
 
-<!-- DASHBOARD SECTION -->
-<section id="dash-sec" style="background:var(--bg)">
+<div style="display:none" id="dash-sec">
   <div class="sec-inner">
     <div class="dash-card">
       <div class="dash-chrome">
@@ -2631,478 +2538,97 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
   </div>
 </section>
 
-<!-- ══ SERP INTEL PANEL ══════════════════════════════════════════════════ -->
-<section id="serp-intel-sec" style="display:none;padding:0 60px 40px">
-<div class="sec-inner">
-<div class="dash-card" id="serp-panel-card">
-  <div class="dash-chrome">
-    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-    <span class="tab">SERP Intelligence — Position &amp; Keyword Difficulty</span>
-    <button onclick="closeSerpPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
-  </div>
-
-  <!-- Tab bar -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surf2)">
-    <button id="serp-tab-pos"   class="serp-tab serp-tab-active" onclick="serpTab('pos')">📍 Position Check</button>
-    <button id="serp-tab-diff"  class="serp-tab" onclick="serpTab('diff')">🎯 Keyword Difficulty</button>
-    <button id="serp-tab-vis"   class="serp-tab" onclick="serpTab('vis')">👁 Visibility Score</button>
-  </div>
-
-  <!-- Position Check -->
-  <div id="serp-pane-pos" class="serp-pane" style="padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <input id="serp-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:180px"/>
-      <textarea id="serp-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="3" style="flex:2;min-width:220px;resize:vertical"></textarea>
-      <button class="btn btn-green" onclick="runBulkSerp()" id="serp-run-btn">▶ Check Positions</button>
-    </div>
-    <div id="serp-pos-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span id="serp-pos-txt">Checking positions…</span></div>
-    <div id="serp-pos-results" style="display:none">
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="serp-pos-summary"></div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-            <th style="padding:8px 10px;text-align:left">Keyword</th>
-            <th style="padding:8px 10px;text-align:center">Position</th>
-            <th style="padding:8px 10px;text-align:center">Top 10?</th>
-            <th style="padding:8px 10px;text-align:center">Top 30?</th>
-          </tr></thead>
-          <tbody id="serp-pos-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Keyword Difficulty -->
-  <div id="serp-pane-diff" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <textarea id="diff-keywords" class="serp-input" placeholder="Keywords (one per line, max 20)" rows="4" style="flex:2;min-width:220px;resize:vertical"></textarea>
-      <button class="btn btn-green" onclick="runDifficulty()" id="diff-run-btn" style="align-self:flex-start">▶ Check Difficulty</button>
-    </div>
-    <div id="diff-bar" class="sbar" style="display:none;margin:0 0 10px"><div class="spin g"></div><span>Checking difficulty…</span></div>
-    <div id="diff-results" style="display:none;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:8px 10px;text-align:left">Keyword</th>
-          <th style="padding:8px 10px;text-align:center">Difficulty</th>
-          <th style="padding:8px 10px;text-align:center">Label</th>
-          <th style="padding:8px 10px;text-align:left">Top Domains</th>
-        </tr></thead>
-        <tbody id="diff-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Visibility Score -->
-  <div id="serp-pane-vis" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
-      <button class="btn btn-green" onclick="loadVisibility()">↻ Refresh Visibility</button>
-      <span style="font-size:11px;color:var(--muted)">Uses positions from the Position Check tab</span>
-    </div>
-    <div id="vis-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px"></div>
-    <div id="vis-results" style="display:none;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:8px 10px;text-align:left">Keyword</th>
-          <th style="padding:8px 10px;text-align:center">Position</th>
-          <th style="padding:8px 10px;text-align:left">Page</th>
-          <th style="padding:8px 10px;text-align:center">Expected CTR</th>
-        </tr></thead>
-        <tbody id="vis-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-</div>
-</section>
-
-<!-- ══ SCHEDULED MONITOR PANEL ═══════════════════════════════════════════ -->
-<section id="monitor-sec" style="display:none;padding:0 60px 40px">
-<div class="sec-inner">
-<div class="dash-card">
-  <div class="dash-chrome">
-    <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-    <span class="tab">🔔 SERP Monitor — Scheduled Position Tracking</span>
-    <button onclick="closeMonitorPanel()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
-  </div>
-
-  <!-- Tab bar -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px">
-    <button class="serp-tab serp-tab-active" id="mon-tab-schedule" onclick="monTab('schedule')">+ Schedule</button>
-    <button class="serp-tab" id="mon-tab-jobs"     onclick="monTab('jobs')">Active Jobs</button>
-    <button class="serp-tab" id="mon-tab-history"  onclick="monTab('history')">📈 Position History</button>
-  </div>
-
-  <!-- Pane: Schedule -->
-  <div id="mon-pane-schedule" class="serp-pane" style="padding:16px 20px">
-    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px">Schedule New Tracking Job</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <input id="mon-domain"   class="serp-input" placeholder="Domain e.g. example.com" style="flex:1;min-width:160px"/>
-        <textarea id="mon-keywords" class="serp-input" placeholder="Keywords (one per line)" rows="3" style="flex:2;min-width:200px;resize:vertical"></textarea>
-        <div style="display:flex;flex-direction:column;gap:8px;align-self:flex-start">
-          <select id="mon-interval" class="serp-input">
-            <option value="6">Every 6 hours</option>
-            <option value="12">Every 12 hours</option>
-            <option value="24" selected>Daily (24h)</option>
-            <option value="48">Every 2 days</option>
-            <option value="168">Weekly</option>
-          </select>
-          <button class="btn btn-green" onclick="scheduleMonitor()">+ Schedule Job</button>
-        </div>
-      </div>
-      <div id="mon-sched-msg" style="font-size:10px;margin-top:8px;display:none"></div>
-    </div>
-    <div style="font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6">
-      <b style="color:var(--muted)">How it works:</b> After scheduling, the monitor checks each keyword's Google position on the chosen interval and saves results to the database. Click <b>Position History</b> tab to see tracked data over time.
-    </div>
-  </div>
-
-  <!-- Pane: Active Jobs -->
-  <div id="mon-pane-jobs" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)">Active Jobs</span>
-      <button class="btn btn-outline btn-sm" onclick="loadMonitorJobs()" style="margin-left:4px">↻ Refresh</button>
-    </div>
-    <div id="mon-jobs-wrap" style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-        <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-          <th style="padding:7px 10px;text-align:left">Domain</th>
-          <th style="padding:7px 10px;text-align:left">Keywords</th>
-          <th style="padding:7px 10px;text-align:center">Interval</th>
-          <th style="padding:7px 10px;text-align:center">Runs</th>
-          <th style="padding:7px 10px;text-align:center">Status</th>
-          <th style="padding:7px 10px;text-align:left">Next Run</th>
-          <th style="padding:7px 10px"></th>
-        </tr></thead>
-        <tbody id="mon-jobs-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px;font-size:11px">No monitoring jobs yet. Go to Schedule tab to add one.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Pane: Position History -->
-  <div id="mon-pane-history" class="serp-pane" style="display:none;padding:16px 20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
-      <div>
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">DOMAIN</div>
-        <input id="hist-domain" class="serp-input" placeholder="e.g. example.com" style="width:200px"/>
-      </div>
-      <div>
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px">KEYWORD (optional — blank = all)</div>
-        <input id="hist-keyword" class="serp-input" placeholder="e.g. ielts mock test" style="width:220px"/>
-      </div>
-      <button class="btn btn-green" onclick="loadHistory()">▶ Load History</button>
-    </div>
-    <div id="hist-bar" class="sbar" style="display:none;margin-bottom:10px"><div class="spin g"></div><span>Loading…</span></div>
-    <div id="hist-results" style="display:none">
-      <!-- Latest snapshot cards -->
-      <div id="hist-latest" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
-      <!-- History table -->
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">
-          <thead><tr style="background:var(--surf2);color:var(--muted);font-size:9px;text-transform:uppercase">
-            <th style="padding:7px 10px;text-align:left">Keyword</th>
-            <th style="padding:7px 10px;text-align:center">Position</th>
-            <th style="padding:7px 10px;text-align:center">Top 10</th>
-            <th style="padding:7px 10px;text-align:center">Top 30</th>
-            <th style="padding:7px 10px;text-align:left">Checked At</th>
-          </tr></thead>
-          <tbody id="hist-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div id="hist-empty" style="color:var(--dim);font-size:11px;text-align:center;padding:20px">
-      Enter a domain above and click Load History to see tracked positions.
-    </div>
-  </div>
-
-</div>
-</div>
-</section>
-
-<!-- COMPETITOR ANALYSIS SECTION -->
-<section id="competitor-sec">
+<!-- TOOLS SUITE -->
+<section id="tools-suite" style="background:var(--bg);padding:60px 0">
   <div class="sec-inner">
     <div class="sec-hd">
-      <div class="sec-lbl" style="background:rgba(0,255,255,.12);color:var(--cyan)">COMPETITOR INTELLIGENCE</div>
-      <h2>⚔ Competitor Analysis</h2>
-      <p>Compare your site against up to 5 competitors across 7 SEO dimensions — on-page, technical, content, E-E-A-T, CTR, keywords, and page speed</p>
+      <div class="sec-lbl lbl-i">TOOLS SUITE</div>
+      <h2>Seven Precision SEO Tools &#8212; Each Standalone</h2>
+      <p>Every tool opens in its own dedicated workspace. Full power, zero clutter.</p>
     </div>
-    <div class="dash-card" style="padding:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:32px">
 
-      <!-- Input panel -->
-      <div class="comp-input-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div>
-            <div style="font-family:var(--sans);font-size:14px;font-weight:700;color:var(--cyan)">Enter URLs to compare</div>
-            <div style="font-size:10px;color:var(--dim);margin-top:2px">Crawls all sites + fetches Core Web Vitals in ~30–90 seconds</div>
-          </div>
-          <button class="btn btn-outline btn-sm" style="border-color:var(--dim);color:var(--dim);font-family:var(--mono)" onclick="loadCompHistory()" title="View past analyses">↺ History</button>
+      <a href="backend/pages/tech-seo.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--primary),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(192,193,255,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--primary)">health_and_safety</span>
         </div>
-        <div class="comp-input-grid" id="comp-input-grid">
-          <div class="comp-url-row target-row">
-            <span class="comp-url-label">Your Site</span>
-            <input id="comp-target" type="text" placeholder="https://yoursite.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 1</span>
-            <input class="comp-input" type="text" placeholder="https://competitor1.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 2</span>
-            <input class="comp-input" type="text" placeholder="https://competitor2.com" />
-          </div>
-          <div class="comp-url-row">
-            <span class="comp-url-label">Competitor 3</span>
-            <input class="comp-input" type="text" placeholder="https://competitor3.com (optional)" />
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-green" id="comp-analyze-btn" onclick="startCompAnalysis()">⚔ Analyze</button>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono)" onclick="addCompetitorRow()">+ Add Competitor</button>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono);margin-left:auto" id="comp-export-btn" onclick="exportCompExcel()" disabled>↓ Export (.xlsx)</button>
-        </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">Technical SEO Audit</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Site health ring, indexability funnel, Core Web Vitals, per-page grades and issue timeline.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--primary)">CWV</span><span class="feat-tag" style="color:var(--primary)">Indexability</span></div>
+        <span style="color:var(--primary);font-size:12px;font-family:var(--mono)">Open Tech SEO &#8594;</span>
+      </a>
 
-      <!-- Status bar -->
-      <div class="comp-sbar" id="comp-sbar">
-        <div class="spin g" id="comp-spin"></div>
-        <span id="comp-status-txt">Starting analysis…</span>
-      </div>
+      <a href="backend/pages/competitor.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--cyan),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(78,222,163,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--cyan)">compare_arrows</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">Competitor Analysis</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">5-axis radar chart, share of voice donut, content gap matrix and dimension scoring.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--cyan)">Radar Chart</span><span class="feat-tag" style="color:var(--cyan)">Gap Matrix</span></div>
+        <span style="color:var(--cyan);font-size:12px;font-family:var(--mono)">Open Competitor &#8594;</span>
+      </a>
 
-      <!-- Results -->
-      <div id="comp-results" style="display:none">
-        <div class="comp-scores" id="comp-scores"></div>
-        <div class="comp-charts">
-          <div class="comp-chart-box">
-            <h4>7-Dimension Radar Comparison</h4>
-            <div class="comp-chart-canvas" id="radar-chart"></div>
-          </div>
-          <div class="comp-chart-box">
-            <h4>Core Web Vitals — Performance Score</h4>
-            <div class="comp-chart-canvas" id="cwv-chart"></div>
-          </div>
+      <a href="backend/pages/serp-intel.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#818cf8,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.12)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#818cf8">leaderboard</span>
         </div>
-        <div class="comp-dim-panel">
-          <div class="comp-dim-head"><h4>Dimension Breakdown</h4></div>
-          <div style="overflow-x:auto">
-            <table class="dim-table" id="dim-table">
-              <thead><tr id="dim-thead-row"></tr></thead>
-              <tbody id="dim-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="comp-gap-panel">
-          <div class="comp-gap-head">
-            <h4>⬆ Keyword Gaps <span id="comp-gap-count" style="font-size:10px;color:var(--dim)"></span></h4>
-          </div>
-          <div class="comp-gap-wrap">
-            <table class="gtable">
-              <thead><tr><th>Keyword</th><th>Opportunity</th><th>Competitors</th><th>Found In</th></tr></thead>
-              <tbody id="comp-gap-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="comp-actions-panel">
-          <div class="comp-actions-head"><h4>⚡ Priority Action Plan</h4></div>
-          <div class="comp-action-list" id="comp-action-list"></div>
-        </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">SERP Intelligence</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Bulk position checker, keyword difficulty gauge, visibility scoring, and CTR curve projection.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#818cf8">Positions</span><span class="feat-tag" style="color:#818cf8">CTR Curve</span></div>
+        <span style="color:#818cf8;font-size:12px;font-family:var(--mono)">Open SERP Intel &#8594;</span>
+      </a>
 
-      <!-- History panel -->
-      <div id="comp-hist-panel" class="comp-hist-panel" style="display:none">
-        <div class="comp-hist-head">
-          <h4>Analysis History</h4>
-          <button class="btn btn-outline btn-sm" style="font-family:var(--mono)" onclick="document.getElementById('comp-hist-panel').style.display='none'">✕ Close</button>
+      <a href="backend/pages/monitor.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,var(--tertiary),transparent)"></div>
+        <div class="feat-ico" style="background:rgba(255,183,131,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:var(--tertiary)">notifications_active</span>
         </div>
-        <div style="overflow-x:auto">
-          <table class="htable">
-            <thead><tr><th>Target</th><th>Competitors</th><th>Score</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
-            <tbody id="comp-hist-tbody">
-              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No history yet.</td></tr>
-            </tbody>
-          </table>
+        <h3 style="color:var(--text);margin:0">Rank Monitor</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Schedule keyword tracking jobs, view position history charts, and receive alert logs.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:var(--tertiary)">Scheduled</span><span class="feat-tag" style="color:var(--tertiary)">Alerts</span></div>
+        <span style="color:var(--tertiary);font-size:12px;font-family:var(--mono)">Open Monitor &#8594;</span>
+      </a>
+
+      <a href="backend/pages/sitemap.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#10B981,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(16,185,129,.1)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#10B981">account_tree</span>
         </div>
-      </div>
+        <h3 style="color:var(--text);margin:0">Sitemap Crawler</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Parse sitemap.xml, flag broken/redirect URLs, surface lastmod gaps, export to Excel.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#10B981">XML Parse</span><span class="feat-tag" style="color:#10B981">Status Codes</span></div>
+        <span style="color:#10B981;font-size:12px;font-family:var(--mono)">Open Sitemap &#8594;</span>
+      </a>
+
+      <a href="backend/pages/keyword-gap.html" class="feat-card" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#6366F1,transparent)"></div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.12)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#6366F1">find_in_page</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">Keyword Gap</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Discover keywords competitors rank for that you are missing. Segment by missing, weak, strong.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#6366F1">Gap Score</span><span class="feat-tag" style="color:#6366F1">Opportunities</span></div>
+        <span style="color:#6366F1;font-size:12px;font-family:var(--mono)">Open Keyword Gap &#8594;</span>
+      </a>
+
+      <a href="backend/pages/ai-content.html" class="feat-card featured" style="text-decoration:none;display:flex;flex-direction:column;gap:12px;cursor:pointer">
+        <div class="feat-shine" style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+        <div class="feat-popular">&#10022; AI Powered</div>
+        <div class="feat-ico" style="background:rgba(99,102,241,.15)">
+          <span class="material-symbols-outlined" style="font-size:26px;color:#818cf8">psychology</span>
+        </div>
+        <h3 style="color:var(--text);margin:0">AI Content Generator</h3>
+        <p style="color:var(--dim);font-size:13px;margin:0">Generate SEO-optimized content via Groq, Gemini, Claude or OpenAI. Live SEO scoring, meta outputs, history.</p>
+        <div class="feat-tags"><span class="feat-tag" style="color:#818cf8">Multi-AI</span><span class="feat-tag" style="color:#818cf8">SEO Score</span></div>
+        <span style="color:#818cf8;font-size:12px;font-family:var(--mono)">Open AI Content &#8594;</span>
+      </a>
 
     </div>
   </div>
 </section>
-
-<!-- SCHEMA SECTION -->
-<section id="schema">
-  <div class="sec-inner">
-    <div class="sec-hd">
-      <div class="sec-lbl lbl-c">STRUCTURED DATA</div>
-      <h2>Schema &amp; Structured Data Audit</h2>
-      <p>Automatically detect, validate, and fix your JSON-LD markup</p>
-    </div>
-    <div class="schema-grid">
-      <div class="code-editor">
-        <div class="code-hd">
-          <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
-          <span>schema.json · JSON-LD Structured Data</span>
-        </div>
-        <div class="code-body">
-          <span class="ck">&lt;script type="application/ld+json"&gt;</span><br>
-          <span class="cy">{</span><br>
-          &nbsp;&nbsp;<span class="ck">"@context"</span><span class="cy">:</span> <span class="cs">"https://schema.org"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"@type"</span><span class="cy">:</span> <span class="cs">"Organization"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"name"</span><span class="cy">:</span> <span class="cs">"CrawlIQ"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"url"</span><span class="cy">:</span> <span class="cs">"https://crawliq.io"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;<span class="ck">"logo"</span><span class="cy">: {</span><br>
-          &nbsp;&nbsp;&nbsp;&nbsp;<span class="ck">"@type"</span><span class="cy">:</span> <span class="cs">"ImageObject"</span><span class="cy">,</span><br>
-          &nbsp;&nbsp;&nbsp;&nbsp;<span class="ck">"url"</span><span class="cy">:</span> <span class="cs">"https://crawliq.io/logo.png"</span><br>
-          &nbsp;&nbsp;<span class="cy">}</span><br>
-          <span class="cy">}</span><br>
-          <span class="ck">&lt;/script&gt;</span><br><br>
-          <span class="code-valid">✓ Valid Schema</span>
-        </div>
-      </div>
-      <div class="schema-cards">
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(99,102,241,.15)">🏢</div>
-            <div class="schema-card-info">
-              <h4>Organization Schema</h4>
-              <span class="schema-status ss-detected">✓ Detected</span>
-            </div>
-          </div>
-          <p class="schema-desc">Defines your company name, logo, URL, social profiles. Boosts brand visibility in Google Knowledge Panel.</p>
-          <div class="schema-fields" style="color:var(--indigo)">name · url · logo · sameAs · contactPoint</div>
-        </div>
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(34,211,238,.15)">📄</div>
-            <div class="schema-card-info">
-              <h4>WebPage Schema</h4>
-              <span class="schema-status ss-incomplete">⚠ Incomplete</span>
-            </div>
-          </div>
-          <p class="schema-desc">Identifies individual pages with breadcrumbs, dates, and authorship for richer snippets.</p>
-          <div class="schema-fields" style="color:var(--cyan)">url · name · breadcrumb · dateModified</div>
-        </div>
-        <div class="schema-card">
-          <div class="schema-card-hd">
-            <div class="schema-ico" style="background:rgba(16,185,129,.15)">📰</div>
-            <div class="schema-card-info">
-              <h4>Article Schema</h4>
-              <span class="schema-status ss-missing">✗ Missing</span>
-            </div>
-          </div>
-          <p class="schema-desc">Marks blog posts and news articles for Google Top Stories and rich article results.</p>
-          <div class="schema-fields" style="color:var(--green)">headline · author · publisher · datePublished</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ SCHEMA INTELLIGENCE PANEL (app mode only) ════════════════════════════ -->
-<div id="panel-schema-intel" class="panel-hidden">
-  <div class="si-head">
-    <div>
-      <div class="si-lbl">Structured Data Audit</div>
-      <h1>Schema Intelligence</h1>
-    </div>
-    <div class="si-head-btns">
-      <button class="si-btn-outline" onclick="validateSchemaLive()">
-        <span class="material-symbols-outlined" style="font-size:16px">verified</span> Validate Live
-      </button>
-      <button class="si-btn-primary" onclick="generateSchemaAI()">
-        <span class="material-symbols-outlined" style="font-size:16px">add</span> Generate Schema
-      </button>
-    </div>
-  </div>
-  <div class="si-summary-grid" id="si-summary-grid">
-    <div class="si-sum-card">
-      <div class="s-label">Schema Coverage</div>
-      <span class="s-icon material-symbols-outlined">layers</span>
-      <div class="s-val" id="si-coverage">—</div>
-      <div class="s-sub">of crawled pages</div>
-    </div>
-    <div class="si-sum-card">
-      <div class="s-label">Valid Entities</div>
-      <span class="s-icon material-symbols-outlined" style="color:#059669">check_circle</span>
-      <div class="s-val" id="si-valid" style="color:#059669">—</div>
-      <div class="s-sub">Audit complete</div>
-    </div>
-    <div class="si-sum-card">
-      <div class="s-label">Schema Warnings</div>
-      <span class="s-icon material-symbols-outlined" style="color:#d97706">warning</span>
-      <div class="s-val" id="si-warnings" style="color:#d97706">—</div>
-      <div class="s-sub">Needs attention</div>
-    </div>
-  </div>
-  <div class="si-matrix">
-    <div class="si-matrix-head">
-      <h3>Entity Diagnostic Matrix</h3>
-      <div class="si-matrix-filter">
-        <span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8">search</span>
-        <input type="text" placeholder="Filter by URL or type…" oninput="filterSchemaMatrix(this.value)" id="si-filter-input"/>
-      </div>
-    </div>
-    <table class="si-table" id="si-table">
-      <thead>
-        <tr>
-          <th>URL Context</th>
-          <th>Schema ID</th>
-          <th>Detected Types</th>
-          <th>Status</th>
-          <th style="text-align:center">Warnings/Errors</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="si-tbody">
-        <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;font-size:12px">Run a crawl first, then click Schema Intel to audit structured data.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══ CONTENT LAB PANEL (app mode only) ══════════════════════════════════ -->
-<div id="panel-content-lab" class="panel-hidden">
-  <div class="clab-head">
-    <div class="clab-lbl">Neural Content Forge</div>
-    <h1>Content Lab</h1>
-  </div>
-  <div class="clab-body">
-    <div class="clab-model-row">
-      <button class="clab-model-btn active" onclick="clabSelectModel(this,'gemini')">✨ Gemini</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'groq')">⚡ Groq (Llama 3)</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'openai')">🤖 GPT-4o</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'claude')">🧠 Claude</button>
-      <button class="clab-model-btn" onclick="clabSelectModel(this,'ollama')">🏠 Ollama (Local)</button>
-    </div>
-    <div class="clab-panel">
-      <h3>Original Content</h3>
-      <textarea class="clab-textarea" id="clab-original" placeholder="Paste your current page content here — title, meta description, H1, body copy…"></textarea>
-    </div>
-    <div class="clab-panel">
-      <h3>SEO Audit Context</h3>
-      <textarea class="clab-textarea" id="clab-context" placeholder="Paste your CrawlIQ audit report or describe what SEO issues were found…"></textarea>
-    </div>
-    <div class="clab-generate-row">
-      <button class="clab-generate-btn" id="clab-generate-btn" onclick="runContentLabSynthesis()">
-        <span class="material-symbols-outlined" style="font-size:18px">psychology</span>
-        Initiate Synthesis
-      </button>
-    </div>
-    <div class="clab-processing" id="clab-processing">
-      <div style="color:#818cf8;font-size:13px;font-weight:700;font-family:var(--mono)">⚡ Neural synthesis in progress…</div>
-      <p>Processing semantic clusters · Optimizing keyword density · Generating content</p>
-      <div class="clab-proc-bar"><div class="clab-proc-fill"></div></div>
-    </div>
-    <div class="clab-result" id="clab-result">
-      <h3>✦ Synthesized Content</h3>
-      <div class="clab-result-text" id="clab-result-text"></div>
-      <div class="clab-result-actions">
-        <button class="clab-copy-btn" onclick="clabCopyResult()">Copy to Clipboard</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- HOW IT WORKS -->
 <section id="how-it-works" style="background:var(--surf-low)">
@@ -3169,7 +2695,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <span class="feat-tag" style="color:var(--primary)">50+ metrics</span>
           <span class="feat-tag" style="color:var(--primary)">50 pages/session</span>
         </div>
-        <a class="feat-link" href="#dash-sec" style="color:var(--primary)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
+        <a class="feat-link" href="backend/pages/tech-seo.html" style="color:var(--primary)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
       </div>
       <div class="feat-card featured">
         <div class="feat-shine" style="background:linear-gradient(90deg,var(--indigo),var(--primary-container))"></div>
@@ -3183,7 +2709,7 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
           <span class="feat-tag" style="color:var(--primary-container)">Multi-AI</span>
           <span class="feat-tag" style="color:var(--primary-container)">Real-time</span>
         </div>
-        <a class="feat-link" href="#dash-sec" style="color:var(--primary-container)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
+        <a class="feat-link" href="backend/pages/ai-content.html" style="color:var(--primary-container)">Try it free <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">arrow_forward</span></a>
       </div>
       <div class="feat-card">
         <div class="feat-shine" style="background:linear-gradient(90deg,var(--tertiary),transparent)"></div>
@@ -3493,8 +3019,8 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
     <a class="cta-primary" href="#dash-sec">
       <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">travel_explore</span>Start Free Crawl
     </a>
-    <a class="cta-outline" href="#checklist-sec">
-      <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">checklist</span>Use the Checklist
+    <a class="cta-outline" href="#tools-suite">
+      <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px">apps</span>Explore All Tools
     </a>
   </div>
 </div>
@@ -3521,20 +3047,55 @@ body.app-mode #panel-content-lab.panel-hidden{display:none!important;}
 </section>
 
 <!-- FOOTER -->
-<footer class="footer-minimal">
-  <div class="footer-minimal-inner">
-    <div class="footer-copy">
-      Built by <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener">Teki Bhavani Shankar</a>
-      &nbsp;·&nbsp; © 2026 CrawlIQ &nbsp;·&nbsp; Open-source on
-      <a href="https://github.com/Bhavani5A8/crawliq.io" target="_blank" rel="noopener">GitHub</a>
+<footer>
+  <div class="ft">
+    <div class="fb">
+      <div class="fb-logo">
+        <span class="material-symbols-outlined" style="font-size:22px;color:var(--primary)">query_stats</span>
+        <span>Crawl<em>IQ</em></span>
+      </div>
+      <p>AI-powered SEO intelligence for modern teams. Crawl smarter. Rank higher. Grow faster.</p>
+      <div class="socials">
+        <a class="soc" href="https://github.com/Bhavani5A8/crawliq.io" target="_blank" rel="noopener" title="GitHub">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+        <a class="soc" href="https://huggingface.co/spaces/bhavani7/seo-project" target="_blank" rel="noopener" title="HuggingFace">🤗</a>
+        <a class="soc" href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" title="LinkedIn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        </a>
+      </div>
     </div>
-    <div class="footer-socials">
-      <a class="footer-soc-btn" href="https://github.com/Bhavani5A8/crawliq.io" target="_blank" rel="noopener" title="GitHub">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-      </a>
-      <a class="footer-soc-btn" href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" title="LinkedIn">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-      </a>
+    <div class="fc">
+      <h4>Tools</h4>
+      <a href="#dash-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">travel_explore</span>SEO Crawler</a>
+      <a href="backend/pages/tech-seo.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">health_and_safety</span>Technical SEO</a>
+      <a href="backend/pages/competitor.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">compare_arrows</span>Competitor Analysis</a>
+      <a href="backend/pages/serp-intel.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">leaderboard</span>SERP Intelligence</a>
+      <a href="backend/pages/monitor.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">notifications_active</span>Rank Monitor</a>
+      <a href="backend/pages/sitemap.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">account_tree</span>Sitemap Crawler</a>
+      <a href="backend/pages/keyword-gap.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">find_in_page</span>Keyword Gap</a>
+      <a href="backend/pages/ai-content.html"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">psychology</span>AI Content Generator</a>
+    </div>
+    <div class="fc">
+      <h4>Learn</h4>
+      <a href="#how-it-works"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">help_outline</span>How It Works</a>
+      <a href="#example-sec"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">swap_horiz</span>Before &amp; After</a>
+      <a href="#faq"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">quiz</span>FAQ</a>
+      <a href="#about"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">info</span>About</a>
+    </div>
+    <div class="fc">
+      <h4>Source</h4>
+      <a href="https://github.com/Bhavani5A8/crawliq.io" target="_blank" rel="noopener"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">code</span>GitHub Repo</a>
+      <a href="https://huggingface.co/spaces/bhavani7/seo-project" target="_blank" rel="noopener"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;margin-right:4px">cloud</span>HuggingFace Space</a>
+    </div>
+  </div>
+  <div class="ft-bot">
+    <span class="ft-copy">© 2026 CrawlIQ — Free Technical SEO Platform. Built by <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none">Teki Bhavani Shankar, Technical SEO Specialist</a>.</span>
+    <div class="ft-badges">
+      <span class="ft-badge"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle">lock</span> HTTPS Secure</span>
+      <span class="ft-badge"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle">open_source</span> Open Source</span>
+      <span class="ft-badge"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle">bolt</span> Groq AI Powered</span>
+      <span class="ft-badge">🤗 HuggingFace Hosted</span>
     </div>
   </div>
 </footer>
@@ -3771,8 +3332,8 @@ let allResults=[], sortKey='', sortAsc=true, crawlTimer=null, geminiTimer=null;
 let selectedUrls=new Set(), popupPages=[], popupIndex=0, maxPages=50;
 let optimizerRows=[], optTimer=null;
 
-window.addEventListener('load', checkGemini);
-
+// Delay HF backend ping — runs 3s after load so it never blocks FCP/LCP
+window.addEventListener('load', () => setTimeout(checkGemini, 3000));
 async function checkGemini() {
   try {
     const d = await (await fetch(`${API}/ai-config`)).json();
@@ -3792,8 +3353,10 @@ async function checkGemini() {
 }
 
 function startCrawlHero() {
-  document.getElementById('dash-sec').scrollIntoView({ behavior: 'smooth' });
-  setTimeout(startCrawl, 600);
+  const raw = (document.getElementById('url-input').value || '').trim();
+  if (!raw) { document.getElementById('url-input').focus(); return; }
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
 }
 
 // ── Cold-start banner helpers (main crawl) ────────────────────────────────────
@@ -6447,13 +6010,15 @@ function syncTopbarAuth() {
 }
 function syncSidebarAI() {}
 
-/* ── Override startCrawlHero — enter app mode then crawl ────────────────── */
+/* ── startCrawlHero — redirect to tool page with URL ────────────────────── */
 window.startCrawlHero = function() {
   const appInput = document.getElementById('url-input-app');
   const heroInput = document.getElementById('url-input');
-  if (appInput && heroInput && appInput.value) heroInput.value = appInput.value;
-  enterAppMode();
-  if (typeof startCrawl === 'function') startCrawl();
+  const raw = ((appInput && appInput.value) || (heroInput && heroInput.value) || '').trim();
+  if (!raw) { if (heroInput) heroInput.focus(); return; }
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  localStorage.setItem('ciq_last_url', url);
+  window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
 };
 
 /* ── Override openSerpPanel / closeSerpPanel ─────────────────────────────── */
@@ -7009,48 +6574,6 @@ function closeLandingMobileNav(){
   document.getElementById('landing-mob-drawer').classList.remove('open');
   document.getElementById('landing-mob-overlay').classList.remove('open');
 }
-
-/* ── Settings v2: tab switching ── */
-function settingsTab(name) {
-  ['profile','apikeys','billing'].forEach(t => {
-    const tab  = document.getElementById('stab-' + t);
-    const pane = document.getElementById('spane-' + t);
-    const active = (t === name);
-    if (tab)  { tab.classList.toggle('active', active); tab.setAttribute('aria-selected', active); }
-    if (pane) pane.classList.toggle('active', active);
-  });
-}
-
-/* ── Settings v2: open always lands on Profile tab ── */
-const _origOpenSettings = typeof openSettings === 'function' ? openSettings : null;
-function openSettings() {
-  const modal = document.getElementById('settings-modal');
-  if (modal) {
-    modal.style.display = 'flex';
-    settingsTab('profile');
-    if (typeof _loadUsage === 'function') _loadUsage();
-    if (typeof _loadGscStatus === 'function') _loadGscStatus();
-    if (typeof _ciqUser !== 'undefined' && _ciqUser) {
-      const n = document.getElementById('set-name'); if (n) n.value = _ciqUser.name || '';
-      const ae = document.getElementById('set-alert-email'); if (ae) ae.value = _ciqUser.alert_email || '';
-      const dt = document.getElementById('set-drop-threshold'); if (dt) dt.value = _ciqUser.drop_threshold || 5;
-      const bn = document.getElementById('set-brand-name'); if (bn) bn.value = localStorage.getItem('ciq_brand_name') || '';
-      const ak = document.getElementById('api-key-display'); if (ak && _ciqUser.api_key) ak.value = _ciqUser.api_key;
-    }
-  }
-}
-function closeSettings() {
-  const modal = document.getElementById('settings-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-/* ESC closes settings modal */
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    const m = document.getElementById('settings-modal');
-    if (m && m.style.display === 'flex') { closeSettings(); return; }
-  }
-});
 </script>
 
 </body>
