@@ -273,11 +273,8 @@
   onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/></noscript>
 
-<link rel="preload" href="/static/css/main.css?v=1.0.2" as="style"
-  onload="this.onload=null;this.rel='stylesheet'"/>
-<noscript><link rel="stylesheet" href="/static/css/main.css?v=1.0.2"/></noscript>
+<link rel="stylesheet" href="/static/css/main.css?v=1.0.3"/>
 
-<link rel="preload" href="/static/js/app.js?v=1.0.2" as="script"/>
 
 <style>
 /* ── M3 DESIGN TOKENS ── */
@@ -312,9 +309,9 @@
   --border-strong:rgba(70,69,84,.7);
   --ghost:rgba(70,69,84,.15);         /* ghost border — "felt not seen" */
   /* ── Fonts ── */
-  --headline:'Plus Jakarta Sans',sans-serif;
-  --sans:'Inter',sans-serif;
-  --mono:'IBM Plex Mono',monospace;
+  --headline:'Plus Jakarta Sans',system-ui,sans-serif;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono','Courier New',monospace;
   /* ── Radius ── */
   --r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;
   /* ── Legacy aliases for JS-generated HTML ── */
@@ -324,7 +321,7 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;font-synthesis:none;
   min-height:100vh;overflow-x:hidden;padding-bottom:72px;}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:linear-gradient(rgba(99,102,241,.03) 1px,transparent 1px),
@@ -439,7 +436,57 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 .scroll-dot{width:2.5px;height:7px;border-radius:2px;background:var(--indigo);animation:scrollDn 1.6s ease-in-out infinite;}
 @keyframes scrollDn{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(8px);opacity:.3}}
 
+
+/* ── CLS STABILITY — reserved dimensions prevent layout shift ── */
+button{min-height:32px;}
+.hero-crawl-btn{min-height:52px;min-width:140px;}
+.btn-nav-cta{min-height:36px;min-width:80px;}
+nav{min-height:64px;}
+.ai-pill{min-height:32px;}
+.hero-input-row{min-height:64px;}
 </style>
+<!-- ── Critical JS (inline — nav/button/input handlers, <1KB) ─────────────── -->
+<script>
+/* These functions are called via onclick attributes in the HTML body.
+   Inlining them avoids any gap between HTML parse and user interaction,
+   even before the deferred app.js executes. */
+function startCrawlHero(){
+  var raw=(document.getElementById('url-input').value||'').trim();
+  if(!raw){document.getElementById('url-input').focus();return;}
+  var url=raw.startsWith('http')?raw:'https://'+raw;
+  window.location.href='backend/pages/tech-seo.html?url='+encodeURIComponent(url);
+}
+function toggleLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.toggle('open');
+  document.getElementById('landing-mob-overlay').classList.toggle('open');
+}
+function closeLandingMobileNav(){
+  document.getElementById('landing-mob-drawer').classList.remove('open');
+  document.getElementById('landing-mob-overlay').classList.remove('open');
+}
+function toggleFaq(item){
+  var isOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(function(i){
+    i.classList.remove('open');
+    var c=i.querySelector('.faq-chev .material-symbols-outlined');
+    if(c)c.textContent='expand_more';
+  });
+  if(!isOpen){
+    item.classList.add('open');
+    var c=item.querySelector('.faq-chev .material-symbols-outlined');
+    if(c)c.textContent='expand_less';
+  }
+}
+function closeAuthModal(){document.getElementById('auth-modal').style.display='none';}
+function closeAiSetup(){
+  document.getElementById('ai-overlay').classList.remove('open');
+}
+/* Prevent undefined-function errors before app.js defers — safe stubs */
+['exitAppMode','openAiSetup','openAuthModal','authTab','showPanel',
+ 'openKwGap','openSettings','toggleUserMenu'].forEach(function(fn){
+  if(!window[fn]) window[fn]=function(){};
+});
+</script>
 </head>
 <body>
 
@@ -2003,10 +2050,12 @@ nav{position:fixed;top:0;width:100%;z-index:100;
 
 
 <!-- ══ DEFERRED SCRIPTS ════════════════════════════════════════════════════ -->
-<script src="/static/js/app.js?v=1.0.2" defer></script>
+<script src="/static/js/app.js?v=1.0.3" defer></script>
 <script>
-(function(){function loadNC(){var s=document.createElement('script');s.src='/static/js/noncritical.js?v=1.0.2';document.body.appendChild(s);}
-if('requestIdleCallback' in window){requestIdleCallback(loadNC,{timeout:2000});}else{window.addEventListener('load',function(){setTimeout(loadNC,500);});}})();
+(function(){
+  function loadNC(){var s=document.createElement('script');s.src='/static/js/noncritical.js?v=1.0.3';s.defer=true;document.body.appendChild(s);}
+  window.addEventListener('load',function(){setTimeout(loadNC,2000);});
+})();
 </script>
 
 </body>

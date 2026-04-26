@@ -1,4 +1,12 @@
-/* CrawlIQ main.css v1.0.2 — non-critical styles, loaded async */
+/* CrawlIQ main.css v1.0.3 — render-blocking stylesheet */
+/* ── ACCESSIBILITY: fix --dark-muted contrast (was 1.98:1 — fails WCAG AA) ── */
+/* Override only decorative/structural uses; upgrade text contrast where needed */
+.empty-state{color:var(--muted)!important;}   /* was dark-muted (1.98:1) → muted (5.85:1) */
+.opt-empty{color:var(--muted)!important;}
+.ot-curr.missing{color:var(--dim)!important;}
+.ot-opt.insufficient{color:var(--dim)!important;}
+.fval.missing{color:var(--dim)!important;}
+.ft-copy{color:var(--muted)!important;}
 /* ── SECTION COMMON ── */
 section{position:relative;z-index:1;padding:80px 24px;}
 .sec-inner{max-width:1200px;margin:0 auto;}
