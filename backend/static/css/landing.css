@@ -1,5 +1,14 @@
-/* CrawlIQ landing.css v2.0.0 — landing page only, ~28KB */
-/* CrawlIQ main.css v1.0.3 — render-blocking stylesheet */
+/* CrawlIQ landing.css v2.1.0 — landing page only */
+
+/* ── NAV BUTTONS — base styles (not in inline critical CSS) ── */
+.btn{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.4px;padding:8px 16px;
+  border-radius:var(--r);cursor:pointer;transition:opacity .15s,background .15s,border-color .15s,transform .1s;
+  display:inline-flex;align-items:center;gap:6px;text-decoration:none;border:none;}
+.btn:active{transform:scale(.97);}
+.btn-outline{background:transparent;border:1px solid var(--primary);color:var(--primary);}
+.btn-outline:hover{background:rgba(192,193,255,.08);}
+.btn-sm{padding:4px 10px;font-size:10px;}
+
 /* ── ACCESSIBILITY: fix --dark-muted contrast (was 1.98:1 — fails WCAG AA) ── */
 /* Override only decorative/structural uses; upgrade text contrast where needed */
 .empty-state{color:var(--muted)!important;}   /* was dark-muted (1.98:1) → muted (5.85:1) */

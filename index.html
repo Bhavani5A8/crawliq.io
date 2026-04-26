@@ -273,7 +273,10 @@
   onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/></noscript>
 
-<link rel="stylesheet" href="static/css/landing.css?v=2.0.0"/>
+<link rel="preload" as="style"
+  href="static/css/landing.css?v=2.1.0"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
 
 
 <style>
@@ -517,9 +520,9 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
     <!-- Unauthenticated state -->
     <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
       <a class="btn btn-outline btn-sm" href="app/" style="font-size:11px;text-decoration:none">Open App</a>
-      <a class="btn-nav-cta" href="javascript:void(0)" onclick="startCrawlHero()" role="button">
-        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
-      </a>
+      <button class="btn-nav-cta" type="button" onclick="startCrawlHero()">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px" aria-hidden="true">bolt</span>Analyze
+      </button>
     </div>
 </nav>
 
@@ -539,7 +542,7 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
   <a class="mob-nav-link" href="#pricing" onclick="closeLandingMobileNav()">Pricing</a>
   <div class="mob-drawer-auth">
     <a class="btn btn-outline btn-sm" href="app/" onclick="closeLandingMobileNav()" style="text-decoration:none;text-align:center">Open App</a>
-    <a class="btn-nav-cta" href="javascript:void(0)" onclick="closeLandingMobileNav();startCrawlHero()" role="button" style="text-align:center">Analyze Free</a>
+    <button class="btn-nav-cta" type="button" onclick="closeLandingMobileNav();startCrawlHero()" style="text-align:center">Analyze Free</button>
   </div>
 </aside>
 
@@ -555,11 +558,11 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
   <p class="hero-sub reveal" style="animation-delay:.1s">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
   <div class="hero-input-row reveal" id="hero-input-row" style="animation-delay:.15s">
     <div class="hero-input-wrap">
-      <span class="material-symbols-outlined hero-input-icon">language</span>
-      <input id="url-input" type="text" placeholder="Enter website URL… e.g. mysite.com"/>
+      <span class="material-symbols-outlined hero-input-icon" aria-hidden="true">language</span>
+      <input id="url-input" type="url" inputmode="url" autocomplete="url" aria-label="Enter website URL to audit" placeholder="Enter website URL… e.g. mysite.com"/>
     </div>
-    <button class="hero-crawl-btn" id="crawl-btn" onclick="startCrawlHero()">
-      <span class="material-symbols-outlined" style="font-size:17px">bolt</span>
+    <button class="hero-crawl-btn" id="crawl-btn" onclick="startCrawlHero()" type="button">
+      <span class="material-symbols-outlined" style="font-size:17px" aria-hidden="true">bolt</span>
       <span>Start Audit</span>
     </button>
   </div>
@@ -1209,7 +1212,7 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
 
 
 <!-- ══ DEFERRED SCRIPTS ════════════════════════════════════════════════════ -->
-<script src="static/js/landing.js?v=2.0.0" defer></script>
+<script src="static/js/landing.js?v=2.1.0" defer></script>
 <script>
 (function(){
   function loadNC(){var s=document.createElement('script');s.src='static/js/noncritical.js?v=1.0.4';s.defer=true;document.body.appendChild(s);}
