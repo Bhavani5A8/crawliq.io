@@ -63,6 +63,7 @@ FASTAPI ENDPOINTS (web server mode)
   GET  /technical-seo/{url}      → tech SEO audit for a single page
   GET  /site-audit               → domain-level health (robots.txt, sitemap, HTTPS)
   GET  /export-technical-seo     → download technical SEO audit Excel
+  GET  /audit/full               → zero-gap 5-cluster exhaustive SEO audit (all crawled pages)
 
   POST /competitor/analyze        → start competitor analysis task
   GET  /competitor/status/{id}    → poll task status
@@ -186,6 +187,12 @@ try:
     _SITE_AUDITOR_MODULE = True
 except ImportError:
     _SITE_AUDITOR_MODULE = False
+
+try:
+    from full_audit_engine import run_exhaustive_audit as _run_exhaustive_audit
+    _FULL_AUDIT_ENGINE = True
+except ImportError:
+    _FULL_AUDIT_ENGINE = False
 
 try:
     from serp_scraper import (
@@ -2821,6 +2828,82 @@ async def get_full_site_audit(sitemap_url: str = ""):
             pass  # sitemap fetch failure is non-fatal
 
     return await _run_site_audit(site_url, pages, sitemap_urls=cv_sitemap_urls)
+
+
+# ── FULL EXHAUSTIVE AUDIT (zero-gap 5-cluster engine) ─────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/audit/full")
+async def get_exhaustive_audit(sitemap_url: str = "", robots_txt_url: str = ""):
+    """
+    Zero-gap five-cluster SEO audit engine.
+
+    Runs every audit signal across all crawled pages:
+      - Indexability  (robots.txt, meta/X-Robots, canonical, status, redirects)
+      - On-page SEO   (title, meta, headings, keywords, content, images, OG)
+      - Technical SEO (depth, canonical system, hreflang, pagination, mobile, URLs)
+      - Performance   (CWV, page size, resources, compression, caching)
+      - Security      (HTTPS, HSTS, CSP, X-Frame, X-Content-Type, TLS)
+    Plus five cross-cluster consistency checks.
+
+    Query params:
+      ?sitemap_url=    — URL of sitemap XML to include sitemap-level checks
+      ?robots_txt_url= — URL of robots.txt to include robots-level checks
+    """
+    if not _FULL_AUDIT_ENGINE:
+        raise HTTPException(status_code=503, detail="full_audit_engine module not available")
+
+    pages = [p for p in crawl_results if not p.get("_is_error")]
+    if not pages:
+        raise HTTPException(status_code=400, detail="No crawl results. Run /crawl first.")
+
+    # Fetch sitemap URLs if provided
+    sm_urls: list[str] | None = None
+    if sitemap_url:
+        try:
+            import aiohttp as _ah
+            async with _ah.ClientSession() as sess:
+                async with sess.get(
+                    sitemap_url,
+                    timeout=_ah.ClientTimeout(total=8),
+                    headers={"User-Agent": "CrawlIQ-SEO-Bot/1.0"},
+                ) as resp:
+                    if resp.status == 200:
+                        xml = await resp.text(errors="replace")
+                        if _SITE_AUDITOR_MODULE:
+                            sm_urls = _parse_sitemap_xml(xml) or None
+        except Exception:
+            pass
+
+    # Fetch robots.txt if provided
+    robots_txt: str | None = None
+    if robots_txt_url:
+        try:
+            import aiohttp as _ah2
+            async with _ah2.ClientSession() as sess2:
+                async with sess2.get(
+                    robots_txt_url,
+                    timeout=_ah2.ClientTimeout(total=5),
+                    headers={"User-Agent": "CrawlIQ-SEO-Bot/1.0"},
+                ) as resp2:
+                    if resp2.status == 200:
+                        robots_txt = await resp2.text(errors="replace")
+        except Exception:
+            pass
+
+    # Run the exhaustive audit (sync call wrapped in thread pool)
+    import asyncio as _asyncio
+    loop = _asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _run_exhaustive_audit(
+            pages,
+            sitemap_urls=sm_urls,
+            robots_txt_content=robots_txt,
+            cwv_data=None,          # CWV data not yet available from crawler
+        ),
+    )
+    return result
 
 
 @app.get("/site-audit/robots")
