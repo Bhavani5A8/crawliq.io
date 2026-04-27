@@ -841,6 +841,8 @@ function closeAiSetup(){
      Hidden automatically when body.app-mode is set (CSS: main.css line ~1291).
      Googlebot reads this section fully without executing any JavaScript.
      ════════════════════════════════════════════════════════════════════════ -->
+<main id="seo-main-content">
+<section id="seo-content-sec" aria-label="CrawlIQ App — Tool Overview">
 <section id="seo-content-sec" aria-label="CrawlIQ App — Tool Overview">
 
   <!-- Minimal nav for Googlebot crawl path discovery -->
@@ -980,9 +982,78 @@ function closeAiSetup(){
       <a href="https://github.com/Bhavani5A8/crawliq.io" rel="noopener" style="font-size:12px;color:var(--dim);text-decoration:none">GitHub</a>
     </nav>
 
+    <!-- Audit process — static HTML for Googlebot -->
+    <section aria-label="How the audit works" style="margin-top:44px;padding-top:32px;border-top:1px solid rgba(99,102,241,.1)">
+      <h2 style="font-size:18px;font-weight:700;color:white;margin:0 0 20px;letter-spacing:-.02em">How the Technical SEO Audit Works</h2>
+      <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:14px">
+        <li style="display:flex;gap:14px;align-items:flex-start">
+          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">1</span>
+          <div>
+            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Enter your website URL</h3>
+            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Paste any URL into the input field. Set a page limit (up to 50 pages as a guest, 200 with a free account). No signup needed to start.</p>
+          </div>
+        </li>
+        <li style="display:flex;gap:14px;align-items:flex-start">
+          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">2</span>
+          <div>
+            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Async crawler fetches all pages</h3>
+            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">The Python aiohttp BFS crawler fetches pages concurrently, extracts title, meta description, canonical, headings, Open Graph tags, image alt text, internal links, word count, and HTTP status for every page.</p>
+          </div>
+        </li>
+        <li style="display:flex;gap:14px;align-items:flex-start">
+          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">3</span>
+          <div>
+            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">50+ issue checks and page scoring</h3>
+            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Each page is scored 0–100 across 9 dimensions and graded A–F. Over 50 SEO signals are checked: missing or duplicate titles, broken canonicals, thin content, noindex leaks, redirect chains, missing alt text, and more.</p>
+          </div>
+        </li>
+        <li style="display:flex;gap:14px;align-items:flex-start">
+          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">4</span>
+          <div>
+            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">AI generates paste-ready fixes</h3>
+            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Select any pages and run AI analysis. Groq, Gemini, Claude, or OpenAI returns optimised title tags, rewritten meta descriptions, improved H1 tags, and content recommendations — ranked by SEO impact.</p>
+          </div>
+        </li>
+        <li style="display:flex;gap:14px;align-items:flex-start">
+          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">5</span>
+          <div>
+            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Download structured Excel report</h3>
+            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Export a multi-sheet Excel workbook with the full audit, per-page scores, A–F grades, AI fixes, and a live optimisation table ready for your content team or CMS upload workflow.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Common issues — keyword-rich static content -->
+    <section aria-label="Common SEO issues detected" style="margin-top:36px;padding-top:28px;border-top:1px solid rgba(99,102,241,.1)">
+      <h2 style="font-size:18px;font-weight:700;color:white;margin:0 0 14px;letter-spacing:-.02em">Common SEO Issues CrawlIQ Detects</h2>
+      <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:0 0 16px">
+        Every crawled page is checked against 15+ issue categories. The most common issues found across real-world audits include:
+      </p>
+      <ul style="padding-left:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing or duplicate title tags</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Title tags outside 30–60 character range</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing or duplicated meta descriptions</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing H1 or multiple H1 tags per page</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Canonical tag absent or pointing elsewhere</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Unintentional noindex on important pages</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Broken internal links (4xx HTTP errors)</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Redirect chains wasting crawl budget</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Images with empty or missing alt text</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Thin content pages under 300 words</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing Open Graph or Twitter Card tags</li>
+        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Non-HTTPS pages or mixed content</li>
+      </ul>
+      <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:16px 0 0">
+        See the full list of detectable issues in the <a href="../features.html" style="color:var(--primary)">Features page</a>,
+        or read the <a href="../how-it-works.html" style="color:var(--primary)">How It Works guide</a> for a step-by-step walkthrough.
+      </p>
+    </section>
+
   </div>
 </section>
 <!-- ══ END SEO LANDING CONTENT ══════════════════════════════════════════════ -->
+</main>
 
 <div style="display:none" id="dash-sec">
   <div class="sec-inner">

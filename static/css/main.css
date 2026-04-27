@@ -349,9 +349,11 @@ td.check-cell{width:28px;padding:7px 6px;}
 .faq-q:hover{background:rgba(255,255,255,.025);}
 .faq-chev{flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1px solid var(--ghost);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;transition:transform .25s,border-color .2s,color .2s;}
 .faq-item.open .faq-chev{transform:rotate(180deg);border-color:rgba(99,102,241,.35);color:var(--primary);}
-.faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+.faq-a{max-height:none;overflow:visible;}
 .faq-a-in{padding:0 22px 18px;font-size:13px;color:var(--dim);line-height:1.8;border-top:1px solid var(--ghost);padding-top:14px;}
-.faq-item.open .faq-a{max-height:300px;}
+/* JS adds .faq-js-init to body once it runs — then collapse non-open items */
+.faq-js-init .faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+.faq-js-init .faq-item.open .faq-a{max-height:500px;overflow:visible;}
 
 /* ── CTA ── */
 .cta-wrap{margin:0 24px 80px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(128,131,255,.06));
@@ -1289,6 +1291,7 @@ body.app-mode #analyzer-sec,
 body.app-mode #faq,
 body.app-mode .cta-wrap,
 body.app-mode #seo-content-sec,
+body.app-mode #seo-main-content,
 body.app-mode footer,
 body.app-mode .bottom-nav,
 body.app-mode #cold-banner-landing{display:none!important;}

@@ -473,6 +473,11 @@ button{min-height:32px;}
 /* These functions are called via onclick attributes in the HTML body.
    Inlining them avoids any gap between HTML parse and user interaction,
    even before the deferred app.js executes. */
+// Mark body so CSS can collapse FAQ answers (progressive enhancement — answers visible without JS)
+document.documentElement.addEventListener('DOMContentLoaded',function(){
+  document.body.classList.add('faq-js-init');
+},false);
+document.body&&document.body.classList.add('faq-js-init');
 function startCrawlHero(){
   var raw=(document.getElementById('url-input').value||'').trim();
   if(!raw){document.getElementById('url-input').focus();return;}
@@ -573,8 +578,8 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
     AI-Powered Precision SEO Platform
     <span class="hero-badge-new">Free</span>
   </div>
-  <h1 class="reveal" style="animation-delay:.05s">Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
-  <p class="hero-sub reveal" style="animation-delay:.1s">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
+  <h1>Rank Higher with<br><span class="grad">Precision AI Audits</span></h1>
+  <p class="hero-sub">Enter any URL. Get a complete technical audit, AI-generated fixes, and a ranked action list — in under 2 minutes. No signup required.</p>
   <div class="hero-input-row reveal" id="hero-input-row" style="animation-delay:.15s">
     <div class="hero-input-wrap">
       <span class="material-symbols-outlined hero-input-icon" aria-hidden="true">language</span>
@@ -1144,24 +1149,82 @@ function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.class
   </div>
 </div>
 
-<!-- SEO CONTENT SECTION: keyword-rich, indexable -->
-<section id="seo-content-sec" aria-label="Why Technical SEO Professionals Use CrawlIQ">
+<!-- SEO CONTENT SECTION: keyword-rich, indexable, always visible -->
+<section id="seo-content-sec" aria-label="CrawlIQ — Technical SEO Audit Tool Overview">
   <div class="seo-content-inner">
-    <h2>Why Technical SEO Professionals Use CrawlIQ</h2>
+
+    <h2>What is CrawlIQ? — Free Technical SEO Audit Tool</h2>
+    <p style="font-size:15px;color:var(--dim);line-height:1.8;max-width:760px;margin:0 auto 32px">
+      CrawlIQ is a free, open-source AI-powered technical SEO platform built by
+      <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" rel="noopener" style="color:var(--primary)">Teki Bhavani Shankar</a>,
+      a Technical SEO Specialist. It gives every website owner access to the same audit depth
+      as Screaming Frog, SEMrush, and Ahrefs — at zero cost. Enter any URL to get a complete
+      technical analysis covering 50+ SEO signals, AI-generated fix recommendations, and a
+      downloadable Excel report.
+    </p>
+
     <div class="seo-content-grid">
       <div class="seo-para-card">
         <h3>Technical SEO Audit at Scale</h3>
-        <p>CrawlIQ is a free technical SEO audit tool that crawls entire websites in seconds. It surfaces indexing issues, broken canonicals, missing meta tags, and thin content — the same checks enterprise tools charge hundreds per month for. Whether you're fixing crawl budget optimization for a large e-commerce site or auditing a startup's first landing page, CrawlIQ gives you actionable data fast.</p>
+        <p>CrawlIQ crawls entire websites in seconds using an async Python BFS crawler. It surfaces indexing issues, broken canonicals, missing meta tags, redirect chains, and thin content — the same checks enterprise tools charge hundreds per month for. Whether you're fixing crawl budget issues on a large e-commerce site or auditing a startup's landing page, CrawlIQ gives you actionable data fast. Every page receives a score from 0–100 and an A–F grade across 9 technical dimensions.</p>
       </div>
       <div class="seo-para-card">
-        <h3>Free Site Crawler with AI Fixes</h3>
-        <p>Unlike other free site crawlers that stop at surface-level data, CrawlIQ pairs its crawl engine with AI models — Groq, Gemini, Claude, and OpenAI — to generate paste-ready content fixes. Run a Core Web Vitals checker pass, get per-page A–F grades, and export everything to Excel. Python SEO automation powers the backend, so every audit reflects real HTTP responses with no JavaScript rendering lag.</p>
+        <h3>Free AI-Powered SEO Fix Engine</h3>
+        <p>Unlike other free site crawlers that stop at surface-level data, CrawlIQ pairs its crawl engine with AI models — Groq (Llama 3), Gemini, Claude, and OpenAI — to generate paste-ready content fixes. Run a Core Web Vitals checker pass, get per-page A–F grades, and export everything to Excel. Python SEO automation powers the backend, so every audit reflects real HTTP responses. No JavaScript rendering lag, no rate-limited API tiers on the crawl engine itself.</p>
       </div>
       <div class="seo-para-card">
         <h3>Built for Real SEO Workflows</h3>
-        <p>CrawlIQ integrates crawl budget optimization signals, robots.txt validation, sitemap auditing, and duplicate content detection into one dashboard. It detects the indexing issues that manual site reviews miss — canonicalization loops, noindex leaks, redirect chains, and hreflang gaps. Designed by a working Technical SEO Specialist, every feature reflects real on-the-job needs rather than theoretical checklists.</p>
+        <p>CrawlIQ integrates crawl budget optimisation signals, robots.txt validation, sitemap auditing, and duplicate content detection into one dashboard. It detects the indexing issues that manual site reviews miss — canonicalisation loops, noindex leaks, redirect chains, and hreflang gaps. Designed by a working Technical SEO Specialist, every feature reflects real on-the-job needs rather than theoretical checklists. All crawl data is processed in isolated in-memory sessions and never stored permanently.</p>
       </div>
     </div>
+
+    <!-- Feature summary list — crawlable by Googlebot -->
+    <div style="margin-top:40px;padding-top:32px;border-top:1px solid rgba(99,102,241,.1)">
+      <h2 style="font-size:20px;font-weight:700;color:white;margin:0 0 20px;text-align:center">CrawlIQ Core Features</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:900px;margin:0 auto">
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">🕷️ Async Site Crawler</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">BFS crawl up to 500 pages. Handles SSL fallback, redirect chains, and concurrent fetching via Python aiohttp.</p>
+        </div>
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">🤖 Multi-Model AI Fixes</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Choose Groq, Gemini, Claude, or OpenAI. Each model returns paste-ready optimised titles, meta descriptions, and H1 rewrites.</p>
+        </div>
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">⚔️ Competitor Analysis</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Compare technical health, Core Web Vitals, and keyword coverage against up to three competitors side by side.</p>
+        </div>
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">📊 SERP Intelligence</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Analyse ranking pages for your target queries. Measure title competitiveness and surface ranking signals from top results.</p>
+        </div>
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">🔍 Keyword Gap Analysis</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Discover keywords competitors rank for that you don't. Filter by intent, volume tier, and difficulty to find ROI opportunities.</p>
+        </div>
+
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;padding:16px 18px">
+          <h3 style="font-size:13px;font-weight:700;color:var(--primary);margin:0 0 6px">📤 Excel Report Export</h3>
+          <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Download multi-sheet Excel workbooks: full audit, technical scores (0–100), A–F grades, AI fixes, and live optimisation table.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Internal links for crawl path discovery -->
+    <nav aria-label="Learn more" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:36px;padding-top:24px;border-top:1px solid rgba(99,102,241,.1)">
+      <a href="app/" style="font-size:13px;font-weight:700;color:var(--primary);padding:8px 20px;border:1px solid rgba(99,102,241,.3);border-radius:8px;text-decoration:none">⚡ Launch Free Audit</a>
+      <a href="features.html" style="font-size:13px;color:var(--dim);text-decoration:none">All Features →</a>
+      <a href="how-it-works.html" style="font-size:13px;color:var(--dim);text-decoration:none">How It Works →</a>
+      <a href="about.html" style="font-size:13px;color:var(--dim);text-decoration:none">About CrawlIQ →</a>
+      <a href="sitemap.html" style="font-size:13px;color:var(--dim);text-decoration:none">Site Map →</a>
+    </nav>
+
   </div>
 </section>
 
