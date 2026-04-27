@@ -120,11 +120,6 @@
   "url": "https://bhavani5a8.github.io/crawliq.io/",
   "description": "Open-source technical SEO evaluation reference by Teki Bhavani Shankar. Examine on-page signals, identify structural issues, receive AI remediation guidance.",
   "inLanguage": "en",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "CrawlIQ",
-    "url": "https://bhavani5a8.github.io/crawliq.io/"
-  },
   "breadcrumb": {
     "@type": "BreadcrumbList",
     "itemListElement": [{
@@ -149,7 +144,7 @@
   "@type": "Person",
   "name": "Teki Bhavani Shankar",
   "jobTitle": "Technical SEO Specialist",
-  "description": "Technical SEO Specialist and developer based in India. Built CrawlIQ — a free, open-source AI-powered SEO audit platform.",
+  "description": "Technical SEO Specialist and developer based in India. Built CrawlIQ — a free, open-source AI-powered technical SEO evaluation reference.",
   "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
   "sameAs": [
     "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
@@ -302,25 +297,11 @@ footer nav{display:contents;}
   color:var(--dim);font-weight:600;flex-shrink:0;}
 .sys-active-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);
   animation:ping 2s ease-in-out infinite;flex-shrink:0;}
-.nav-links{display:none;gap:24px;margin-left:8px;}
-@media(min-width:768px){.nav-links{display:flex;}}
+.nav-links{display:flex;gap:24px;margin-left:8px;flex-wrap:wrap;}
+
 .nav-links a{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s;}
 .nav-links a:hover,.nav-links a.active{color:var(--primary);}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
-/* ── Landing nav hamburger (mobile only) ── */
-.nav-hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--text);}
-.nav-hamburger span{display:block;width:22px;height:2px;background:currentColor;border-radius:1px;transition:all .2s;}
-@media(min-width:768px){.nav-hamburger{display:none;}}
-.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
-.mob-overlay.open{display:block;}
-.mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid rgba(70,69,84,.15);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
-.mob-drawer.open{left:0;}
-.mob-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(70,69,84,.15);min-height:64px;}
-.mob-drawer-logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--headline);font-weight:800;font-size:16px;color:var(--primary);letter-spacing:-.3px;}
-.mob-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;}
-.mob-nav-link{display:flex;align-items:center;gap:10px;padding:13px 20px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;border-bottom:1px solid rgba(70,69,84,.12);transition:color .15s,background .15s;}
-.mob-nav-link:hover{color:var(--text);background:rgba(70,69,84,.1);}
-.mob-drawer-auth{display:flex;flex-direction:column;gap:8px;padding:16px 20px;}
 .btn-nav-cta{background:var(--primary);color:#1a1c40;
   font-family:var(--headline);font-weight:700;font-size:13px;padding:9px 22px;
   border-radius:var(--r-xl);border:none;cursor:pointer;text-decoration:none;
@@ -432,14 +413,6 @@ function startCrawlHero(){
   var url=raw.startsWith('http')?raw:'https://'+raw;
   window.location.href='app/?url='+encodeURIComponent(url);
 }
-function toggleLandingMobileNav(){
-  document.getElementById('landing-mob-drawer').classList.toggle('open');
-  document.getElementById('landing-mob-overlay').classList.toggle('open');
-}
-function closeLandingMobileNav(){
-  document.getElementById('landing-mob-drawer').classList.remove('open');
-  document.getElementById('landing-mob-overlay').classList.remove('open');
-}
 function toggleFaq(item){
   var isOpen=item.classList.contains('open');
   document.querySelectorAll('.faq-item').forEach(function(i){
@@ -472,39 +445,17 @@ function toggleFaq(item){
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-right">
-    <button class="nav-hamburger" onclick="toggleLandingMobileNav()" aria-label="Open menu">
-      <span></span><span></span><span></span>
-    </button>
     <a class="ai-pill" href="app/" title="Open CrawlIQ App" style="text-decoration:none">
       <div class="ai-pill-dot"></div>
       <span class="gemini-pill">CrawlIQ App</span>
     </a>
     <!-- Unauthenticated state -->
-    <div id="nav-auth-guest" style="display:flex;gap:8px;align-items:center">
+    <div id="nav-guest-cta" style="display:flex;gap:8px;align-items:center">
       <a class="btn btn-outline btn-sm" href="app/" style="font-size:11px;text-decoration:none">Open App</a>
 <a class="btn-nav-cta" href="app/" style="text-decoration:none">⚡ Assess Site</a>
     </div>
 </nav>
 
-<!-- Mobile nav overlay + drawer -->
-<div class="mob-overlay" id="landing-mob-overlay" onclick="closeLandingMobileNav()"></div>
-<aside class="mob-drawer" id="landing-mob-drawer" role="navigation" aria-label="Mobile navigation">
-  <div class="mob-drawer-head">
-    <a class="mob-drawer-logo" href="#">
-      <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>CrawlIQ
-    </a>
-    <button class="mob-close" onclick="closeLandingMobileNav()" aria-label="Close menu">✕</button>
-  </div>
-  <a class="mob-nav-link" href="app/">SEO Assessment</a>
-  <a class="mob-nav-link" href="#tools-suite" onclick="closeLandingMobileNav()">Tools</a>
-  <a class="mob-nav-link" href="features.html" onclick="closeLandingMobileNav()">Features</a>
-  <a class="mob-nav-link" href="#checklist-sec" onclick="closeLandingMobileNav()">Checklist</a>
-  <a class="mob-nav-link" href="#pricing" onclick="closeLandingMobileNav()">Pricing</a>
-  <div class="mob-drawer-auth">
-    <a class="btn btn-outline btn-sm" href="app/" onclick="closeLandingMobileNav()" style="text-decoration:none;text-align:center">Open App</a>
-    <a class="btn-nav-cta" href="app/" onclick="closeLandingMobileNav()" style="text-decoration:none;text-align:center">⚡ Assess Free</a>
-  </div>
-</aside>
 
 <!-- HERO -->
 <section class="hero">
@@ -938,7 +889,7 @@ function toggleFaq(item){
     <div class="sec-hd">
       <div class="sec-lbl lbl-c">SEO STANDARDS</div>
       <h2>What Good SEO Meta Tags Look Like</h2>
-      <p>Title tags, meta descriptions, and H1s are the first signals Google reads. Getting them right is the foundation of any technical SEO audit.</p>
+      <p>Title tags, meta descriptions, and H1s are the first signals Google reads. Getting them right is the foundation of any technical SEO evaluation.</p>
     </div>
     <div class="meta-standards-grid">
       <div class="ms-card">
@@ -1037,54 +988,30 @@ function toggleFaq(item){
       <p>Common questions about the CrawlIQ technical SEO evaluation reference</p>
     </div>
     <div class="faq-list">
-      <div class="faq-item open" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);flex-shrink:0;margin-right:10px">psychology</span>
-          How does CrawlIQ's AI SEO evaluation work?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_less</span></div>
-        </div>
+      <details class="faq-item" open>
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);flex-shrink:0;margin-right:10px">psychology</span>How does CrawlIQ's AI SEO evaluation work?</summary>
         <div class="faq-a"><div class="faq-a-in">CrawlIQ examines each page of a website using an async BFS evaluation engine and sends each page's signal data to an AI model — Groq (Llama 3), Gemini, OpenAI, or Claude (configurable). The AI evaluates content quality, keyword alignment, readability, and semantic relevance, then produces structured remediation recommendations ranked by impact. Output includes optimised title tags, meta descriptions, H1 rewrites, and content guidance.</div></div>
-      </div>
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">bug_report</span>
-          What SEO issues does CrawlIQ identify?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
-        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">bug_report</span>What SEO issues does CrawlIQ identify?</summary>
         <div class="faq-a"><div class="faq-a-in">CrawlIQ identifies 15+ issue categories: missing or oversized title tags, missing meta descriptions, missing or multiple H1 tags, no H2 structure, canonical tag issues, duplicate meta descriptions across pages, pages returning 4xx/5xx errors, thin content (under 300 words), images missing alt text, HTTP instead of HTTPS, and URL structure issues like underscores or excessive depth.</div></div>
-      </div>
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">download</span>
-          What data formats can I export?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
-        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">download</span>What data formats can I export?</summary>
         <div class="faq-a"><div class="faq-a-in">CrawlIQ exports structured Excel (.xlsx) reference documents: a Full SEO Report with all evaluated pages, issues, and AI remediation guidance; a Per-Field Issues Report; a Remediation Table with optimised content; and a Technical SEO Assessment with per-page scores (0–100), letter grades (A–F), indexability status, and component-level breakdowns.</div></div>
-      </div>
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">travel_explore</span>
-          How many pages can the evaluation engine process?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
-        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">travel_explore</span>How many pages can the evaluation engine process?</summary>
         <div class="faq-a"><div class="faq-a-in">CrawlIQ is free with no credit card required. As a guest you can evaluate up to 50 pages per session — enough for most small to medium sites. Creating a free account raises this to 200 pages per month with project saving and position tracking. Pro and Agency plans are available for larger sites. The evaluation engine uses breadth-first search from your root URL, follows internal links, and handles SSL failures with automatic HTTP fallback.</div></div>
-      </div>
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">lock</span>
-          Is my website data secure and private?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
-        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">lock</span>Is my website data secure and private?</summary>
         <div class="faq-a"><div class="faq-a-in">Yes. All evaluation data is processed in isolated in-memory sessions and never stored permanently or shared. Data exists only for the duration of your session and is cleared when a new evaluation begins. CrawlIQ is fully open-source on GitHub and hosted on HuggingFace Spaces — you can review every line of code.</div></div>
-      </div>
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">javascript</span>
-          Does CrawlIQ support JavaScript-rendered sites?
-          <div class="faq-chev"><span class="material-symbols-outlined" style="font-size:18px">expand_more</span></div>
-        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-q"><span class="material-symbols-outlined" style="font-size:18px;color:var(--muted);flex-shrink:0;margin-right:10px">javascript</span>Does CrawlIQ support JavaScript-rendered sites?</summary>
         <div class="faq-a"><div class="faq-a-in">CrawlIQ uses an aiohttp-based async evaluation engine with BeautifulSoup for HTML parsing. It works best with server-side rendered, static, and WordPress sites, extracting titles, meta tags, headings, canonicals, Open Graph tags, body text, and image alt texts. For heavily client-side SPAs, enabling server-side rendering gives the best evaluation coverage.</div></div>
-      </div>
+      </details>
     </div>
   </div>
 </section>
@@ -1170,7 +1097,7 @@ function toggleFaq(item){
       </div>
     </div>
 
-    <!-- Internal links for crawl path discovery -->
+    <!-- Internal navigation links -->
     <nav aria-label="Learn more" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:36px;padding-top:24px;border-top:1px solid rgba(99,102,241,.1)">
       <a href="app/" style="font-size:13px;font-weight:700;color:var(--primary);padding:8px 20px;border:1px solid rgba(99,102,241,.3);border-radius:8px;text-decoration:none">⚡ Begin Free Assessment</a>
       <a href="features.html" style="font-size:13px;color:var(--dim);text-decoration:none">All Features →</a>

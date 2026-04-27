@@ -173,13 +173,13 @@
     <p>The reference site uses a strict three-layer architecture:</p>
     <ul>
       <li><strong>Tier A — Indexed documentation pages</strong>: The homepage, Capabilities, Methodology, and About pages. Each has a unique title tag, meta description, canonical URL, structured data schema, and 1,000+ words of crawlable body content. No interactive widgets or app-layer UI in these pages' DOM.</li>
-      <li><strong>Tier B — App layer (noindex)</strong>: The <code>/app/</code> dashboard is marked <code>noindex, follow</code>. It contains the full assessment interface but carries no SEO content, schemas, or canonical signals. Googlebot reads it but does not index it — intentional separation of application UI from ranking documentation content.</li>
+      <li><strong>Tier B — App layer (noindex)</strong>: The <code>/app/</code> assessment interface is marked <code>noindex, follow</code>. It contains the full assessment interface but carries no SEO content, schemas, or canonical signals. Googlebot reads it but does not index it — intentional separation of application UI from ranking documentation content.</li>
       <li><strong>Tier C — Blocked</strong>: Backend API endpoints, static assets, and admin paths are blocked in <code>robots.txt</code> and excluded from the XML sitemap.</li>
     </ul>
     <p>Every JSON-LD schema block is placed only on pages where it accurately describes the content: <code>WebPage</code> and <code>FAQPage</code> on the homepage, <code>HowTo</code> on the How It Works page, <code>FAQPage</code> where FAQ content exists, and <code>BreadcrumbList</code> on all Tier A sub-pages. This mirrors the schema discipline expected of any serious SEO implementation.</p>
 
     <h2>Skills Demonstrated by Building CrawlIQ</h2>
-    <p>CrawlIQ was designed to be a concrete, auditable demonstration of Technical SEO and full-stack development skills applied to a real problem. The areas covered include:</p>
+    <p>CrawlIQ was designed to be a concrete, verifiable demonstration of Technical SEO and full-stack development skills applied to a real problem. The areas covered include:</p>
     <ul>
       <li><strong>Technical SEO</strong>: Evaluation budget management, canonical architecture, structured data implementation, Core Web Vitals optimisation, robots.txt strategy, XML sitemap management, and schema discipline across a multi-page site</li>
       <li><strong>Async Python</strong>: BFS evaluation engine built with <code>aiohttp</code> and <code>asyncio</code>; concurrent HTTP processing with per-domain rate limiting and SSL fallback handling</li>
