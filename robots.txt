@@ -1,7 +1,57 @@
 User-agent: *
-Allow: /
 
-# Block access to backend API and Python source files
+# Static assets — no SEO value, waste crawl budget
+Disallow: /static/
+Disallow: /static/css/
+Disallow: /static/js/
+Disallow: /static/fonts/
+
+# Backend Python source + build artifacts
 Disallow: /backend/
 
-Sitemap: https://crawliq.io/sitemap.xml
+# API endpoints — return JSON not HTML
+Disallow: /crawl
+Disallow: /crawl-status
+Disallow: /crawl-stream/
+Disallow: /results
+Disallow: /analyze
+Disallow: /optimize
+Disallow: /optimize-status
+Disallow: /technical-seo
+Disallow: /site-audit
+Disallow: /competitor/
+Disallow: /gemini-status
+Disallow: /ai-config
+Disallow: /set-api-key
+Disallow: /export
+Disallow: /healthz
+Disallow: /serp
+Disallow: /serp-track
+Disallow: /serp_engine
+
+# FastAPI auto-generated docs — expose schema + soft-404 for Googlebot
+Disallow: /docs
+Disallow: /redoc
+Disallow: /openapi.json
+Disallow: /api/
+
+# Debug / dev artifacts
+Disallow: /debug/
+Disallow: /?debug=
+Disallow: /?test=
+
+# Infinite URL space — query params create duplicate crawl paths
+Disallow: /*?url=
+Disallow: /*?job_id=
+Disallow: /*?format=
+
+# Allow only real content pages
+Allow: /
+Allow: /index.html
+Allow: /app/
+
+Sitemap: https://bhavani5a8.github.io/crawliq.io/sitemap.xml
+
+# Block Lighthouse bots from draining the 25,000/day PSI quota
+User-agent: Chrome-Lighthouse
+Disallow: /

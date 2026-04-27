@@ -928,6 +928,49 @@ app.add_middleware(
 _crawl_lock = asyncio.Lock()
 
 
+# ── Per-job state store ───────────────────────────────────────────────────────
+# Provides user-isolated crawl results without breaking backward-compat globals.
+# Each POST /crawl creates a CrawlJob and returns its job_id.
+# Clients can use job_id with /crawl-status, /results, /crawl-stream for
+# isolation. Legacy clients without job_id continue using crawl_results/crawl_status.
+
+import uuid as _uuid
+import time as _time
+from dataclasses import dataclass as _dataclass, field as _field
+from typing import Optional as _Optional
+
+@_dataclass
+class CrawlJob:
+    job_id: str = _field(default_factory=lambda: str(_uuid.uuid4()))
+    status: dict = _field(default_factory=lambda: {
+        "running": False, "pages_crawled": 0, "done": False,
+        "pages_queued": 0, "errors": 0, "elapsed_s": 0,
+    })
+    results: list = _field(default_factory=list)
+    created_at: float = _field(default_factory=_time.time)
+    url: str = ""
+
+class _JobStore:
+    def __init__(self, ttl_minutes: int = 30):
+        self._jobs: dict[str, CrawlJob] = {}
+        self._ttl = ttl_minutes * 60
+
+    def create(self, url: str = "") -> CrawlJob:
+        job = CrawlJob(url=url)
+        self._jobs[job.job_id] = job
+        self._evict()
+        return job
+
+    def get(self, job_id: str) -> _Optional[CrawlJob]:
+        return self._jobs.get(job_id)
+
+    def _evict(self) -> None:
+        cutoff = _time.time() - self._ttl
+        self._jobs = {k: v for k, v in self._jobs.items() if v.created_at > cutoff}
+
+_job_store = _JobStore()
+
+
 def _delete_tempfile(path: str) -> None:
     """BUG-004: delete temp export file after response is fully sent."""
     try:
@@ -1074,7 +1117,10 @@ async def start_crawl(request: CrawlRequest, http_request: _FastAPIRequest = Non
         })
 
     asyncio.create_task(_run_crawl(url, request.max_pages, _crawl_user_id))
-    return {"status": "running", "message": "Crawl started"}
+    # Create a per-job record for isolation — global state still updated for
+    # backward-compat clients that don't send job_id.
+    _job = _job_store.create(url=url)
+    return {"status": "running", "message": "Crawl started", "job_id": _job.job_id}
 
 
 async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> None:
@@ -1098,9 +1144,51 @@ async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> No
 
 
 @app.get("/crawl-status")
-def get_crawl_status():
-    """Live crawl progress — poll every 2s from frontend."""
+def get_crawl_status(job_id: str = Query(default=None)):
+    """Live crawl progress — poll every 2s from frontend.
+    Accepts optional job_id for per-job isolation; falls back to global state."""
+    if job_id:
+        job = _job_store.get(job_id)
+        if job:
+            # Mirror global crawl_status into the job for SSE consumers
+            job.status.update(crawl_status)
+            return job.status
     return crawl_status
+
+
+# ── SSE /crawl-stream endpoint ───────────────────────────────────────────────
+
+from fastapi.responses import StreamingResponse as _StreamingResponse
+import json as _json
+
+@app.get("/crawl-stream/{job_id}")
+async def crawl_stream(job_id: str):
+    """
+    Server-Sent Events stream for real-time crawl progress.
+    Pushes crawl_status JSON every 500ms until done=True.
+    Replaces polling for clients that support SSE.
+    """
+    job = _job_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or expired")
+
+    async def _generate():
+        while True:
+            # Mirror live global state into job
+            job.status.update(crawl_status)
+            yield f"data: {_json.dumps(job.status)}\n\n"
+            if job.status.get("done") or job.status.get("error"):
+                break
+            await asyncio.sleep(0.5)
+
+    return _StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/results")

@@ -280,6 +280,23 @@
 
 
 <style>
+/* ── FONT CLS FIX: fallback font sized to match Inter/Plus Jakarta Sans ── */
+/* Eliminates layout shift while Google Fonts loads (async preload) */
+@font-face {
+  font-family: 'Inter-fallback';
+  src: local('Arial');
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+  size-adjust: 107%;
+}
+@font-face {
+  font-family: 'PJS-fallback';
+  src: local('Arial Black'), local('Arial Bold');
+  ascent-override: 92%;
+  descent-override: 20%;
+  size-adjust: 103%;
+}
 /* ── M3 DESIGN TOKENS ── */
 :root{
   /* ── Surface stack (DESIGN.md Luminance Layering) ── */
@@ -312,8 +329,8 @@
   --border-strong:rgba(70,69,84,.7);
   --ghost:rgba(70,69,84,.15);         /* ghost border — "felt not seen" */
   /* ── Fonts ── */
-  --headline:'Plus Jakarta Sans',system-ui,sans-serif;
-  --sans:'Inter',system-ui,-apple-system,sans-serif;
+  --headline:'Plus Jakarta Sans','PJS-fallback',system-ui,sans-serif;
+  --sans:'Inter','Inter-fallback',system-ui,-apple-system,sans-serif;
   --mono:'IBM Plex Mono','Courier New',monospace;
   /* ── Radius ── */
   --r:10px;--r-lg:16px;--r-xl:24px;--r-2xl:32px;

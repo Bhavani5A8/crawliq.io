@@ -1,6 +1,9 @@
 /* CrawlIQ app.js v1.0.2 */
 const API = 'https://bhavani7-seo-project.hf.space';
 let allResults=[], sortKey='', sortAsc=true, crawlTimer=null, geminiTimer=null;
+let _tableRows=[], _tablePage=0;
+const _TABLE_PAGE_SIZE=50;
+let _sseSource=null, _currentJobId=null;
 let selectedUrls=new Set(), popupPages=[], popupIndex=0, maxPages=50;
 let optimizerRows=[], optTimer=null;
 
@@ -134,6 +137,8 @@ async function startCrawl() {
   try {
     const res = await fetch(`${API}/crawl`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url, max_pages:maxPages }) });
     if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
+    const data = await res.json().catch(()=>({}));
+    _currentJobId = data.job_id || null;
     startCrawlPolling();
   } catch (e) {
     bar('c', false, `✗ ${e.message}`);
@@ -144,9 +149,51 @@ async function startCrawl() {
 }
 
 function startCrawlPolling() {
+  // Try SSE stream first — falls back to polling if endpoint not available
+  if (_currentJobId) {
+    _closeSse();
+    try {
+      _sseSource = new EventSource(`${API}/crawl-stream/${_currentJobId}`);
+      _sseSource.onmessage = async (e) => {
+        try {
+          const s = JSON.parse(e.data);
+          updateProgress(s);
+          const live = await (await fetch(`${API}/results/live`)).json();
+          if (live.results && live.results.length > allResults.length) { allResults = live.results; applyFilters(); updateSummary(allResults); }
+          if (s.error) { _closeSse(); bar('c', false, `✗ ${s.error}`); btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:1,serp:1}); showProgress(false); }
+          if (s.done) {
+            _closeSse(); await loadResults();
+            const realPages = allResults.filter(r => r.status_code===200||r.status_code==='200');
+            const elapsed = s.elapsed_s||0;
+            if (!allResults.length) bar('c', false, '⚠ Site unreachable — check the URL');
+            else if (!realPages.length) bar('c', false, `⚠ ${allResults.length} pages recorded but none loaded successfully`);
+            else {
+              const t = s.timeouts>0 ? ` · ${s.timeouts} timeout${s.timeouts!==1?'s':''}` : '';
+              const er = s.errors>0 ? ` · ${s.errors} error${s.errors!==1?'s':''}` : '';
+              bar('c', false, `✓ ${realPages.length} pages crawled in ${elapsed}s${t}${er}`);
+              btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:0,serp:0});
+            }
+            btnSet('crawl-btn', false); showProgress(false);
+          }
+        } catch {}
+      };
+      _sseSource.onerror = () => { _closeSse(); _startCrawlPollingFallback(); };
+      return;
+    } catch {}
+  }
+  _startCrawlPollingFallback();
+}
+
+function _closeSse() {
+  if (_sseSource) { _sseSource.close(); _sseSource = null; }
+}
+
+function _startCrawlPollingFallback() {
+  if (crawlTimer) clearInterval(crawlTimer);
   crawlTimer = setInterval(async () => {
     try {
-      const s = await (await fetch(`${API}/crawl-status`)).json();
+      const statusUrl = _currentJobId ? `${API}/crawl-status?job_id=${_currentJobId}` : `${API}/crawl-status`;
+      const s = await (await fetch(statusUrl)).json();
       updateProgress(s);
       const live = await (await fetch(`${API}/results/live`)).json();
       if (live.results && live.results.length > allResults.length) { allResults = live.results; applyFilters(); updateSummary(allResults); }
@@ -214,6 +261,57 @@ async function loadResults() {
   const data=await(await fetch(`${API}/results`)).json();
   allResults=data.results||[];
   updateSummary(allResults); applyFilters();
+  flagXRobotsIssues(data);
+  flagCanonicalIssues(data);
+  loadTechnicalDeep();
+}
+
+// Flags pages where X-Robots-Tag HTTP header says noindex
+// (crawl_engine.py already captures this in meta_robots — display it here)
+function flagXRobotsIssues(data) {
+  const pages = data.results || data.pages || [];
+  const bad = pages.filter(p => {
+    const mr = (p.meta_robots||'').toLowerCase();
+    return mr.includes('noindex');
+  });
+  if (!bad.length) return;
+  const techEl = document.getElementById('tech-summary-text');
+  if (techEl) {
+    const cur = techEl.textContent||'';
+    techEl.textContent = cur + ` · ${bad.length} X-Robots noindex conflict(s)`;
+  }
+}
+
+// Surfaces canonical chain issues returned by backend
+function flagCanonicalIssues(data) {
+  const pages = data.results || data.pages || [];
+  const bad = pages.filter(p => p.canonical_status && p.canonical_status !== 'ok' && p.canonical_status !== 'self');
+  if (!bad.length) return;
+  const techEl = document.getElementById('tech-summary-text');
+  if (techEl) {
+    const cur = techEl.textContent||'';
+    techEl.textContent = cur + ` · ${bad.length} canonical chain issue(s)`;
+  }
+}
+
+// Calls /technical-seo for richer issue data; falls back gracefully to /results data
+async function loadTechnicalDeep() {
+  try {
+    const urlInput = document.getElementById('url-input-app') || document.getElementById('url-input');
+    const url = urlInput ? urlInput.value.trim() : (allResults[0]&&allResults[0].url)||'';
+    if (!url) return;
+    const res = await fetch(`${API}/technical-seo`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    const deepIssues = d.issues || d.technical_issues || [];
+    if (deepIssues.length > 0) {
+      const techEl = document.getElementById('tech-summary-text');
+      if (techEl) techEl.textContent = `${deepIssues.length} issues (deep audit · ${d.pages_checked||'?'} pages)`;
+    }
+  } catch {}
 }
 
 function applyFilters() {
@@ -229,15 +327,23 @@ function applyFilters() {
 }
 
 function renderTable(rows) {
+  _tableRows = rows;
+  _tablePage = 0;
+  _renderTablePage();
+}
+
+function _renderTablePage() {
+  const rows = _tableRows;
   const tb=document.getElementById('results-body');
-  if(!rows.length){tb.innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="icon">🔍</div><p>No results yet. Enter a URL above and crawl.</p></div></td></tr>`;return;}
-  tb.innerHTML=rows.map(r=>{
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="icon">🔍</div><p>No results yet. Enter a URL above and crawl.</p></div></td></tr>`;
+    _renderTablePagination(0,0); return;}
+  const start=_tablePage*_TABLE_PAGE_SIZE, slice=rows.slice(start,start+_TABLE_PAGE_SIZE);
+  tb.innerHTML=slice.map(r=>{
     const h1=Array.isArray(r.h1)?r.h1[0]||'—':r.h1||'—';
     const aiFix=(r.gemini_fields||[]).filter(f=>f.issue!=='OK'&&(f.fix||f.suggestion)).map(f=>f.fix||f.suggestion).join(' · ');
     const hasIss=r.issues&&r.issues.length>0;
     const sel=selectedUrls.has(r.url);
     const score=r.ranking?`<span class="score-pill score-${r.ranking.grade.toLowerCase()}">${r.ranking.score} ${r.ranking.grade}</span>`:'—';
-    // Issue status dropdown — reads from _issueStatusCache
     const statusKey = r.url+'|'+(r.issues&&r.issues[0]||'');
     const savedStatus = window._issueStatusCache?.[statusKey] || 'open';
     const statusDrop = hasIss
@@ -265,6 +371,24 @@ function renderTable(rows) {
       <td>${hasIss?`<button class="popup-btn" onclick="openPopupForUrl('${escJ(r.url)}')">View →</button>`:'<span style="color:var(--dark-muted);font-size:10px">—</span>'}</td>
     </tr>`;
   }).join('');
+  _renderTablePagination(rows.length, Math.ceil(rows.length/_TABLE_PAGE_SIZE));
+}
+
+function _renderTablePagination(total, pages) {
+  const el = document.getElementById('table-pagination');
+  if (!el) return;
+  el.innerHTML = pages > 1 ? `
+    <div style="display:flex;gap:8px;padding:10px 0;font-size:11px;align-items:center;font-family:var(--mono);">
+      <button class="btn btn-outline btn-sm" onclick="_tableGo(-1)" ${_tablePage===0?'disabled':''}>← Prev</button>
+      <span style="color:var(--dim);">Page ${_tablePage+1} of ${pages} &middot; ${total} pages total</span>
+      <button class="btn btn-outline btn-sm" onclick="_tableGo(1)" ${_tablePage>=pages-1?'disabled':''}>Next →</button>
+    </div>` : '';
+}
+
+function _tableGo(dir) {
+  const pages=Math.ceil(_tableRows.length/_TABLE_PAGE_SIZE);
+  _tablePage=Math.max(0,Math.min(pages-1,_tablePage+dir));
+  _renderTablePage();
 }
 
 function toggleSelect(url,cb){

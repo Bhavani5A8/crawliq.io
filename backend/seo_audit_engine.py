@@ -214,6 +214,14 @@ def run_full_audit(
     real_pages = [p for p in pages if not p.get("_is_error")]
     _errors: list[str] = []
 
+    # ── Annotate canonical chains on real pages ────────────────────────────────
+    # Attaches canonical_status / canonical_chain fields so the frontend and
+    # downstream audit rules can surface loop / broken_target / too_deep issues.
+    try:
+        _annotate_canonical_chains(real_pages)
+    except Exception:
+        pass  # Non-fatal — audit continues without chain annotations
+
     # ── Run sub-validators (or use pre-computed results) ──────────────────────
     if tech_audit is None:
         try:
@@ -1049,6 +1057,59 @@ def _check_sitemap_indexability(
         "impact":           "Sitemap should only list indexable 200-OK pages — noindex/error URLs waste crawl budget",
         "fix":              "Audit sitemap against live crawl results and remove non-indexable URLs",
     }
+
+
+def resolve_canonical_chain(
+    start_url: str,
+    all_pages: dict,
+    max_hops: int = 5,
+) -> tuple[list[str], str]:
+    """
+    Walk the canonical chain from start_url and return (chain, status).
+
+    Status values:
+      'ok'             — canonical resolves to itself or a single valid target
+      'self'           — canonical points back to start_url (self-referencing, OK)
+      'loop'           — circular canonical reference detected
+      'broken_target'  — canonical points to a URL not in the crawled set
+      'too_deep'       — chain exceeds max_hops (likely a misconfiguration)
+    """
+    chain = [start_url]
+    current = start_url
+
+    for _ in range(max_hops):
+        page = all_pages.get(current)
+        if not page:
+            return chain, "broken_target"
+
+        canonical = (page.get("canonical") or "").strip().rstrip("/")
+        current_norm = current.rstrip("/")
+
+        if not canonical or canonical == current_norm:
+            status = "self" if (canonical == start_url.rstrip("/") and len(chain) == 1) else "ok"
+            return chain, status
+
+        if canonical in [c.rstrip("/") for c in chain]:
+            return chain + [canonical], "loop"
+
+        chain.append(canonical)
+        current = canonical
+
+    return chain, "too_deep"
+
+
+def _annotate_canonical_chains(real_pages: list[dict]) -> None:
+    """
+    Walk canonical chains for every page in the crawled set.
+    Attaches canonical_status and canonical_chain fields in-place.
+    Called during audit so frontend can display chain issues.
+    """
+    pages_by_url = {(p.get("url") or "").rstrip("/"): p for p in real_pages}
+    for page in real_pages:
+        url = (page.get("url") or "").rstrip("/")
+        chain, status = resolve_canonical_chain(url, pages_by_url)
+        page["canonical_status"] = status
+        page["canonical_chain"] = chain if status not in ("ok", "self") else []
 
 
 def _check_canonical_noindex(real_pages: list[dict]) -> dict:
