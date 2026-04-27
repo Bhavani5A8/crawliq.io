@@ -15,11 +15,15 @@
 
 <!-- ── OPEN GRAPH ────────────────────────────────────────────────────────── -->
 <meta property="og:type" content="website"/>
-<meta property="og:title" content="CrawlIQ — Free AI Technical SEO Audit Tool | Built by Teki Bhavani Shankar"/>
-<meta property="og:description" content="Free AI-powered SEO crawler built by Technical SEO Specialist Teki Bhavani Shankar. Crawl any site, detect 50+ issues, get AI fixes from Claude, Gemini &amp; Groq. No signup needed."/>
-<meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/"/>
+<meta property="og:title" content="CrawlIQ SEO Audit Dashboard — Free Technical SEO Tool"/>
+<meta property="og:description" content="Launch CrawlIQ's free AI SEO audit dashboard. Crawl any website, detect 50+ technical issues, get AI-generated fixes from Claude, Gemini &amp; Groq. No signup."/>
+<meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/app/"/>
 <meta property="og:site_name" content="CrawlIQ"/>
 <meta property="og:locale" content="en_US"/>
+<meta property="og:image" content="https://bhavani5a8.github.io/crawliq.io/static/img/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="CrawlIQ SEO Audit Dashboard — Free Technical SEO Tool"/>
 
 <!-- ── TWITTER CARD ──────────────────────────────────────────────────────── -->
 <meta name="twitter:card" content="summary_large_image"/>
@@ -447,6 +451,14 @@ button{min-height:32px;}
 nav{min-height:64px;}
 .ai-pill{min-height:32px;}
 .hero-input-row{min-height:64px;}
+/* ── SEO-FIRST ARCHITECTURE ─────────────────────────────────────────────────
+   App panels are hidden in the initial HTML response.
+   Googlebot (HTML-only pass) sees only #seo-main-content.
+   When JS executes, document.body.classList.add('app-mode') triggers
+   main.css rules that show the panels and hide the SEO section. ── */
+#dash-sec,
+#popup-overlay,
+#eoverlay{display:none;}
 </style>
 <!-- ── Critical JS (inline — nav/button/input handlers, <1KB) ─────────────── -->
 <script>

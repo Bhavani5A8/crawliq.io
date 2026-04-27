@@ -1269,6 +1269,11 @@ body.app-mode{
 /* Topbar visible in app mode */
 body.app-mode .app-topbar{display:flex!important;}
 
+/* Restore app panels hidden by SEO-first initial CSS */
+body.app-mode #dash-sec{display:block!important;}
+body.app-mode #popup-overlay,
+body.app-mode #eoverlay{display:block!important;}
+
 /* Dashboard padding when in app mode (topbar = 64px main + ~40px tabs = 112px total) */
 body.app-mode #dash-sec{padding-top:116px;}
 body.app-mode #serp-intel-sec{padding-top:0;}
