@@ -26,6 +26,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Stamp sitemap lastmod with deploy date
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          sed -i "s|<lastmod>[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}</lastmod>|<lastmod>${TODAY}</lastmod>|g" sitemap.xml
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
