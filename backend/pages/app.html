@@ -15,8 +15,14 @@
   href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
   onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/></noscript>
-<link rel="stylesheet" href="/static/css/app-panels.css"/>
-<link rel="stylesheet" href="/static/css/main.css"/>
+<link rel="preload" as="style"
+  href="/static/css/app-panels.css?v=1.0.3"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="/static/css/app-panels.css?v=1.0.3"/></noscript>
+<link rel="preload" as="style"
+  href="/static/css/main.css?v=1.0.3"
+  onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="/static/css/main.css?v=1.0.3"/></noscript>
 </head>
 <body>
 
@@ -870,10 +876,13 @@
   </a>
 </nav>
 
-<!-- JS: chart.js first (deferred, app.js depends on it), then auth utils, then app logic -->
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script defer src="/static/js/api.js"></script>
-<script defer src="/static/js/app.js"></script>
+<!-- JS: app modules in load order (core → crawl → ui → dashboard) -->
+<!-- chart.js CDN removed: charts use echarts (lazy-loaded) + raw Canvas API, not chart.js -->
+<script defer src="/static/js/api.js?v=1.0.3"></script>
+<script defer src="/static/js/core.js?v=1.0.3"></script>
+<script defer src="/static/js/crawl.js?v=1.0.3"></script>
+<script defer src="/static/js/ui.js?v=1.0.3"></script>
+<script defer src="/static/js/dashboard.js?v=1.0.3"></script>
 <script>
 /* URL param handling — read ?url= and pre-fill the input */
 (function(){

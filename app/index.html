@@ -1325,7 +1325,11 @@ function closeAiSetup(){
 
 
 <!-- ══ DEFERRED SCRIPTS ════════════════════════════════════════════════════ -->
-<script src="../static/js/app.js?v=1.0.4" defer></script>
+<!-- Load order: core → crawl → ui → dashboard (deferred scripts run in document order) -->
+<script defer src="../static/js/core.js?v=1.0.3"></script>
+<script defer src="../static/js/crawl.js?v=1.0.3"></script>
+<script defer src="../static/js/ui.js?v=1.0.3"></script>
+<script defer src="../static/js/dashboard.js?v=1.0.3"></script>
 <script>
 (function(){
   function loadNC(){var s=document.createElement('script');s.src='../static/js/noncritical.js?v=1.0.4';s.defer=true;document.body.appendChild(s);}
