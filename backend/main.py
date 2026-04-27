@@ -947,6 +947,7 @@ class CrawlJob:
         "pages_queued": 0, "errors": 0, "elapsed_s": 0,
     })
     results: list = _field(default_factory=list)
+    ai_status: dict = _field(default_factory=dict)
     created_at: float = _field(default_factory=_time.time)
     url: str = ""
 
@@ -1116,14 +1117,13 @@ async def start_crawl(request: CrawlRequest, http_request: _FastAPIRequest = Non
             "processed": 0, "total": 0, "skipped": 0,
         })
 
-    asyncio.create_task(_run_crawl(url, request.max_pages, _crawl_user_id))
-    # Create a per-job record for isolation — global state still updated for
-    # backward-compat clients that don't send job_id.
+    # Create job BEFORE starting task so the task can snapshot results into it.
     _job = _job_store.create(url=url)
+    asyncio.create_task(_run_crawl(url, request.max_pages, _crawl_user_id, _job))
     return {"status": "running", "message": "Crawl started", "job_id": _job.job_id}
 
 
-async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> None:
+async def _run_crawl(url: str, max_pages: int, user_id: int | None = None, job: CrawlJob | None = None) -> None:
     """Background task: runs the async crawler, logs errors, records quota usage."""
     try:
         await SEOCrawler(url, max_pages=max_pages).crawl_async()
@@ -1138,9 +1138,16 @@ async def _run_crawl(url: str, max_pages: int, user_id: int | None = None) -> No
             pages_done = len(crawl_results)
             if pages_done > 0:
                 _auth_record_pages(user_id, pages_done)
+        # Snapshot global results into the job so they survive the next crawl's clear().
+        if job is not None:
+            job.results = list(crawl_results)
+            job.status.update(crawl_status)
+            job.status["done"] = True
     except Exception as exc:
         logger.error("Crawl failed: %s", exc)
         crawl_status.update({"running": False, "done": False, "error": str(exc)})
+        if job is not None:
+            job.status.update({"running": False, "done": False, "error": str(exc)})
 
 
 @app.get("/crawl-status")
@@ -1193,15 +1200,26 @@ async def crawl_stream(job_id: str):
 
 @app.get("/results")
 def get_results(
+    job_id: str = Query(default=None),
     limit:  int = Query(default=0, ge=0, description="Max pages to return (0 = all)"),
     offset: int = Query(default=0, ge=0, description="Number of pages to skip"),
 ):
     """
     Full results after crawl completes.
-    BUG-007: supports optional pagination via limit/offset query params
-    (limit=0 means return all — preserves existing behaviour for the frontend).
-    BUG-N26: limit/offset now validated by Query(ge=0) — negative values return 422.
+    When job_id is provided, returns that job's isolated snapshot — safe across
+    concurrent users. Falls back to global state for legacy clients without job_id.
     """
+    if job_id:
+        job = _job_store.get(job_id)
+        if job and job.results:
+            pages = job.results[offset: offset + limit] if limit > 0 else job.results[offset:]
+            return {
+                "status":        job.status,
+                "gemini_status": job.ai_status or gemini_status,
+                "total":         len(job.results),
+                "results":       pages,
+            }
+    # Legacy / no job_id: return global state
     all_results = list(crawl_results)
     sliced = all_results[offset: offset + limit] if limit > 0 else all_results[offset:]
     return {
@@ -1227,7 +1245,7 @@ def get_results_live():
 # ── AI endpoints ──────────────────────────────────────────────────────────────
 
 @app.post("/analyze-gemini")
-async def analyze_gemini():
+async def analyze_gemini(job_id: str = Query(default=None)):
     """Run AI (Groq/Gemini/etc) on top-20 pages with issues. Non-blocking."""
     if not crawl_results:
         raise HTTPException(status_code=400, detail="No crawl data yet.")
@@ -1236,13 +1254,14 @@ async def analyze_gemini():
     if not _ai_configured():
         raise HTTPException(status_code=400, detail=_ai_key_error_detail())
 
+    job = _job_store.get(job_id) if job_id else None
     loop = asyncio.get_running_loop()
-    asyncio.create_task(_run_gemini_executor(loop, list(crawl_results)))
+    asyncio.create_task(_run_gemini_executor(loop, list(crawl_results), job=job))
     return {"message": "AI analysis started."}
 
 
 @app.post("/analyze-selected")
-async def analyze_selected(request: SelectedPagesRequest):
+async def analyze_selected(request: SelectedPagesRequest, job_id: str = Query(default=None)):
     """Run AI on user-selected URLs only."""
     if not crawl_results:
         raise HTTPException(status_code=400, detail="No crawl data yet.")
@@ -1253,29 +1272,43 @@ async def analyze_selected(request: SelectedPagesRequest):
     if not _ai_configured():
         raise HTTPException(status_code=400, detail=_ai_key_error_detail())
 
+    job = _job_store.get(job_id) if job_id else None
     loop = asyncio.get_running_loop()
     asyncio.create_task(
-        _run_selected_executor(loop, request.urls, list(crawl_results))
+        _run_selected_executor(loop, request.urls, list(crawl_results), job=job)
     )
     return {"message": f"AI analysis started for {len(request.urls)} pages."}
 
 
-async def _run_gemini_executor(loop, snapshot: list[dict]) -> None:
+async def _run_gemini_executor(loop, snapshot: list[dict], job: CrawlJob | None = None) -> None:
     """Thread pool wrapper so AI SDK calls don't block the event loop."""
     try:
         await loop.run_in_executor(None, attach_gemini_results, snapshot)
         _merge_gemini_results(snapshot)
+        if job is not None:
+            job.ai_status.update(gemini_status)
+            # Also refresh job.results with AI-enriched data
+            if job.results:
+                job.results = list(crawl_results)
     except Exception as exc:
         gemini_status.update({"error": str(exc), "running": False, "done": False})
+        if job is not None:
+            job.ai_status.update({"error": str(exc), "running": False, "done": False})
 
 
-async def _run_selected_executor(loop, urls: list[str], snapshot: list[dict]) -> None:
+async def _run_selected_executor(loop, urls: list[str], snapshot: list[dict], job: CrawlJob | None = None) -> None:
     """Thread pool wrapper for per-URL AI analysis."""
     try:
         await loop.run_in_executor(None, run_gemini_for_pages, urls, snapshot)
         _merge_gemini_results(snapshot)
+        if job is not None:
+            job.ai_status.update(gemini_status)
+            if job.results:
+                job.results = list(crawl_results)
     except Exception as exc:
         gemini_status.update({"error": str(exc), "running": False, "done": False})
+        if job is not None:
+            job.ai_status.update({"error": str(exc), "running": False, "done": False})
 
 
 def _merge_gemini_results(snapshot: list[dict]) -> None:
@@ -1302,8 +1335,14 @@ def _merge_gemini_results(snapshot: list[dict]) -> None:
 
 
 @app.get("/gemini-status")
-def get_gemini_status():
-    """Poll AI analysis progress."""
+def get_gemini_status(job_id: str = Query(default=None)):
+    """Poll AI analysis progress. Returns job-scoped ai_status when job_id provided."""
+    if job_id:
+        job = _job_store.get(job_id)
+        if job:
+            # Merge global gemini_status into job.ai_status so it's always current.
+            job.ai_status.update(gemini_status)
+            return job.ai_status
     return gemini_status
 
 
