@@ -22,10 +22,7 @@ async function checkGemini() {
 }
 
 function startCrawlHero() {
-  const raw = (document.getElementById('url-input').value || '').trim();
-  if (!raw) { document.getElementById('url-input').focus(); return; }
-  const url = raw.startsWith('http') ? raw : 'https://' + raw;
-  window.location.href = 'backend/pages/tech-seo.html?url=' + encodeURIComponent(url);
+  startCrawl(); // startCrawl() reads #url-input and handles validation
 }
 
 // ── Cold-start banner helpers (main crawl) ────────────────────────────────────
