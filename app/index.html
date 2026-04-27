@@ -4,266 +4,27 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 
-<!-- ── TITLE & CORE META ─────────────────────────────────────────────────── -->
-<title>CrawlIQ SEO Audit Dashboard — Run Your Free Technical Audit</title>
-<meta name="description" content="Launch CrawlIQ's AI technical SEO audit dashboard. Crawl any website, detect 50+ issues, and get AI-generated fixes from Claude, Gemini &amp; Groq. Free, no signup."/>
-<link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/app/"/>
+<!-- ── APP LAYER — PRODUCT TOOL, NOT AN SEO PAGE ─────────────────────────
+     This page is the CrawlIQ SaaS dashboard (application layer).
+     It is intentionally excluded from search indexing.
+     SEO signals, schemas, and ranking content live on the homepage (/),
+     /features.html, /how-it-works.html, and /about.html.
+     ─────────────────────────────────────────────────────────────────────── -->
+<title>CrawlIQ — SEO Audit Dashboard</title>
 <meta name="robots" content="noindex, follow"/>
-<meta name="keywords" content="SEO audit dashboard, run site crawl online, free technical SEO checker, crawl website free, online SEO analyzer, Core Web Vitals test"/>
 <meta name="author" content="Teki Bhavani Shankar"/>
 <meta name="google-site-verification" content="CWOGPe7yCVzbPTd9yDBTf7tKeg382FAt_xi-4fFSP-I"/>
 
-<!-- ── OPEN GRAPH ────────────────────────────────────────────────────────── -->
+<!-- ── OPEN GRAPH (social sharing only — not for ranking) ────────────────── -->
 <meta property="og:type" content="website"/>
-<meta property="og:title" content="CrawlIQ SEO Audit Dashboard — Free Technical SEO Tool"/>
-<meta property="og:description" content="Launch CrawlIQ's free AI SEO audit dashboard. Crawl any website, detect 50+ technical issues, get AI-generated fixes from Claude, Gemini &amp; Groq. No signup."/>
+<meta property="og:title" content="CrawlIQ — Free AI SEO Audit Dashboard"/>
 <meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/app/"/>
 <meta property="og:site_name" content="CrawlIQ"/>
-<meta property="og:locale" content="en_US"/>
 <meta property="og:image" content="https://bhavani5a8.github.io/crawliq.io/static/img/og-image.png"/>
 <meta property="og:image:width" content="1200"/>
 <meta property="og:image:height" content="630"/>
-<meta property="og:image:alt" content="CrawlIQ SEO Audit Dashboard — Free Technical SEO Tool"/>
 
-<!-- ── TWITTER CARD ──────────────────────────────────────────────────────── -->
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="CrawlIQ — Free AI Technical SEO Audit Tool | Built by Teki Bhavani Shankar"/>
-<meta name="twitter:description" content="Free AI-powered SEO crawler by Teki Bhavani Shankar. Detect 50+ SEO issues, get AI fixes from Claude, Gemini &amp; Groq. No signup needed."/>
-
-<!-- ── STRUCTURED DATA: WebApplication ──────────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "CrawlIQ",
-  "url": "https://bhavani5a8.github.io/crawliq.io/",
-  "description": "Free AI-powered technical SEO audit tool. Crawl any website, detect 50+ SEO issues, get AI-generated fixes from Claude, Gemini and Groq. Built with Python and FastAPI.",
-  "applicationCategory": "SEO Tool",
-  "applicationSubCategory": "Technical SEO Auditing",
-  "operatingSystem": "Web Browser",
-  "browserRequirements": "Requires JavaScript",
-  "inLanguage": "en",
-  "datePublished": "2024-01-01",
-  "dateModified": "2026-04-16",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD",
-    "description": "Free to use, no credit card required"
-  },
-  "featureList": [
-    "Technical SEO audit with scoring (0-100)",
-    "HTTP status code analysis",
-    "Indexability assessment per page",
-    "robots.txt and sitemap.xml validation",
-    "Title tag and meta description auditing",
-    "Canonical URL detection and validation",
-    "H1, H2, H3 heading structure analysis",
-    "Open Graph tag coverage check",
-    "Image alt text audit",
-    "Core Web Vitals assessment",
-    "Crawl budget analysis",
-    "Keyword extraction and TF-IDF scoring",
-    "AI-powered content analysis (Groq, Gemini, OpenAI, Claude)",
-    "Live Optimization Table with paste-ready fixes",
-    "Excel report export (.xlsx)",
-    "Per-page SEO ranking score (A-F grade)"
-  ],
-  "creator": {
-    "@type": "Person",
-    "name": "Teki Bhavani Shankar",
-    "jobTitle": "Technical SEO Specialist",
-    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
-  },
-  "codeRepository": "https://github.com/Bhavani5A8/crawliq.io",
-  "sameAs": "https://huggingface.co/spaces/bhavani7/seo-project"
-}
-</script>
-
-<!-- ── STRUCTURED DATA: Organization ────────────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "CrawlIQ",
-  "url": "https://bhavani5a8.github.io/crawliq.io/",
-  "description": "CrawlIQ provides free, open-source AI-powered technical SEO auditing tools for developers, SEO professionals, and small businesses.",
-  "founder": {
-    "@type": "Person",
-    "name": "Teki Bhavani Shankar",
-    "jobTitle": "Technical SEO Specialist",
-    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
-  },
-  "sameAs": [
-    "https://github.com/Bhavani5A8/crawliq.io",
-    "https://huggingface.co/spaces/bhavani7/seo-project"
-  ]
-}
-</script>
-
-<!-- ── STRUCTURED DATA: FAQPage (AEO + GEO) ─────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "How does CrawlIQ's AI SEO analysis work?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CrawlIQ crawls your website using an async BFS (breadth-first search) crawler and sends each page to an AI model — Groq (Llama 3), Gemini, OpenAI, or Claude, configurable via environment variable. The AI analyzes content quality, keyword optimization, readability, semantic relevance, and heading structure, then generates specific actionable recommendations ranked by impact. Output includes optimized title tags, meta descriptions, H1 rewrites, and full paragraph content."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What SEO issues does CrawlIQ detect?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CrawlIQ detects over 15 categories of SEO issues: missing title tags, title too short (under 30 chars) or too long (over 60 chars), missing meta descriptions, missing or multiple H1 tags, missing H2 tags, canonical tag absent or pointing to a different URL, duplicate meta descriptions across pages, broken pages (4xx and 5xx HTTP errors), thin content (under 300 words), images with empty alt text, HTTP pages (not HTTPS), URLs with underscores, uppercase characters, or excessive depth, and high link density."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What data formats can I export from CrawlIQ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CrawlIQ exports three types of Excel (.xlsx) reports: a Full SEO Report with all crawled pages, issues, keywords, and AI fixes; a Per-Field Issues Report with field-level issue breakdowns; a Live Optimization Table with paste-ready optimized titles, meta descriptions, and H1 tags; and a Technical SEO Audit with per-page scores (0-100), grades (A-F), and indexability status."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How many pages can I crawl with CrawlIQ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CrawlIQ is free to use with no credit card required. Without an account you can crawl up to 50 pages per session. Creating a free account gives you 200 pages per month across saved projects. The crawler uses breadth-first search from your root URL, following internal links and handling SSL failures with automatic HTTP fallback."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is my website data secure when using CrawlIQ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. CrawlIQ processes all crawl data in isolated in-memory sessions. No crawl data is stored to a database or disk permanently. All data exists only for the duration of your active session and is cleared when a new crawl starts. The tool is fully open-source on GitHub and hosted on HuggingFace Spaces."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Does CrawlIQ support JavaScript-rendered websites?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CrawlIQ uses an aiohttp-based async crawler with BeautifulSoup for HTML parsing. It works best with server-side rendered, static, and WordPress sites. The crawler extracts content from the initial HTML response including title, meta tags, headings, canonical, Open Graph tags, body text, internal links, and image alt texts. For fully JavaScript-rendered SPAs, server-side rendering or static generation is recommended for best crawl coverage."
-      }
-    }
-  ]
-}
-</script>
-
-<!-- ── STRUCTURED DATA: SoftwareApplication ─────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "CrawlIQ",
-  "url": "https://bhavani5a8.github.io/crawliq.io/",
-  "applicationCategory": "SEOApplication",
-  "operatingSystem": "Web",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  },
-  "author": {
-    "@type": "Person",
-    "name": "Teki Bhavani Shankar",
-    "jobTitle": "Technical SEO Specialist",
-    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
-    "sameAs": [
-      "https://github.com/Bhavani5A8",
-      "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
-    ]
-  },
-  "description": "Free AI-powered Technical SEO audit tool. Crawl any website, detect 50+ SEO issues, get AI-generated fixes. Built with Python, FastAPI, and Gemini AI."
-}
-</script>
-
-<!-- ── STRUCTURED DATA: WebPage ──────────────────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebPage",
-  "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
-  "url": "https://bhavani5a8.github.io/crawliq.io/",
-  "description": "Free AI-powered SEO crawler built by Technical SEO Specialist Teki Bhavani Shankar. Detect 50+ issues, get AI fixes from Claude, Gemini and Groq.",
-  "inLanguage": "en",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "CrawlIQ",
-    "url": "https://bhavani5a8.github.io/crawliq.io/"
-  },
-  "breadcrumb": {
-    "@type": "BreadcrumbList",
-    "itemListElement": [{
-      "@type": "ListItem",
-      "position": 1,
-      "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
-      "item": "https://bhavani5a8.github.io/crawliq.io/"
-    }]
-  },
-  "author": {
-    "@type": "Person",
-    "name": "Teki Bhavani Shankar",
-    "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
-  }
-}
-</script>
-
-<!-- ── STRUCTURED DATA: Person ───────────────────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Person",
-  "name": "Teki Bhavani Shankar",
-  "jobTitle": "Technical SEO Specialist",
-  "description": "Technical SEO Specialist and developer based in India. Built CrawlIQ — a free, open-source AI-powered SEO audit platform.",
-  "url": "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
-  "sameAs": [
-    "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/",
-    "https://github.com/Bhavani5A8"
-  ],
-  "knowsAbout": [
-    "Technical SEO",
-    "On-page SEO",
-    "Python",
-    "FastAPI",
-    "Web Crawling",
-    "Core Web Vitals",
-    "Crawl Budget Optimization"
-  ],
-  "creator": {
-    "@type": "SoftwareApplication",
-    "name": "CrawlIQ",
-    "url": "https://bhavani5a8.github.io/crawliq.io/"
-  }
-}
-</script>
-
-<!-- ── STRUCTURED DATA: BreadcrumbList ──────────────────────────────────── -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [{
-    "@type": "ListItem",
-    "position": 1,
-    "name": "CrawlIQ — Free AI Technical SEO Audit Tool",
-    "item": "https://bhavani5a8.github.io/crawliq.io/"
-  }]
-}
-</script>
-
-<!-- Load icon font async + display=swap so text renders before icons arrive -->
-<!-- ══ PERFORMANCE: FONTS + STYLES ════════════════════════════════════════ -->
+<!-- ── PERFORMANCE: FONTS + STYLES ════════════════════════════════════════ -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 

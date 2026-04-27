@@ -471,13 +471,13 @@ button{min-height:32px;}
 .ai-pill{min-height:32px;}
 .hero-input-row{min-height:64px;}
 </style>
-<!-- ── Critical JS (inline — nav/button/input handlers, <1KB) ─────────────── -->
+<!-- ── Critical JS (inline — nav/button/input/FAQ handlers, <1KB) ────────── -->
 <script>window.__SAFE_MODE=true;</script>
 <script>
-/* These functions are called via onclick attributes in the HTML body.
-   Inlining them avoids any gap between HTML parse and user interaction,
-   even before the deferred app.js executes. */
-// Mark body so CSS can collapse FAQ answers (progressive enhancement — answers visible without JS)
+/* SEO LAYER — landing page only. No app functions, no auth, no dashboard refs.
+   These functions are called via onclick attributes in the HTML body.
+   Inlining avoids any gap between HTML parse and user interaction. */
+// FAQ progressive enhancement — answers visible without JS, collapsible with JS
 document.documentElement.addEventListener('DOMContentLoaded',function(){
   document.body.classList.add('faq-js-init');
 },false);
@@ -509,13 +509,6 @@ function toggleFaq(item){
     if(c)c.textContent='expand_less';
   }
 }
-function closeAuthModal(){var m=document.getElementById('auth-modal');if(m)m.style.display='none';}
-function closeAiSetup(){var m=document.getElementById('ai-overlay');if(m)m.classList.remove('open');}
-/* Prevent undefined-function errors before app.js defers — safe stubs */
-['exitAppMode','openAiSetup','openAuthModal','authTab','showPanel',
- 'openKwGap','openSettings','toggleUserMenu'].forEach(function(fn){
-  if(!window[fn]) window[fn]=function(){};
-});
 </script>
 </head>
 <body>
