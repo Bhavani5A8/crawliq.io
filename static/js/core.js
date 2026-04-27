@@ -36,7 +36,7 @@ function getAppHTML() {
 <!-- ══ APP TOPBAR ════════════════════════════════════════════════════════════ -->
 <div class="app-topbar" id="app-topbar" style="display:none">
   <div class="app-topbar-main">
-    <a class="nav-logo" href="../" style="text-decoration:none;flex-shrink:0">
+    <a class="nav-logo" href="/" style="text-decoration:none;flex-shrink:0">
       <span class="material-symbols-outlined nav-logo-icon" style="font-size:20px;font-variation-settings:'FILL' 1,'wght' 700">bolt</span>
       <span class="nav-logo-text" style="font-size:15px">Crawl<em>IQ</em></span>
     </a>
@@ -127,7 +127,7 @@ function getAppHTML() {
       ⚡ Begin Technical Assessment
     </button>
   </div>
-  <div style="margin-top:16px;font-size:11px;color:var(--muted);">No signup required · Up to 50 pages free · <a href="../" style="color:var(--dim);text-decoration:underline;">Documentation →</a></div>
+  <div style="margin-top:16px;font-size:11px;color:var(--muted);">No signup required · Up to 50 pages free · <a href="/" style="color:var(--dim);text-decoration:underline;">Documentation →</a></div>
 </div>
 
 <!-- ══ AUTH MODAL ════════════════════════════════════════════════════════════ -->
@@ -723,7 +723,7 @@ function activateCrawlMode() {
   if (dash)    dash.style.display    = '';
 }
 function exitAppMode() {
-  window.location.href = '../';
+  window.location.href = '/';
 }
 
 // ── Stub functions (prevent undefined errors before modules load) ─────────────
@@ -791,6 +791,8 @@ async function initApp() {
       const topbarInput = document.getElementById('url-input-app');
       if (hiddenInput) hiddenInput.value = normalised;
       if (topbarInput) topbarInput.value = normalised;
+      // Auto-start crawl — scripts are loaded at this point (awaited above)
+      setTimeout(() => startCrawl(), 200);
     } else {
       setTimeout(() => document.getElementById('url-input-app')?.focus(), 100);
     }
