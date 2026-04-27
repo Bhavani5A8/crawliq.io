@@ -995,14 +995,14 @@ def health_check():
 
 
 # ── Static assets ─────────────────────────────────────────────────────────────
-# Mount /static and /backend/static to the same dir so both relative-path
-# conventions work: tool pages use "../static/js/…" which resolves to either
-# /static/… (when served at /pages/) or /backend/static/… (when served at
-# /backend/pages/) — both point to the same physical directory.
-_static_dir = os.path.join(BASE_DIR, "static")
+# Single source of truth: root /static/ directory (one level above backend/).
+# All backend pages use /static/ absolute paths. No duplicates.
+_static_dir = os.path.join(BASE_DIR, "..", "static")
+if not os.path.isdir(_static_dir):
+    # fallback: legacy backend/static/ during transition
+    _static_dir = os.path.join(BASE_DIR, "static")
 if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
-    app.mount("/backend/static", StaticFiles(directory=_static_dir), name="backend_static")
 
 def _read_html(path: str) -> HTMLResponse:
     with open(path, "r", encoding="utf-8") as f:
