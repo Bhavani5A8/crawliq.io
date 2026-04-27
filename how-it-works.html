@@ -300,6 +300,52 @@
     </div>
   </div>
 
+  <!-- Under the hood: scoring -->
+  <div class="detail-block">
+    <h3>How the 0–100 SEO Score Is Calculated</h3>
+    <p>Every page CrawlIQ crawls receives a composite score from 0 to 100 and a letter grade from A to F. The score is a weighted average across five signal categories:</p>
+    <ul>
+      <li><strong>Title tag quality (25 points)</strong> — presence, length, uniqueness, keyword placement</li>
+      <li><strong>Meta description quality (20 points)</strong> — presence, length range, uniqueness, CTA language</li>
+      <li><strong>Heading structure (20 points)</strong> — single H1, H1 contains keyword, logical H2/H3 hierarchy</li>
+      <li><strong>Indexability and canonicalisation (20 points)</strong> — canonical tag correct, no accidental noindex, no redirect chains</li>
+      <li><strong>Content quality (15 points)</strong> — word count above 300, images have alt text, no thin-content flags</li>
+    </ul>
+    <p>Pages scoring 90–100 receive an A grade. 75–89 = B; 55–74 = C; 35–54 = D; below 35 = F. A missing title tag penalises more heavily than a slightly-too-long meta description. The Live Optimisation Table sorts all crawled pages by score ascending so the worst-performing pages appear at the top, letting you prioritise your fix order efficiently.</p>
+  </div>
+
+  <!-- What CrawlIQ covers vs manual -->
+  <div class="detail-block">
+    <h3>What CrawlIQ Automates vs What Still Requires Human Judgment</h3>
+    <p>CrawlIQ automates the measurable, rule-based layer of a technical SEO audit. Understanding this distinction helps you get maximum value from the tool.</p>
+    <p><strong>Automated by CrawlIQ:</strong></p>
+    <ul>
+      <li>Detecting missing, duplicate, or malformed title tags and meta descriptions across every page</li>
+      <li>Finding broken internal links, redirect chains, and pages blocked to Googlebot</li>
+      <li>Flagging missing canonical tags or canonicals pointing to non-200 URLs</li>
+      <li>Identifying thin content pages, orphan pages, and images without alt text</li>
+      <li>Generating AI-improved title, description, and H1 suggestions per page</li>
+      <li>Exporting everything to a structured Excel workbook for your team</li>
+    </ul>
+    <p><strong>Still requires human judgment:</strong></p>
+    <ul>
+      <li>Evaluating whether the content genuinely satisfies search intent for a given keyword</li>
+      <li>Assessing E-E-A-T signals (Experience, Expertise, Authoritativeness, Trustworthiness)</li>
+      <li>Deciding whether to consolidate, redirect, or delete underperforming pages</li>
+      <li>Reviewing Core Web Vitals and page experience signals (use PageSpeed Insights for this)</li>
+      <li>Building backlinks — no crawler can automate authority acquisition</li>
+    </ul>
+    <p>CrawlIQ is most effective as the first pass of a full audit. It surfaces every measurable on-page and technical issue in minutes, freeing you to spend your time on the strategic decisions a tool cannot make for you.</p>
+  </div>
+
+  <!-- Crawl architecture note -->
+  <div class="detail-block">
+    <h3>Why BFS Crawling Matters for SEO Audits</h3>
+    <p>CrawlIQ uses breadth-first search (BFS) rather than depth-first search (DFS) for a specific reason: BFS discovers your most-linked-to pages first. Pages in your main navigation, homepage body links, and footer are crawled before deep subcategory or pagination pages. This mirrors how Googlebot allocates crawl budget — it prioritises pages with more internal links pointing to them.</p>
+    <p>For a 50-page crawl limit, this means CrawlIQ always audits your most important pages first. If your site has 500 pages and you set a limit of 50, you get an accurate picture of your highest-priority URLs rather than an arbitrary sample from a single deep category chain.</p>
+    <p>The crawler also deduplicates URLs by stripping UTM parameters, trailing slashes, and common tracking query strings before adding them to the crawl queue — so <code>https://example.com/?utm_source=newsletter</code> and <code>https://example.com/</code> count as one URL, not two.</p>
+  </div>
+
   <div class="cta-bar">
     <h2>Ready to Audit Your Site?</h2>
     <p>Enter any URL and get a full technical SEO audit in under a minute. Free, no account required.</p>

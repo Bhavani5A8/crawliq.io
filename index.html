@@ -387,7 +387,7 @@ footer nav{display:contents;}
 .nav-hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--text);}
 .nav-hamburger span{display:block;width:22px;height:2px;background:currentColor;border-radius:1px;transition:all .2s;}
 @media(min-width:768px){.nav-hamburger{display:none;}}
-.app-topbar{display:none;}.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;backdrop-filter:blur(2px);}
 .mob-overlay.open{display:block;}
 .mob-drawer{display:flex;flex-direction:column;position:fixed;top:0;left:-100%;bottom:0;width:280px;background:var(--surf-lowest);border-right:1px solid rgba(70,69,84,.15);z-index:201;transition:left .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;}
 .mob-drawer.open{left:0;}
@@ -470,6 +470,26 @@ button{min-height:32px;}
 .landing-nav{min-height:64px;}
 .ai-pill{min-height:32px;}
 .hero-input-row{min-height:64px;}
+
+/* ── Meta Standards Section ── */
+.meta-standards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-top:32px;}
+.ms-card{background:var(--surf-low,#1a1d28);border:1px solid rgba(99,102,241,.15);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:10px;}
+.ms-icon{width:40px;height:40px;border-radius:10px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--primary,#c0c1ff);flex-shrink:0;}
+.ms-title{font-size:15px;font-weight:700;color:#dfe2f1;margin:0;}
+.ms-body{font-size:13px;color:var(--dim,#c7c4d7);line-height:1.65;margin:0;}
+.ms-body code{font-family:monospace;font-size:11px;background:rgba(99,102,241,.1);padding:1px 5px;border-radius:4px;}
+.ms-example{font-size:11px;font-family:monospace;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:6px;padding:8px 10px;color:#10B981;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.ms-example.ms-ex-bad{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.2);color:#f87171;}
+.ms-ex-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;background:rgba(16,185,129,.2);padding:1px 6px;border-radius:20px;color:#10B981;}
+.ms-ex-label.ms-ex-label-bad{background:rgba(239,68,68,.2);color:#f87171;}
+
+/* ── Static Checklist ── */
+.checklist-static-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;margin-top:32px;}
+.chk-group-static{background:var(--surf-low,#1a1d28);border:1px solid rgba(99,102,241,.12);border-radius:14px;padding:24px;}
+.chk-group-title-static{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan,#22d3ee);margin:0 0 14px;}
+.chk-list-static{padding-left:20px;margin:0;display:flex;flex-direction:column;gap:10px;}
+.chk-list-static li{font-size:13px;color:var(--dim,#c7c4d7);line-height:1.55;}
+.chk-list-static li strong{color:#dfe2f1;}
 </style>
 <!-- ── Critical JS (inline — nav/button/input/FAQ handlers, <1KB) ────────── -->
 <script>window.__SAFE_MODE=true;</script>
@@ -998,75 +1018,98 @@ function toggleFaq(item){
   </div>
 </section>
 
-<!-- SEO META ANALYZER (client-side, no backend needed) -->
-<section id="analyzer-sec">
+<!-- SEO META TAG STANDARDS -->
+<section id="meta-standards-sec">
   <div class="sec-inner">
     <div class="sec-hd">
-      <div class="sec-lbl lbl-c">INSTANT ANALYSIS</div>
-      <h2>Check Any Page's SEO — Right Now</h2>
-      <p>No crawl needed. Paste your title, meta description, and H1. Score in under a second. Works offline.</p>
+      <div class="sec-lbl lbl-c">SEO STANDARDS</div>
+      <h2>What Good SEO Meta Tags Look Like</h2>
+      <p>Title tags, meta descriptions, and H1s are the first signals Google reads. Getting them right is the foundation of any technical SEO audit.</p>
     </div>
-    <div class="analyzer-card">
-      <div class="analyzer-form">
-        <div class="af-group">
-          <label class="af-label"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">title</span>Title Tag</label>
-          <input class="af-input" id="af-title" type="text" placeholder="My Homepage – Brand Name" maxlength="200"/>
-          <span class="af-hint" id="af-title-count">0 characters</span>
-        </div>
-        <div class="af-group">
-          <label class="af-label"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">format_h1</span>H1 Heading</label>
-          <input class="af-input" id="af-h1" type="text" placeholder="Main Heading of the Page" maxlength="200"/>
-          <span class="af-hint" id="af-h1-hint">Should contain your primary keyword</span>
-        </div>
-        <div class="af-group af-full">
-          <label class="af-label"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">description</span>Meta Description</label>
-          <input class="af-input" id="af-meta" type="text" placeholder="Describe the page in 120–160 characters. Include a call-to-action." maxlength="500"/>
-          <span class="af-hint" id="af-meta-count">0 characters</span>
-        </div>
-        <div class="af-group">
-          <label class="af-label"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">key</span>Target Keyword</label>
-          <input class="af-input" id="af-kw" type="text" placeholder="e.g. plumber austin tx" maxlength="100"/>
-          <span class="af-hint">Leave blank to skip keyword checks</span>
-        </div>
-        <div class="af-group" style="justify-content:flex-end;align-items:flex-end">
-          <button class="analyze-btn" onclick="runAnalyzer()">
-            <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:4px">bolt</span>Analyze
-          </button>
-        </div>
+    <div class="meta-standards-grid">
+      <div class="ms-card">
+        <div class="ms-icon">T</div>
+        <h3 class="ms-title">Title Tag</h3>
+        <p class="ms-body"><strong>50–60 characters.</strong> Place your primary keyword as close to the start as possible. End with the brand name separated by a dash or pipe. Every page must have a unique title — duplicate titles are one of the most common issues CrawlIQ surfaces during a full-site crawl. Titles shorter than 30 characters leave impression potential on the table; over 60 characters get truncated in desktop SERPs.</p>
+        <div class="ms-example"><span class="ms-ex-label">Good</span> Free AI SEO Audit Tool — CrawlIQ</div>
+        <div class="ms-example ms-ex-bad"><span class="ms-ex-label ms-ex-label-bad">Avoid</span> Home | Welcome to Our Website</div>
       </div>
-      <div class="score-display" id="score-display">
-        <div class="score-header">
-          <div>
-            <div class="big-score-num" id="az-score">—</div>
-            <div class="score-grade-lbl" id="az-grade">—</div>
-          </div>
-          <div class="score-verdict" id="az-verdict"></div>
-        </div>
-        <div class="score-breakdown" id="az-breakdown"></div>
+      <div class="ms-card">
+        <div class="ms-icon">M</div>
+        <h3 class="ms-title">Meta Description</h3>
+        <p class="ms-body"><strong>120–160 characters.</strong> Google doesn't use the meta description as a ranking signal directly, but it controls click-through rate. Include your primary keyword naturally (Google bolds matching terms), describe the page's value clearly, and end with a call-to-action. Descriptions below 70 characters are too thin; over 165 get rewritten by Google with arbitrary body copy — usually worse than what you wrote.</p>
+        <div class="ms-example"><span class="ms-ex-label">Good</span> Run a free technical SEO audit on any URL. Detect 50+ issues, get AI-generated fixes, and download your report in Excel.</div>
+      </div>
+      <div class="ms-card">
+        <div class="ms-icon">H1</div>
+        <h3 class="ms-title">H1 Heading</h3>
+        <p class="ms-body"><strong>One per page.</strong> The H1 is the primary on-page relevance signal. It should contain your target keyword but not be identical to the title tag — search engines treat them as independent signals, so duplicate title/H1 is a missed opportunity. Keep H1 under 70 characters. Use H2–H3 tags to structure subtopics, not for visual styling. CrawlIQ flags pages with missing H1s, multiple H1s, and H1/title duplication in the crawler report.</p>
+        <div class="ms-example"><span class="ms-ex-label">Good</span> Free AI-Powered Technical SEO Audit</div>
+        <div class="ms-example ms-ex-bad"><span class="ms-ex-label ms-ex-label-bad">Avoid</span> Using H1 and title as exact duplicates</div>
+      </div>
+      <div class="ms-card">
+        <div class="ms-icon">🔗</div>
+        <h3 class="ms-title">Canonical Tag</h3>
+        <p class="ms-body"><strong>Self-referencing on every indexable page.</strong> The canonical tag tells Google which URL is the authoritative version when duplicate or near-duplicate content exists across multiple URLs (e.g. <code>?utm_source=</code> parameters, HTTP vs HTTPS, trailing slash variants). Missing canonicals on paginated content or filtered category pages is one of the most common technical debt items in e-commerce sites. CrawlIQ checks canonical presence, self-reference validity, and cross-domain canonical chains.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- SEO CHECKLIST (fully client-side) -->
+<!-- SEO CHECKLIST (static, crawlable) -->
 <section id="checklist-sec">
   <div class="sec-inner">
     <div class="sec-hd">
       <div class="sec-lbl lbl-i">20-POINT CHECKLIST</div>
       <h2>SEO Audit Checklist You Can Use Today</h2>
-      <p>Tick each item as you audit. Progress saves automatically in your browser.</p>
+      <p>Work through each item as you audit your pages. Use CrawlIQ to automate the technical checks.</p>
     </div>
-    <div class="chk-progress-bar">
-      <span class="material-symbols-outlined" style="font-size:20px;color:var(--primary);flex-shrink:0">checklist</span>
-      <span class="chk-score-big" id="chk-done">0</span>
-      <div class="chk-bar-wrap"><div class="chk-bar-fill" id="chk-fill" style="width:0%"></div></div>
-      <span class="chk-label" id="chk-label">0 / 20 done</span>
-      <button class="chk-reset" onclick="resetChecklist()">
-        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">refresh</span> Reset
-      </button>
-    </div>
-    <div class="checklist-grid" id="checklist-grid">
-      <!-- Populated by JS -->
+    <div class="checklist-static-grid">
+
+      <div class="chk-group-static">
+        <h3 class="chk-group-title-static">On-Page Basics</h3>
+        <ol class="chk-list-static">
+          <li><strong>Title tag is 50–60 characters.</strong> Not "Home" or "Welcome". Contains your primary keyword.</li>
+          <li><strong>Meta description is 120–160 characters.</strong> Has a clear call-to-action. Not duplicated from title.</li>
+          <li><strong>One H1 per page.</strong> Contains the primary keyword. Not the same as title tag.</li>
+          <li><strong>H2–H3 headings structure the content.</strong> Logical hierarchy, not used just for visual styling.</li>
+          <li><strong>Target keyword appears in the first 100 words.</strong> Natural usage — not keyword stuffed.</li>
+        </ol>
+      </div>
+
+      <div class="chk-group-static">
+        <h3 class="chk-group-title-static">Technical SEO</h3>
+        <ol class="chk-list-static" start="6">
+          <li><strong>Canonical tag is correct.</strong> Points to the preferred URL. No self-referencing loops.</li>
+          <li><strong>Page returns HTTP 200.</strong> No accidental 404s or redirect chains to orphan URLs.</li>
+          <li><strong>HTTPS is enforced.</strong> HTTP version redirects to HTTPS. No mixed content.</li>
+          <li><strong>robots.txt allows crawling.</strong> No accidental Disallow: / on production.</li>
+          <li><strong>sitemap.xml is submitted to Google Search Console.</strong> Updated automatically. No 404 URLs in the sitemap.</li>
+        </ol>
+      </div>
+
+      <div class="chk-group-static">
+        <h3 class="chk-group-title-static">Content Quality</h3>
+        <ol class="chk-list-static" start="11">
+          <li><strong>Page has at least 300 words of body content.</strong> Thin content ranks poorly. Expand or consolidate pages.</li>
+          <li><strong>Content answers the search intent.</strong> Informational? Transactional? Navigational? Match it.</li>
+          <li><strong>No duplicate content across pages.</strong> Check with a site: search or CrawlIQ crawler.</li>
+          <li><strong>Images have descriptive alt text.</strong> Not "image1.jpg" or empty strings. Keyword where relevant.</li>
+          <li><strong>Content is updated within the last 12 months.</strong> Stale content gets de-prioritised by Google.</li>
+        </ol>
+      </div>
+
+      <div class="chk-group-static">
+        <h3 class="chk-group-title-static">Links &amp; Authority</h3>
+        <ol class="chk-list-static" start="16">
+          <li><strong>Internal links use descriptive anchor text.</strong> Not "click here". Use the keyword or page topic.</li>
+          <li><strong>No broken internal links (4xx).</strong> Run the crawler to find and fix them.</li>
+          <li><strong>External links open in new tab and have rel="noopener".</strong> Security and UX best practice.</li>
+          <li><strong>At least 3 internal links point to this page.</strong> Orphan pages get little crawl budget.</li>
+          <li><strong>Schema markup is present (Article, Product, FAQ, etc.).</strong> Eligible for rich results in Google SERPs.</li>
+        </ol>
+      </div>
+
     </div>
   </div>
 </section>

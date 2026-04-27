@@ -36,13 +36,7 @@
     "sameAs": [
       "https://github.com/Bhavani5A8",
       "https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/"
-    ],
-    "creator": {
-      "@type": "SoftwareApplication",
-      "name": "CrawlIQ",
-      "url": "https://bhavani5a8.github.io/crawliq.io/",
-      "applicationCategory": "SEOApplication"
-    }
+    ]
   }
   </script>
   <script type="application/ld+json">
@@ -173,6 +167,39 @@
       <li><strong>Frontend</strong>: <a href="https://bhavani5a8.github.io/crawliq.io/" rel="noopener">GitHub Pages</a> — free static hosting with automatic deployment on every <code>main</code> branch push</li>
       <li><strong>Backend API</strong>: <a href="https://huggingface.co/spaces/bhavani7/seo-project" rel="noopener" target="_blank">HuggingFace Spaces</a> — containerised FastAPI application running in Docker with a 7860 port uvicorn server</li>
     </ul>
+
+    <h2>SEO Architecture of CrawlIQ Itself</h2>
+    <p>Building an SEO tool creates an unusual constraint: the tool's own website must demonstrate the same SEO practices it teaches. CrawlIQ's frontend is designed as a live reference implementation of technical SEO best practices.</p>
+    <p>The site uses a strict three-layer architecture:</p>
+    <ul>
+      <li><strong>Tier A — Indexed SEO pages</strong>: The homepage, Features, How It Works, and About pages. Each has a unique title tag, meta description, canonical URL, structured data schema, and 1,000+ words of crawlable body content. No interactive tool widgets or app-layer UI in these pages' DOM.</li>
+      <li><strong>Tier B — App layer (noindex)</strong>: The <code>/app/</code> dashboard is marked <code>noindex, follow</code>. It contains the full audit interface but carries no SEO content, schemas, or canonical signals. Googlebot reads it but does not index it — intentional separation of tool UI from ranking content.</li>
+      <li><strong>Tier C — Blocked</strong>: Backend API endpoints, static assets, and admin paths are blocked in <code>robots.txt</code> and excluded from the XML sitemap.</li>
+    </ul>
+    <p>Every JSON-LD schema block is placed only on pages where it accurately describes the content: <code>SoftwareApplication</code> on the homepage only, <code>HowTo</code> on the How It Works page, <code>FAQPage</code> where FAQ content exists, and <code>BreadcrumbList</code> on all Tier A sub-pages. This mirrors the schema discipline expected of any serious SEO implementation.</p>
+
+    <h2>Skills Demonstrated by Building CrawlIQ</h2>
+    <p>CrawlIQ was designed to be a concrete, auditable demonstration of Technical SEO and full-stack development skills applied to a real problem. The areas covered include:</p>
+    <ul>
+      <li><strong>Technical SEO</strong>: Crawl budget management, canonical architecture, structured data implementation, Core Web Vitals optimisation, robots.txt strategy, XML sitemap management, and schema discipline across a multi-page site</li>
+      <li><strong>Async Python</strong>: BFS web crawler built with <code>aiohttp</code> and <code>asyncio</code>; concurrent HTTP fetching with per-domain rate limiting and SSL fallback handling</li>
+      <li><strong>API design</strong>: FastAPI REST endpoints for crawling, AI analysis, rank monitoring, competitor comparison, and Excel export; Server-Sent Events for real-time crawl progress</li>
+      <li><strong>AI integration</strong>: Multi-provider LLM routing (Groq, Gemini, Claude, OpenAI) with structured prompt engineering for SEO-specific output and a deterministic rules-based fallback for zero-key environments</li>
+      <li><strong>Frontend</strong>: Vanilla JavaScript SPA-like dashboard with panel routing, localStorage state, no framework dependencies, and full progressive enhancement for Googlebot compatibility</li>
+      <li><strong>DevOps</strong>: GitHub Actions CI/CD pipeline deploying both the static GitHub Pages frontend and triggering HuggingFace Space rebuilds on every <code>main</code> push</li>
+    </ul>
+
+    <h2>Honest Limitations</h2>
+    <p>CrawlIQ is a free tool hosted on HuggingFace's free tier. These constraints are worth knowing before you use it for production audits:</p>
+    <ul>
+      <li><strong>Cold start</strong>: HuggingFace free-tier containers sleep after 15 minutes of inactivity. The first request after a sleep period takes 30–90 seconds to respond. A cold-start notice appears in the app automatically.</li>
+      <li><strong>Page limit</strong>: The free unauthenticated tier is capped at 50 pages per crawl. Free accounts extend this to 200 pages. Sites with thousands of pages will need Screaming Frog or Ahrefs Site Audit for full coverage.</li>
+      <li><strong>JavaScript rendering</strong>: CrawlIQ uses HTML-only crawling. Fully JavaScript-rendered SPAs that serve empty HTML shells will show limited on-page data. Server-side rendered and static sites get complete coverage.</li>
+      <li><strong>No backlink data</strong>: CrawlIQ analyses on-page and technical signals only. Backlink profiles and domain authority data require a commercial API (Ahrefs, Moz, Majestic) that is not integrated in the free version.</li>
+    </ul>
+
+    <h2>Contact and Feedback</h2>
+    <p>CrawlIQ is an active project. Bug reports, feature suggestions, and pull requests are welcome on the <a href="https://github.com/Bhavani5A8/crawliq.io" rel="noopener" target="_blank">GitHub repository</a>. For professional enquiries, connect via <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" rel="noopener" target="_blank">LinkedIn</a>.</p>
 
   </div>
 
