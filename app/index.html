@@ -8,7 +8,7 @@
 <title>CrawlIQ SEO Audit Dashboard — Run Your Free Technical Audit</title>
 <meta name="description" content="Launch CrawlIQ's AI technical SEO audit dashboard. Crawl any website, detect 50+ issues, and get AI-generated fixes from Claude, Gemini &amp; Groq. Free, no signup."/>
 <link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/app/"/>
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="robots" content="noindex, follow"/>
 <meta name="keywords" content="SEO audit dashboard, run site crawl online, free technical SEO checker, crawl website free, online SEO analyzer, Core Web Vitals test"/>
 <meta name="author" content="Teki Bhavani Shankar"/>
 <meta name="google-site-verification" content="CWOGPe7yCVzbPTd9yDBTf7tKeg382FAt_xi-4fFSP-I"/>
@@ -459,6 +459,9 @@ nav{min-height:64px;}
 #dash-sec,
 #popup-overlay,
 #eoverlay{display:none;}
+/* App init state — visible before JS activates app-mode */
+#app-init-state{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 64px);}
+body.app-mode #app-init-state{display:none!important;}
 </style>
 <!-- ── Critical JS (inline — nav/button/input handlers, <1KB) ─────────────── -->
 <script>
@@ -848,224 +851,19 @@ function closeAiSetup(){
   <div class="cold-progress-track"><div class="cold-progress-fill"></div></div>
 </div>
 
-<!-- ══ SEO LANDING CONTENT ══════════════════════════════════════════════════
-     Crawlable static HTML — visible before JS loads or if API is unavailable.
-     Hidden automatically when body.app-mode is set (CSS: main.css line ~1291).
-     Googlebot reads this section fully without executing any JavaScript.
+<!-- ══ APP INIT STATE ═══════════════════════════════════════════════════════
+     Shown before JS activates body.app-mode. Pure app shell — no SEO content.
+     This page is noindex,follow — product layer only, no ranking intent.
+     body.app-mode #app-init-state{display:none} defined in inline <style>.
      ════════════════════════════════════════════════════════════════════════ -->
-<main id="seo-main-content">
-<section id="seo-content-sec" aria-label="CrawlIQ App — Tool Overview">
-<section id="seo-content-sec" aria-label="CrawlIQ App — Tool Overview">
-
-  <!-- Minimal nav for Googlebot crawl path discovery -->
-  <nav aria-label="App navigation" style="display:flex;align-items:center;gap:20px;padding:18px 32px;border-bottom:1px solid rgba(99,102,241,.12);flex-wrap:wrap">
-    <a href="../" style="font-weight:800;font-size:15px;color:var(--primary);text-decoration:none;letter-spacing:-.02em">
-      ⚡ Crawl<em>IQ</em>
-    </a>
-    <a href="../" style="color:var(--dim);font-size:13px;text-decoration:none">Home</a>
-    <a href="../features.html" style="color:var(--dim);font-size:13px;text-decoration:none">Features</a>
-    <a href="../how-it-works.html" style="color:var(--dim);font-size:13px;text-decoration:none">How It Works</a>
-    <a href="../about.html" style="color:var(--dim);font-size:13px;text-decoration:none">About</a>
-    <a href="../sitemap.html" style="color:var(--dim);font-size:13px;text-decoration:none">Sitemap</a>
-  </nav>
-
-  <div style="max-width:860px;margin:0 auto;padding:48px 32px 64px">
-
-    <h1 style="font-size:clamp(28px,5vw,52px);font-weight:800;line-height:1.1;letter-spacing:-.03em;color:white;margin:0 0 16px">
-      CrawlIQ — Free AI Technical SEO Audit Tool
-    </h1>
-
-    <p style="font-size:17px;color:var(--dim);line-height:1.7;max-width:680px;margin:0 0 32px">
-      CrawlIQ is a free, open-source AI-powered technical SEO platform built by
-      <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" rel="noopener" style="color:var(--primary)">Teki Bhavani Shankar</a>,
-      a working Technical SEO Specialist. Enter any website URL and receive a full site audit —
-      covering crawl errors, indexability gaps, Core Web Vitals signals, structured data issues,
-      and AI-generated fix recommendations — in under two minutes.
-    </p>
-
-    <!-- CTA anchor — crawlable by Googlebot, works without JS -->
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:48px">
-      <a href="../" style="display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:#1a1c40;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none">
-        ⚡ Start Free Audit
-      </a>
-      <a href="../#how-it-works" style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(99,102,241,.3);color:var(--dim);font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none">
-        How It Works
-      </a>
-    </div>
-
-    <!-- Feature overview — static HTML for Googlebot -->
-    <h2 style="font-size:20px;font-weight:700;color:white;margin:0 0 20px;letter-spacing:-.02em">What CrawlIQ Audits</h2>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:44px">
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">Technical SEO Crawler</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Crawls up to 500 pages per audit. Detects broken links (4xx/5xx), redirect chains,
-          missing canonical tags, noindex leaks, hreflang errors, and duplicate content.
-          Results export to Excel for client reporting.
-        </p>
-      </div>
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">AI-Generated Fix Recommendations</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Powered by Groq (LLaMA 3), Google Gemini, Claude, and OpenAI. Each flagged issue
-          gets a prioritised, actionable fix written in plain language. No generic advice —
-          fixes are generated from your actual page data.
-        </p>
-      </div>
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">Competitor Analysis</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Compare your site's technical health, page speed, and Core Web Vitals against
-          up to three competitors. Identify performance gaps and content opportunities
-          you can act on immediately.
-        </p>
-      </div>
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">SERP Intelligence</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Analyse search result pages for your target queries. Extract SERP features,
-          measure title and description competitiveness, and surface the on-page signals
-          that correlate with top-ranking positions.
-        </p>
-      </div>
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">Keyword Gap Analysis</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Discover keywords your competitors rank for that you don't. Filter by intent,
-          volume tier, and difficulty to prioritise the gaps with the highest ROI
-          for your content strategy.
-        </p>
-      </div>
-
-      <div style="background:var(--surf-low);border:1px solid rgba(99,102,241,.12);border-radius:12px;padding:20px">
-        <h3 style="font-size:14px;font-weight:700;color:var(--primary);margin:0 0 8px">Rank Monitoring</h3>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin:0">
-          Track keyword positions daily. Receive email alerts on ranking drops
-          above your configured threshold. Visualise trends across projects
-          with health-score history charts.
-        </p>
-      </div>
-
-    </div>
-
-    <!-- Why section — additional crawlable content -->
-    <h2 style="font-size:18px;font-weight:700;color:white;margin:0 0 14px;letter-spacing:-.02em">Who Uses CrawlIQ</h2>
-    <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:0 0 12px">
-      CrawlIQ is used by freelance SEO consultants, in-house digital marketing teams,
-      and web developers who need fast, accurate technical audits without a £300/month
-      enterprise tool subscription. Every feature is available free for sites up to 50 pages.
-      Create a free account to audit up to 200 pages per month.
-    </p>
-    <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:0 0 40px">
-      The tool runs on a Python FastAPI backend hosted on HuggingFace Spaces,
-      with a static frontend on GitHub Pages. Source code is fully open on
-      <a href="https://github.com/Bhavani5A8/crawliq.io" rel="noopener" style="color:var(--primary)">GitHub</a>.
-      Built and maintained by Teki Bhavani Shankar as a working portfolio project
-      demonstrating real-world Technical SEO tooling.
-    </p>
-
-    <!-- Service status fallback — shown when API is unavailable (Step 2) -->
-    <div id="api-fallback-notice" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:16px 20px;margin-bottom:32px">
-      <p style="font-size:13px;color:#f59e0b;font-weight:600;margin:0 0 6px">
-        ⏳ Audit engine is warming up
-      </p>
-      <p style="font-size:12px;color:var(--dim);margin:0;line-height:1.6">
-        The backend runs on HuggingFace Spaces (free tier) and may take 30–90 seconds
-        to start after a period of inactivity. The page will begin the audit automatically
-        once the service is ready. If it takes longer than 2 minutes,
-        <a href="../" style="color:var(--primary)">return to the homepage</a> and try again.
-      </p>
-    </div>
-
-    <!-- Footer links for crawl path -->
-    <nav aria-label="Footer links" style="display:flex;gap:16px;flex-wrap:wrap;padding-top:24px;border-top:1px solid rgba(99,102,241,.1)">
-      <a href="../" style="font-size:12px;color:var(--dim);text-decoration:none">← CrawlIQ Home</a>
-      <a href="../features.html" style="font-size:12px;color:var(--dim);text-decoration:none">Features</a>
-      <a href="../how-it-works.html" style="font-size:12px;color:var(--dim);text-decoration:none">How It Works</a>
-      <a href="../about.html" style="font-size:12px;color:var(--dim);text-decoration:none">About</a>
-      <a href="../#faq" style="font-size:12px;color:var(--dim);text-decoration:none">FAQ</a>
-      <a href="../sitemap.html" style="font-size:12px;color:var(--dim);text-decoration:none">Site Map</a>
-      <a href="https://github.com/Bhavani5A8/crawliq.io" rel="noopener" style="font-size:12px;color:var(--dim);text-decoration:none">GitHub</a>
-    </nav>
-
-    <!-- Audit process — static HTML for Googlebot -->
-    <section aria-label="How the audit works" style="margin-top:44px;padding-top:32px;border-top:1px solid rgba(99,102,241,.1)">
-      <h2 style="font-size:18px;font-weight:700;color:white;margin:0 0 20px;letter-spacing:-.02em">How the Technical SEO Audit Works</h2>
-      <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:14px">
-        <li style="display:flex;gap:14px;align-items:flex-start">
-          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">1</span>
-          <div>
-            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Enter your website URL</h3>
-            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Paste any URL into the input field. Set a page limit (up to 50 pages as a guest, 200 with a free account). No signup needed to start.</p>
-          </div>
-        </li>
-        <li style="display:flex;gap:14px;align-items:flex-start">
-          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">2</span>
-          <div>
-            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Async crawler fetches all pages</h3>
-            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">The Python aiohttp BFS crawler fetches pages concurrently, extracts title, meta description, canonical, headings, Open Graph tags, image alt text, internal links, word count, and HTTP status for every page.</p>
-          </div>
-        </li>
-        <li style="display:flex;gap:14px;align-items:flex-start">
-          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">3</span>
-          <div>
-            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">50+ issue checks and page scoring</h3>
-            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Each page is scored 0–100 across 9 dimensions and graded A–F. Over 50 SEO signals are checked: missing or duplicate titles, broken canonicals, thin content, noindex leaks, redirect chains, missing alt text, and more.</p>
-          </div>
-        </li>
-        <li style="display:flex;gap:14px;align-items:flex-start">
-          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">4</span>
-          <div>
-            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">AI generates paste-ready fixes</h3>
-            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Select any pages and run AI analysis. Groq, Gemini, Claude, or OpenAI returns optimised title tags, rewritten meta descriptions, improved H1 tags, and content recommendations — ranked by SEO impact.</p>
-          </div>
-        </li>
-        <li style="display:flex;gap:14px;align-items:flex-start">
-          <span style="min-width:28px;height:28px;background:var(--indigo);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">5</span>
-          <div>
-            <h3 style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px">Download structured Excel report</h3>
-            <p style="font-size:13px;color:var(--dim);margin:0;line-height:1.6">Export a multi-sheet Excel workbook with the full audit, per-page scores, A–F grades, AI fixes, and a live optimisation table ready for your content team or CMS upload workflow.</p>
-          </div>
-        </li>
-      </ol>
-    </section>
-
-    <!-- Common issues — keyword-rich static content -->
-    <section aria-label="Common SEO issues detected" style="margin-top:36px;padding-top:28px;border-top:1px solid rgba(99,102,241,.1)">
-      <h2 style="font-size:18px;font-weight:700;color:white;margin:0 0 14px;letter-spacing:-.02em">Common SEO Issues CrawlIQ Detects</h2>
-      <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:0 0 16px">
-        Every crawled page is checked against 15+ issue categories. The most common issues found across real-world audits include:
-      </p>
-      <ul style="padding-left:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing or duplicate title tags</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Title tags outside 30–60 character range</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing or duplicated meta descriptions</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing H1 or multiple H1 tags per page</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Canonical tag absent or pointing elsewhere</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Unintentional noindex on important pages</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Broken internal links (4xx HTTP errors)</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Redirect chains wasting crawl budget</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Images with empty or missing alt text</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Thin content pages under 300 words</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Missing Open Graph or Twitter Card tags</li>
-        <li style="font-size:13px;color:var(--dim);padding:8px 12px;background:rgba(99,102,241,.04);border-radius:6px;display:flex;gap:8px"><span style="color:var(--red);flex-shrink:0">✗</span>Non-HTTPS pages or mixed content</li>
-      </ul>
-      <p style="font-size:13px;color:var(--dim);line-height:1.7;max-width:680px;margin:16px 0 0">
-        See the full list of detectable issues in the <a href="../features.html" style="color:var(--primary)">Features page</a>,
-        or read the <a href="../how-it-works.html" style="color:var(--primary)">How It Works guide</a> for a step-by-step walkthrough.
-      </p>
-    </section>
-
+<div id="app-init-state">
+  <div style="text-align:center;padding:48px 24px">
+    <div style="font-family:var(--headline);font-size:22px;font-weight:800;color:var(--primary);margin-bottom:12px">⚡ CrawlIQ</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Loading SEO audit dashboard…</div>
+    <a href="../" style="font-size:12px;color:var(--dim);text-decoration:underline">← Back to homepage</a>
   </div>
-</section>
-<!-- ══ END SEO LANDING CONTENT ══════════════════════════════════════════════ -->
-</main>
+</div>
+
 
 <div style="display:none" id="dash-sec">
   <div class="sec-inner">
