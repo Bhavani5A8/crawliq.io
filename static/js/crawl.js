@@ -10,10 +10,14 @@ async function checkGemini() {
       pill.textContent = '⚙ Set API Key ↗';
       pill.className   = 'gemini-pill down';
     }
+    // API is reachable — hide the static fallback notice
+    const notice = document.getElementById('api-fallback-notice');
+    if (notice) notice.style.display = 'none';
   } catch {
     const pill = document.getElementById('gemini-pill');
     pill.textContent = '⚙ Set API Key ↗';
     pill.className   = 'gemini-pill down';
+    // API unreachable — keep the fallback notice visible (already shown in HTML)
   }
 }
 

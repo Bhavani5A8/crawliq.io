@@ -1,15 +1,18 @@
 User-agent: *
 
-# Static assets — no SEO value, waste crawl budget
+# Allow real content pages first (Googlebot longest-match + legacy parser compatibility)
+Allow: /
+Allow: /index.html
+Allow: /app/
+Allow: /app/index.html
+Allow: /sitemap.html
+Allow: /sitemap.xml
+
+# Static assets — no SEO value, conserve crawl budget
 Disallow: /static/
-Disallow: /static/css/
-Disallow: /static/js/
-Disallow: /static/fonts/
 
-# Backend Python source + build artifacts
+# Backend Python source, API endpoints — return JSON not HTML
 Disallow: /backend/
-
-# API endpoints — return JSON not HTML
 Disallow: /crawl
 Disallow: /crawl-status
 Disallow: /crawl-stream/
@@ -29,29 +32,24 @@ Disallow: /serp
 Disallow: /serp-track
 Disallow: /serp_engine
 
-# FastAPI auto-generated docs — expose schema + soft-404 for Googlebot
+# FastAPI auto-generated docs
 Disallow: /docs
 Disallow: /redoc
 Disallow: /openapi.json
 Disallow: /api/
 
-# Debug / dev artifacts
+# Debug and dev artifacts
 Disallow: /debug/
 Disallow: /?debug=
 Disallow: /?test=
 
-# Infinite URL space — query params create duplicate crawl paths
-Disallow: /*?url=
+# Infinite URL spaces — duplicate crawl paths via query params
+# NOTE: /*?url= intentionally removed — it is a valid user entry point on the landing page
 Disallow: /*?job_id=
 Disallow: /*?format=
 
-# Allow only real content pages
-Allow: /
-Allow: /index.html
-Allow: /app/
-
 Sitemap: https://bhavani5a8.github.io/crawliq.io/sitemap.xml
 
-# Block Lighthouse bots from draining the 25,000/day PSI quota
+# Block Lighthouse audit bots from draining the 25,000/day PSI quota
 User-agent: Chrome-Lighthouse
 Disallow: /
