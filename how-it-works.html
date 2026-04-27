@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>How CrawlIQ Works — 5-Step AI SEO Audit Process Explained</title>
+  <meta name="description" content="Learn how CrawlIQ's AI SEO audit works: async BFS crawling, 50+ issue detection, multi-model AI analysis, and Excel export. Step-by-step technical walkthrough."/>
+  <link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/how-it-works.html"/>
+  <meta name="robots" content="index, follow"/>
+  <meta property="og:type" content="article"/>
+  <meta property="og:title" content="How CrawlIQ Works — 5-Step AI SEO Audit Process Explained"/>
+  <meta property="og:description" content="Step-by-step walkthrough of CrawlIQ's technical SEO audit: async BFS crawling, issue detection, AI fix generation, and structured Excel export."/>
+  <meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/how-it-works.html"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    onload="this.onload=null;this.rel='stylesheet'"/>
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/></noscript>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "How to Run a Technical SEO Audit with CrawlIQ",
+    "description": "Step-by-step guide to auditing a website with CrawlIQ's free AI-powered technical SEO tool.",
+    "step": [
+      {
+        "@type": "HowToStep",
+        "position": 1,
+        "name": "Enter your website URL",
+        "text": "Navigate to the CrawlIQ app and paste your website URL into the audit input. You can set a custom page limit (up to 50 pages without login, 200 with a free account)."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 2,
+        "name": "CrawlIQ crawls your site",
+        "text": "The async Python crawler performs a breadth-first search from your root URL, following all internal links and extracting on-page SEO signals from each page's HTML."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 3,
+        "name": "Issue detection and scoring",
+        "text": "Each crawled page is scored from 0–100 and graded A–F. Over 50 technical SEO issues are checked per page, from missing meta tags to redirect chains and thin content."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 4,
+        "name": "AI analysis generates fixes",
+        "text": "Select pages or run AI on all results. CrawlIQ sends each page's issues to your chosen AI model (Groq, Gemini, Claude, or OpenAI) and receives paste-ready optimised SEO content."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 5,
+        "name": "Export structured Excel report",
+        "text": "Download a multi-sheet Excel workbook with the full audit, technical SEO scores, AI-generated fixes, and a live optimisation table ready for your content team."
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root{
+      --bg:#0f131d;--surf:#1c1f2a;--surf2:#262a35;
+      --primary:#c0c1ff;--indigo:#6366F1;--dim:#c7c4d7;
+      --text:#dfe2f1;--muted:#908fa0;--green:#10B981;
+      --border:rgba(99,102,241,.15);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.6;min-height:100vh}
+    a{color:var(--primary);text-decoration:none}
+    a:hover{text-decoration:underline;opacity:.85}
+    .site-nav{display:flex;align-items:center;gap:24px;padding:16px 40px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .nav-brand{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}
+    .nav-link{font-size:13px;color:var(--dim)}
+    .nav-link.active{color:var(--primary)}
+    .page{max-width:800px;margin:0 auto;padding:48px 32px 80px}
+    .page-header{margin-bottom:52px}
+    .page-header h1{font-size:34px;font-weight:800;letter-spacing:-.03em;color:white;margin-bottom:12px}
+    .page-header p{font-size:15px;color:var(--dim)}
+    .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:24px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    .step{display:flex;gap:20px;margin-bottom:32px;align-items:flex-start}
+    .step-num{min-width:44px;height:44px;background:linear-gradient(135deg,var(--indigo),#818cf8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:white;flex-shrink:0}
+    .step-body h2{font-size:18px;font-weight:700;color:white;margin-bottom:8px}
+    .step-body p{font-size:14px;color:var(--dim);line-height:1.7;margin-bottom:8px}
+    .step-body ul{padding-left:18px;font-size:14px;color:var(--dim);margin-bottom:8px}
+    .step-body ul li{margin-bottom:4px}
+    .step-body code{background:rgba(99,102,241,.12);color:var(--primary);padding:1px 6px;border-radius:4px;font-size:13px}
+    .connector{width:2px;height:24px;background:var(--border);margin-left:21px;margin-bottom:8px}
+    .detail-block{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:28px;margin:40px 0}
+    .detail-block h3{font-size:16px;font-weight:700;color:white;margin-bottom:12px}
+    .detail-block p{font-size:14px;color:var(--dim);margin-bottom:10px}
+    .detail-block ul{padding-left:18px;font-size:14px;color:var(--dim)}
+    .detail-block ul li{margin-bottom:5px}
+    .faq-item{border-bottom:1px solid var(--border);padding:20px 0}
+    .faq-item:last-child{border-bottom:none}
+    .faq-item h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px}
+    .faq-item p{font-size:14px;color:var(--dim)}
+    .cta-bar{text-align:center;margin-top:52px;padding:40px;background:var(--surf);border:1px solid var(--border);border-radius:16px}
+    .cta-bar h2{font-size:22px;font-weight:800;color:white;margin-bottom:10px}
+    .cta-bar p{font-size:14px;color:var(--dim);margin-bottom:24px}
+    .btn-primary{display:inline-block;background:var(--indigo);color:white;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none}
+    .btn-primary:hover{opacity:.9;text-decoration:none}
+    .page-footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+    @media(max-width:600px){
+      .site-nav,.page{padding-left:20px;padding-right:20px}
+      .page-header h1{font-size:26px}
+    }
+  </style>
+</head>
+<body>
+
+<nav class="site-nav" aria-label="Site navigation">
+  <a href="/" class="nav-brand">⚡ Crawl<em>IQ</em></a>
+  <a href="/" class="nav-link">Home</a>
+  <a href="app/" class="nav-link">App</a>
+  <a href="features.html" class="nav-link">Features</a>
+  <a href="how-it-works.html" class="nav-link active" aria-current="page">How It Works</a>
+  <a href="about.html" class="nav-link">About</a>
+</nav>
+
+<main class="page">
+
+  <header class="page-header">
+    <h1>How CrawlIQ Works</h1>
+    <p>A step-by-step walkthrough of the 5-stage AI technical SEO audit process — from URL input to downloadable Excel report.</p>
+  </header>
+
+  <!-- Step-by-step -->
+  <section aria-label="Audit process steps">
+    <p class="section-title">The 5-Step Audit Process</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h2>Enter Your Website URL</h2>
+        <p>Navigate to the <a href="app/">CrawlIQ App</a> and paste any website URL into the audit input field. You can configure:</p>
+        <ul>
+          <li><strong>Page limit</strong> — 1 to 50 pages without login; up to 200 with a free account</li>
+          <li><strong>Crawl depth</strong> — how many link levels deep to follow from the root URL</li>
+          <li><strong>AI provider</strong> — Groq (default, fastest), Gemini, Claude, OpenAI, or rules-based fallback</li>
+        </ul>
+        <p>No credit card or signup is required for the first 50 pages.</p>
+      </div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h2>Async BFS Crawler Fetches Your Pages</h2>
+        <p>CrawlIQ's backend crawler uses Python <code>aiohttp</code> to fetch all pages concurrently using breadth-first search (BFS) from your root URL. For each page it extracts:</p>
+        <ul>
+          <li>Title tag, meta description, canonical URL</li>
+          <li>H1, H2, H3 heading structure and all heading text</li>
+          <li>Open Graph and Twitter Card meta tags</li>
+          <li>All internal links (to discover the next BFS layer)</li>
+          <li>Image <code>alt</code> attributes and image count</li>
+          <li>Body text word count and keyword frequency</li>
+          <li>HTTP status code, redirect chain if any, and final URL</li>
+        </ul>
+        <p>SSL failures fall back to HTTP automatically so the crawl never stops on certificate errors. Real-time progress is streamed to your browser via Server-Sent Events (SSE).</p>
+      </div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h2>Issue Detection and Page Scoring</h2>
+        <p>Every crawled page is run through 50+ checks across 15 issue categories. Each page receives a score from 0–100 and an A–F grade. Issues checked include:</p>
+        <ul>
+          <li>Title tag missing, too short (&lt;30 chars), too long (&gt;60 chars), or duplicated</li>
+          <li>Meta description missing, too short, too long, or duplicated across pages</li>
+          <li>H1 missing, multiple H1 tags, or H1 identical to title</li>
+          <li>Canonical absent, incorrect, or forming a redirect loop</li>
+          <li>Pages accidentally marked <code>noindex</code> or blocked by <code>X-Robots-Tag</code></li>
+          <li>Broken links (4xx) and server errors (5xx) within internal links</li>
+          <li>Redirect chains consuming crawl budget</li>
+          <li>Images missing alt text</li>
+          <li>Thin content pages with under 300 words</li>
+          <li>Non-HTTPS pages or mixed content warnings</li>
+        </ul>
+      </div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h2>AI Analysis Generates Paste-Ready Fixes</h2>
+        <p>After the crawl completes, select individual pages or run AI analysis on all results at once. CrawlIQ builds a structured prompt for each page containing its current SEO signals and detected issues, then sends it to your chosen AI model.</p>
+        <p>Each AI response includes:</p>
+        <ul>
+          <li>Optimised title tag (within 50–60 character target)</li>
+          <li>Rewritten meta description (within 140–155 character target)</li>
+          <li>Improved H1 tag aligned with primary keyword intent</li>
+          <li>Content recommendations: gaps to fill, sections to add, topics to cover</li>
+          <li>Priority ranking of all detected issues by SEO impact</li>
+        </ul>
+        <p>All fixes are stored in the Live Optimisation Table for bulk review and export.</p>
+      </div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h2>Download Structured Excel Report</h2>
+        <p>Click any export button to download a multi-sheet Excel workbook (<code>.xlsx</code>) containing:</p>
+        <ul>
+          <li><strong>Full SEO Report</strong> — every page with score, grade, all detected issues, and keyword list</li>
+          <li><strong>Technical SEO Audit</strong> — per-page 0–100 scores with A–F grades and indexability status</li>
+          <li><strong>Live Optimisation Table</strong> — optimised titles, descriptions, and H1s ready to paste into your CMS</li>
+          <li><strong>Per-Field Issues</strong> — each issue type as a separate column for bulk CMS upload workflows</li>
+          <li><strong>AI Generated Content</strong> — complete AI output for each page including all recommendations</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Q&A -->
+  <div class="detail-block">
+    <h3>Technical Questions</h3>
+
+    <div class="faq-item">
+      <h3>Does CrawlIQ handle JavaScript-rendered pages?</h3>
+      <p>CrawlIQ uses an HTML-only crawler (aiohttp + BeautifulSoup). It reads the initial HTML response returned by the server — the same HTML that Googlebot reads on a first-pass crawl. JavaScript-rendered SPAs that return empty HTML shells will show limited content; server-side rendered or static sites get full coverage.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3>How long does a crawl take?</h3>
+      <p>CrawlIQ runs fully asynchronous concurrent requests. A 50-page crawl typically completes in 15–45 seconds depending on your server response times. The first crawl on HuggingFace's free tier may take 30–90 seconds for the container to wake up — a cold-start notice is shown automatically.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3>Is my crawl data stored anywhere?</h3>
+      <p>No. All crawl data is processed in an isolated in-memory session on the HuggingFace container. Data is not written to any database or disk. When a new crawl starts, the previous session is cleared. The tool is fully open-source — you can verify this in the <a href="https://github.com/Bhavani5A8/crawliq.io" rel="noopener" target="_blank">GitHub repository</a>.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3>What AI model gives the best results?</h3>
+      <p>Groq (Llama 3 70B) is the fastest and works well for bulk analysis. Claude (Anthropic) gives the most nuanced content quality assessments. Gemini performs well for multilingual content. For most users, Groq's free API is the best starting point — no credit card required at console.groq.com.</p>
+    </div>
+  </div>
+
+  <div class="cta-bar">
+    <h2>Ready to Audit Your Site?</h2>
+    <p>Enter any URL and get a full technical SEO audit in under a minute. Free, no account required.</p>
+    <a href="app/" class="btn-primary">⚡ Start Free Audit</a>
+  </div>
+
+  <footer class="page-footer" role="contentinfo">
+    <a href="/">← Home</a>
+    <a href="app/">Launch App</a>
+    <a href="features.html">Features</a>
+    <a href="about.html">About</a>
+    <a href="sitemap.html">HTML Sitemap</a>
+    <a href="sitemap.xml">XML Sitemap</a>
+    <span style="margin-left:auto">© 2026 CrawlIQ · <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" rel="noopener">Teki Bhavani Shankar</a></span>
+  </footer>
+
+</main>
+
+</body>
+</html>
