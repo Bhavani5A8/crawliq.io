@@ -29,7 +29,7 @@
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-    "featureList": "Async BFS site crawler, Multi-model AI fix engine (Claude, Gemini, Groq, OpenAI), Competitor technical analysis, SERP intelligence, Keyword gap analysis, Rank monitoring, Sitemap analyser, AI content generator, Excel export",
+    "featureList": "Async BFS site crawler (500 pages), Multi-model AI fix engine (Claude 3, Gemini 1.5, Groq Llama 3, GPT-4o), Rules-based fallback with zero API key, Competitor side-by-side technical analysis, SERP intelligence report, Keyword gap analysis with intent filter, Daily rank monitoring with email alerts, Sitemap URL validator, AI content brief generator, Multi-sheet Excel export",
     "author": {"@type": "Person", "name": "Teki Bhavani Shankar"}
   }
   </script>
@@ -85,6 +85,18 @@
     .detail-block p{font-size:14px;color:var(--dim);margin-bottom:10px}
     .detail-block ul{padding-left:18px;color:var(--dim);font-size:14px}
     .detail-block ul li{margin-bottom:4px}
+    .comparison-table{width:100%;border-collapse:collapse;margin:24px 0;font-size:13px}
+    .comparison-table th{background:var(--surf2);color:var(--primary);font-weight:700;padding:12px 16px;text-align:left;border-bottom:1px solid var(--border)}
+    .comparison-table td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--dim)}
+    .comparison-table tr:hover td{background:rgba(99,102,241,.04)}
+    .comparison-table .col-crawliq{color:var(--green);font-weight:600}
+    .tick{color:var(--green)}
+    .cross{color:var(--red)}
+    .partial{color:var(--yellow)}
+    .use-case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+    .use-case-card{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:20px}
+    .use-case-card h4{font-size:14px;font-weight:700;color:white;margin-bottom:6px}
+    .use-case-card p{font-size:13px;color:var(--dim)}
     .cta-bar{text-align:center;margin-top:52px;padding:40px;background:var(--surf);border:1px solid var(--border);border-radius:16px}
     .cta-bar h2{font-size:24px;font-weight:800;color:white;margin-bottom:10px}
     .cta-bar p{font-size:14px;color:var(--dim);margin-bottom:24px}
@@ -125,56 +137,56 @@
       <div class="feat-card">
         <div class="feat-icon">🕷️</div>
         <h2>Async Technical SEO Crawler</h2>
-        <p>Crawl up to 500 pages using a breadth-first async crawler built with Python <code>aiohttp</code> and <code>BeautifulSoup</code>. Detects 50+ on-page and technical SEO issues per page in seconds.</p>
+        <p>Crawl up to 500 pages using a breadth-first async crawler built with Python <code>aiohttp</code> and <code>BeautifulSoup</code>. The crawler fetches pages concurrently — a 100-page site typically completes in under 60 seconds. Each page is scored on over 50 on-page and technical signals including title tags, meta descriptions, heading structure, canonical correctness, canonical loops, internal link counts, image alt coverage, Open Graph completeness, and page-level crawlability. Results stream back as a structured JSON report ready for AI analysis or Excel export.</p>
         <span class="feat-tag tag-free">Free · 50 pages without login</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">🤖</div>
         <h2>Multi-Model AI Fix Engine</h2>
-        <p>Send crawl results to Groq (Llama 3), Google Gemini, OpenAI GPT-4o, or Anthropic Claude. Each model returns actionable, paste-ready SEO fixes for titles, meta descriptions, H1 rewrites, and content gaps.</p>
+        <p>Route your crawl report to any of four AI providers: Groq (Llama 3.3 — fastest), Google Gemini 1.5, Anthropic Claude 3 Haiku, or OpenAI GPT-4o. Each model receives structured issue data for every crawled page and returns paste-ready rewrites for titles, meta descriptions, H1 tags, and content gap recommendations. If you have no API key, CrawlIQ falls back to a deterministic rules-based engine that still produces 80% of actionable fixes without any external call.</p>
         <span class="feat-tag tag-ai">AI Powered</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">⚔️</div>
-        <h2>Competitor Analysis</h2>
-        <p>Compare your site's technical health, page speed, Core Web Vitals, and keyword coverage against up to three competitor domains. Identify structural gaps and ranking opportunities in one report.</p>
+        <h2>Competitor Technical Analysis</h2>
+        <p>Enter up to three competitor domains alongside your own. CrawlIQ crawls all four sites in parallel, then produces a side-by-side report covering average page score, crawl depth, unique internal link count, schema markup coverage, and Core Web Vitals indicators. You immediately see which areas your site underperforms, whether that's canonical hygiene, heading structure consistency, or average title length relative to the current SERP leaders.</p>
         <span class="feat-tag tag-free">Free</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">📊</div>
         <h2>SERP Intelligence</h2>
-        <p>Analyse real search result pages for your target queries. Measure title tag competitiveness, description uniqueness, and structured data coverage among currently ranking pages.</p>
+        <p>Analyse the live search results page for any query. CrawlIQ fetches the top-10 results and extracts title tag patterns, meta description length distribution, structured data types present (FAQ, HowTo, Review, Product), and estimated word counts. Use this data to benchmark your own page before you publish — so you enter a SERP already matching the content format Google has already validated for that keyword.</p>
         <span class="feat-tag tag-free">Free</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">🔍</div>
         <h2>Keyword Gap Analysis</h2>
-        <p>Discover keywords your competitors rank for that your site does not. Filter results by search intent, estimated volume tier, and keyword difficulty to prioritise content opportunities.</p>
+        <p>Identify the full keyword set your competitors rank for that your site is invisible on. CrawlIQ cross-references crawled anchor text, heading keywords, and structured data content across your site and competitor sites to surface missing topic clusters. Filter the output by search intent (informational, commercial, navigational), estimated volume tier, and keyword difficulty score. The result is a prioritised content calendar you can act on immediately.</p>
         <span class="feat-tag tag-ai">AI Enhanced</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">📈</div>
         <h2>Rank Monitoring</h2>
-        <p>Track daily keyword position changes. Configure email alerts for ranking drops above your threshold — so you catch traffic losses before they appear in Google Analytics.</p>
+        <p>Track daily keyword position changes across your target query set. CrawlIQ stores a rolling history of SERP positions so you can see rank velocity — not just current position. Configure threshold alerts: if a keyword drops more than five positions in 24 hours, you receive an email notification before the traffic loss shows in Google Analytics. Early detection is the difference between a recoverable algorithmic dip and a permanent ranking loss.</p>
         <span class="feat-tag tag-free">Free Account</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">🗺️</div>
         <h2>Sitemap Analyser</h2>
-        <p>Parse any <code>sitemap.xml</code> and validate every listed URL. Flags broken links (4xx/5xx), redirect chains, missing <code>lastmod</code> values, and excessive priority scores. Exports results to Excel.</p>
+        <p>Paste any <code>sitemap.xml</code> URL and CrawlIQ validates every listed URL in seconds. The report flags HTTP 4xx and 5xx errors, redirect chains (any URL returning 3xx), missing <code>lastmod</code> values that reduce crawl frequency signals, duplicate priorities, and URLs blocked by <code>robots.txt</code>. The full results export to Excel with one click — useful for monthly crawl-health reviews or pre-migration URL inventories.</p>
         <span class="feat-tag tag-free">Free</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon">✍️</div>
         <h2>AI Content Generator</h2>
-        <p>Generate full SEO-optimised content outlines, meta descriptions, and H1 tags at scale. Choose your AI model, configure tone, and export a ready-to-publish content brief as an Excel file.</p>
+        <p>Generate SEO-optimised content outlines, meta descriptions, and H1 tags at scale across all pages found by the crawler. Select your preferred AI model, specify the target keyword, tone, and approximate word count, and CrawlIQ returns a structured content brief for each page — section headers, recommended word count, semantic keyword suggestions, and FAQ questions to target People Also Ask boxes. Export the complete brief set to Excel for your content team.</p>
         <span class="feat-tag tag-ai">AI Powered</span>
       </div>
 
@@ -226,6 +238,142 @@
         <li><strong>OpenAI GPT-4o</strong> — industry-standard benchmark model</li>
         <li><strong>Rules-based fallback</strong> — works with zero API key; deterministic issue detection</li>
       </ul>
+    </div>
+  </section>
+
+  <!-- Comparison table -->
+  <section aria-label="Tool comparison" style="margin-bottom:52px">
+    <p class="section-title">CrawlIQ vs Competing SEO Audit Tools</p>
+
+    <div class="detail-block" style="padding:20px;overflow-x:auto">
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="col-crawliq">CrawlIQ</th>
+            <th>Screaming Frog</th>
+            <th>SEOptimer</th>
+            <th>Seobility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Price (basic tier)</td>
+            <td class="col-crawliq">Free</td>
+            <td>Free up to 500 URLs / £259/yr unlimited</td>
+            <td>Free limited / $19/mo</td>
+            <td>Free limited / €50/mo</td>
+          </tr>
+          <tr>
+            <td>Pages per crawl (free)</td>
+            <td class="col-crawliq">50 (no login) / 500 (account)</td>
+            <td>500</td>
+            <td>1 page per report</td>
+            <td>1,000</td>
+          </tr>
+          <tr>
+            <td>On-page issue detection</td>
+            <td class="col-crawliq"><span class="tick">✓</span> 50+ signals</td>
+            <td><span class="tick">✓</span> 200+ signals</td>
+            <td><span class="tick">✓</span> ~30 signals</td>
+            <td><span class="tick">✓</span> ~40 signals</td>
+          </tr>
+          <tr>
+            <td>AI-generated fixes</td>
+            <td class="col-crawliq"><span class="tick">✓</span> 4 model choices</td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="partial">~</span> limited suggestions</td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>Multi-model AI (Groq / Gemini / Claude / GPT-4o)</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>Competitor side-by-side analysis</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="partial">~</span> via separate crawls</td>
+            <td><span class="tick">✓</span></td>
+            <td><span class="tick">✓</span></td>
+          </tr>
+          <tr>
+            <td>SERP result analysis</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="partial">~</span> basic</td>
+          </tr>
+          <tr>
+            <td>Keyword gap analysis</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="tick">✓</span> paid</td>
+          </tr>
+          <tr>
+            <td>Sitemap URL validator</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="tick">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="tick">✓</span></td>
+          </tr>
+          <tr>
+            <td>AI content brief generator</td>
+            <td class="col-crawliq"><span class="tick">✓</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="cross">✗</span></td>
+          </tr>
+          <tr>
+            <td>Excel export</td>
+            <td class="col-crawliq"><span class="tick">✓</span> multi-sheet</td>
+            <td><span class="tick">✓</span></td>
+            <td><span class="tick">✓</span> paid</td>
+            <td><span class="tick">✓</span> paid</td>
+          </tr>
+          <tr>
+            <td>Rank monitoring</td>
+            <td class="col-crawliq"><span class="tick">✓</span> free</td>
+            <td><span class="cross">✗</span></td>
+            <td><span class="tick">✓</span> paid</td>
+            <td><span class="tick">✓</span> paid</td>
+          </tr>
+          <tr>
+            <td>Installation required</td>
+            <td class="col-crawliq">No — runs in browser</td>
+            <td>Desktop app (Windows/Mac)</td>
+            <td>No — web app</td>
+            <td>No — web app</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px"><span class="tick">✓</span> available &nbsp; <span class="cross">✗</span> not available &nbsp; <span class="partial">~</span> partial / limited. Pricing as of 2026.</p>
+    </div>
+  </section>
+
+  <!-- Who is this for -->
+  <section aria-label="Use cases" style="margin-bottom:52px">
+    <p class="section-title">Who Uses CrawlIQ</p>
+    <div class="use-case-grid">
+      <div class="use-case-card">
+        <h4>Freelance SEO Consultants</h4>
+        <p>Run fast technical audits for client pitches without paying for a monthly subscription. Export multi-sheet Excel reports to hand directly to clients.</p>
+      </div>
+      <div class="use-case-card">
+        <h4>Small Business Owners</h4>
+        <p>No SEO background required. Start a free audit with your URL, read the AI-generated plain-English fix recommendations, and implement changes yourself.</p>
+      </div>
+      <div class="use-case-card">
+        <h4>In-House Marketing Teams</h4>
+        <p>Track weekly rank positions, monitor competitor changes, and use the keyword gap tool to brief content writers on exactly what to create next.</p>
+      </div>
+      <div class="use-case-card">
+        <h4>Web Developers</h4>
+        <p>Catch technical SEO regressions before deployment. Run a 50-page crawl during QA to verify canonical tags, hreflang correctness, and internal link structure.</p>
+      </div>
     </div>
   </section>
 
