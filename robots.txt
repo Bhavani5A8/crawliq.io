@@ -6,21 +6,20 @@ Allow: /index.html
 Allow: /features.html
 Allow: /how-it-works.html
 Allow: /about.html
-Allow: /app/
-Allow: /app/index.html
 Allow: /sitemap.html
 Allow: /sitemap.xml
 
-# ── Tier B: Tool UI pages — Googlebot must crawl to honour noindex directive
-Allow: /backend/pages/
-
-# ── Static assets — no SEO value, conserve crawl budget ─────────────────────
-Disallow: /static/
+# ── Tier B: App layer — noindex served via meta tag; disallow Googlebot to save
+# indexation budget. noindex in HTML handles classification signal.
+Disallow: /app/
 
 # ── Backend directory (Python source, configs — not served as HTML) ──────────
 Disallow: /backend/
 
-# ── API endpoints (hosted on HuggingFace, not GitHub Pages — defensive only) ─
+# ── Static assets — no SEO value ─────────────────────────────────────────────
+Disallow: /static/
+
+# ── API endpoints (hosted on HuggingFace — defensive only) ───────────────────
 Disallow: /crawl
 Disallow: /crawl-status
 Disallow: /crawl-stream/
