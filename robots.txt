@@ -1,18 +1,26 @@
 User-agent: *
 
-# Allow real content pages first (Googlebot longest-match + legacy parser compatibility)
+# ── Tier A: Indexable SEO pages ─────────────────────────────────────────────
 Allow: /
 Allow: /index.html
+Allow: /features.html
+Allow: /how-it-works.html
+Allow: /about.html
 Allow: /app/
 Allow: /app/index.html
 Allow: /sitemap.html
 Allow: /sitemap.xml
 
-# Static assets — no SEO value, conserve crawl budget
+# ── Tier B: Tool UI pages — Googlebot must crawl to honour noindex directive
+Allow: /backend/pages/
+
+# ── Static assets — no SEO value, conserve crawl budget ─────────────────────
 Disallow: /static/
 
-# Backend Python source, API endpoints — return JSON not HTML
+# ── Backend directory (Python source, configs — not served as HTML) ──────────
 Disallow: /backend/
+
+# ── API endpoints (hosted on HuggingFace, not GitHub Pages — defensive only) ─
 Disallow: /crawl
 Disallow: /crawl-status
 Disallow: /crawl-stream/
@@ -31,25 +39,22 @@ Disallow: /healthz
 Disallow: /serp
 Disallow: /serp-track
 Disallow: /serp_engine
-
-# FastAPI auto-generated docs
 Disallow: /docs
 Disallow: /redoc
 Disallow: /openapi.json
 Disallow: /api/
 
-# Debug and dev artifacts
+# ── Debug / dev artifacts ─────────────────────────────────────────────────────
 Disallow: /debug/
 Disallow: /?debug=
 Disallow: /?test=
 
-# Infinite URL spaces — duplicate crawl paths via query params
-# NOTE: /*?url= intentionally removed — it is a valid user entry point on the landing page
+# ── Infinite URL spaces via query params ──────────────────────────────────────
 Disallow: /*?job_id=
 Disallow: /*?format=
 
 Sitemap: https://bhavani5a8.github.io/crawliq.io/sitemap.xml
 
-# Block Lighthouse audit bots from draining the 25,000/day PSI quota
+# Block Lighthouse audit bots from draining the PageSpeed Insights quota
 User-agent: Chrome-Lighthouse
 Disallow: /
