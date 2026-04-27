@@ -7,10 +7,14 @@
   <meta name="description" content="Learn how CrawlIQ's AI SEO audit works: async BFS crawling, 50+ issue detection, multi-model AI analysis, and Excel export. Step-by-step technical walkthrough."/>
   <link rel="canonical" href="https://bhavani5a8.github.io/crawliq.io/how-it-works.html"/>
   <meta name="robots" content="index, follow"/>
+  <meta name="keywords" content="how does SEO audit work, technical SEO audit process, site crawl explained, CrawlIQ how it works, SEO checker steps, AI SEO analysis"/>
   <meta property="og:type" content="article"/>
   <meta property="og:title" content="How CrawlIQ Works — 5-Step AI SEO Audit Process Explained"/>
   <meta property="og:description" content="Step-by-step walkthrough of CrawlIQ's technical SEO audit: async BFS crawling, issue detection, AI fix generation, and structured Excel export."/>
   <meta property="og:url" content="https://bhavani5a8.github.io/crawliq.io/how-it-works.html"/>
+  <meta name="twitter:card" content="summary"/>
+  <meta name="twitter:title" content="How CrawlIQ Works — 5-Step AI SEO Audit Process Explained"/>
+  <meta name="twitter:description" content="Step-by-step walkthrough of CrawlIQ's AI technical SEO audit: async BFS crawling, 50+ issue detection, AI fix generation, and Excel export."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="preload" as="style"
@@ -54,6 +58,56 @@
         "name": "Export structured Excel report",
         "text": "Download a multi-sheet Excel workbook with the full audit, technical SEO scores, AI-generated fixes, and a live optimisation table ready for your content team."
       }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Does CrawlIQ handle JavaScript-rendered pages?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "CrawlIQ uses an HTML-only crawler (aiohttp + BeautifulSoup). It reads the initial HTML response returned by the server — the same HTML that Googlebot reads on a first-pass crawl. JavaScript-rendered SPAs that return empty HTML shells will show limited content; server-side rendered or static sites get full coverage."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long does a crawl take?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "CrawlIQ runs fully asynchronous concurrent requests. A 50-page crawl typically completes in 15–45 seconds depending on your server response times. The first crawl on HuggingFace's free tier may take 30–90 seconds for the container to wake up — a cold-start notice is shown automatically."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is my crawl data stored anywhere?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. All crawl data is processed in an isolated in-memory session on the HuggingFace container. Data is not written to any database or disk. When a new crawl starts, the previous session is cleared. The tool is fully open-source — you can verify this in the GitHub repository."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What AI model gives the best results?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Groq (Llama 3 70B) is the fastest and works well for bulk analysis. Claude (Anthropic) gives the most nuanced content quality assessments. Gemini performs well for multilingual content. For most users, Groq's free API is the best starting point — no credit card required at console.groq.com."
+        }
+      }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "CrawlIQ", "item": "https://bhavani5a8.github.io/crawliq.io/"},
+      {"@type": "ListItem", "position": 2, "name": "How It Works", "item": "https://bhavani5a8.github.io/crawliq.io/how-it-works.html"}
     ]
   }
   </script>
