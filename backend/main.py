@@ -205,6 +205,50 @@ try:
 except ImportError:
     _SERP_SCRAPER_MODULE = False
 
+# ── Production upgrade modules (graceful fallback) ────────────────────────────
+try:
+    from database import (
+        init_db                as _init_db,
+        save_crawl_job_db      as _save_job_db,
+        update_crawl_job_db    as _update_job_db,
+        save_crawl_results_db  as _save_results_db,
+        save_serp_db           as _save_serp_db,
+        get_serp_history_db    as _get_serp_history_db,
+        create_project_db      as _create_project_db,
+        list_projects_db       as _list_projects_db,
+        get_project_db         as _get_project_db,
+        get_crawl_history_db   as _get_crawl_history_db,
+        get_job_results_db     as _get_job_results_db,
+        create_schedule_db     as _create_schedule_db,
+        list_schedules_db      as _list_schedules_db,
+        get_due_schedules_db   as _get_due_schedules_db,
+        mark_schedule_ran_db   as _mark_schedule_ran_db,
+        ensure_user            as _ensure_db_user,
+    )
+    _DB_MODULE = True
+except ImportError:
+    _DB_MODULE = False
+
+try:
+    from schema_validator import validate_page_schemas as _validate_page_schemas
+    _SCHEMA_VALIDATOR_MODULE = True
+except ImportError:
+    _SCHEMA_VALIDATOR_MODULE = False
+
+try:
+    from ai_fallback import get_provider_status as _get_provider_status
+    _AI_FALLBACK_MODULE = True
+except ImportError:
+    _AI_FALLBACK_MODULE = False
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler as _BGScheduler
+    _APSCHEDULER = True
+except ImportError:
+    _APSCHEDULER = False
+
+_scheduler = None   # populated in startup if APScheduler available
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -1119,6 +1163,12 @@ async def start_crawl(request: CrawlRequest, http_request: _FastAPIRequest = Non
 
     # Create job BEFORE starting task so the task can snapshot results into it.
     _job = _job_store.create(url=url)
+    # Persist to DB immediately (status=running) so it survives restarts
+    if _DB_MODULE:
+        try:
+            _save_job_db(_job.job_id, url)
+        except Exception as _dbe:
+            logger.warning("DB job create failed: %s", _dbe)
     asyncio.create_task(_run_crawl(url, request.max_pages, _crawl_user_id, _job))
     return {"status": "running", "message": "Crawl started", "job_id": _job.job_id}
 
@@ -1143,11 +1193,35 @@ async def _run_crawl(url: str, max_pages: int, user_id: int | None = None, job: 
             job.results = list(crawl_results)
             job.status.update(crawl_status)
             job.status["done"] = True
+        # ── PERSIST TO DB ────────────────────────────────────────────────────
+        if _DB_MODULE and job is not None:
+            try:
+                _update_job_db(
+                    job_id        = job.job_id,
+                    status        = "completed",
+                    pages_crawled = len(crawl_results),
+                )
+                _save_results_db(job.job_id, list(crawl_results))
+                logger.info("Crawl job %s persisted to DB (%d pages)",
+                            job.job_id, len(crawl_results))
+            except Exception as db_exc:
+                logger.warning("DB persist failed for job %s: %s", job.job_id, db_exc)
     except Exception as exc:
         logger.error("Crawl failed: %s", exc)
         crawl_status.update({"running": False, "done": False, "error": str(exc)})
         if job is not None:
             job.status.update({"running": False, "done": False, "error": str(exc)})
+        # ── PERSIST FAILURE ──────────────────────────────────────────────────
+        if _DB_MODULE and job is not None:
+            try:
+                _update_job_db(
+                    job_id        = job.job_id,
+                    status        = "failed",
+                    pages_crawled = len(crawl_results),
+                    error         = str(exc),
+                )
+            except Exception:
+                pass
 
 
 @app.get("/crawl-status")
@@ -3451,13 +3525,40 @@ def monitor_latest(domain: str):
 
 @app.on_event("startup")
 async def _startup_monitor():
-    """Start the background SERP monitor loop when FastAPI boots."""
+    """Initialise DB, start monitor service, and start APScheduler on FastAPI boot."""
+    global _scheduler
+
+    # 1. Persistent storage
+    if _DB_MODULE:
+        try:
+            _init_db()
+            logger.info("SQLite DB initialised at backend/crawliq.db")
+        except Exception as exc:
+            logger.warning("DB init failed: %s", exc)
+
+    # 2. SERP monitor service
     if _MONITOR_MODULE:
         try:
             _start_monitor_service()
             logger.info("Monitor service started at FastAPI startup")
         except Exception as exc:
             logger.warning("Monitor service startup failed: %s", exc)
+
+    # 3. APScheduler for recurring crawls
+    if _APSCHEDULER and _DB_MODULE:
+        try:
+            _scheduler = _BGScheduler(timezone="UTC")
+            _scheduler.add_job(
+                _run_scheduled_crawls,
+                trigger="interval",
+                minutes=10,
+                id="scheduled_crawls",
+                replace_existing=True,
+            )
+            _scheduler.start()
+            logger.info("APScheduler started — checks due crawl schedules every 10 min")
+        except Exception as exc:
+            logger.warning("APScheduler startup failed: %s", exc)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -4688,8 +4789,302 @@ def _handle_sigterm(sig, frame):
 signal.signal(signal.SIGTERM, _handle_sigterm)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# ── SECTION 11: PRODUCTION UPGRADES ─────────────────────────────────────────
+#   DB-backed projects, crawl history, SERP rank tracking,
+#   recurring schedule management, structured data validation,
+#   AI provider status, standard response wrapper
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Standard response helper ─────────────────────────────────────────────────
+def _ok(data: object) -> dict:
+    return {"status": "success", "data": data, "error": None}
+
+def _err(msg: str, code: int = 400):
+    from fastapi import HTTPException as _HE
+    raise _HE(status_code=code, detail={"status": "error", "data": None, "error": msg})
+
+
+# ── Pydantic models for new endpoints ────────────────────────────────────────
+class _ProjectCreate(BaseModel):
+    name:    str = Field(..., min_length=1, max_length=100)
+    email:   str = Field(...)   # user email used as lookup key
+
+class _ScheduleCreate(BaseModel):
+    project_id: str
+    url:        str
+    interval:   str  = "weekly"   # daily | weekly
+    max_pages:  int  = 50
+
+class _SerpQuery(BaseModel):
+    domain:  str
+    keyword: str
+
+
+# ── APScheduler helper: fires due scheduled crawls ───────────────────────────
+def _run_scheduled_crawls():
+    """Called every 10 min by APScheduler. Fires any overdue crawl schedules."""
+    if not _DB_MODULE:
+        return
+    due = _get_due_schedules_db()
+    for sched in due:
+        url       = sched["url"]
+        max_pages = sched.get("max_pages", 50)
+        logger.info("Scheduled crawl firing: %s", url)
+        try:
+            import asyncio as _aio
+            loop = _aio.new_event_loop()
+            from crawler import SEOCrawler as _SC
+            loop.run_until_complete(_SC(url, max_pages=max_pages).crawl_async())
+            loop.close()
+            _mark_schedule_ran_db(sched["id"])
+        except Exception as exc:
+            logger.warning("Scheduled crawl failed for %s: %s", url, exc)
+
+
+# ── PROJECT MANAGEMENT ───────────────────────────────────────────────────────
+
+@app.post("/projects/create")
+def projects_create(body: _ProjectCreate, request: _FastAPIRequest):
+    """Create a new project. Requires email (used as user lookup key)."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    try:
+        uid  = _ensure_db_user(body.email)
+        proj = _create_project_db(uid, body.name)
+        return _ok(proj)
+    except Exception as exc:
+        logger.error("Project create failed: %s", exc)
+        return _err(str(exc), 500)
+
+
+@app.get("/projects")
+def projects_list(email: str = Query(...), request: _FastAPIRequest = None):
+    """List all projects for a user (by email)."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    uid  = _ensure_db_user(email)
+    data = _list_projects_db(uid)
+    return _ok(data)
+
+
+@app.get("/projects/{project_id}")
+def projects_get(project_id: str, request: _FastAPIRequest = None):
+    """Get a single project by ID."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    proj = _get_project_db(project_id)
+    if not proj:
+        return _err("Project not found", 404)
+    return _ok(proj)
+
+
+@app.get("/projects/{project_id}/history")
+def projects_history(project_id: str, limit: int = Query(default=20, le=100),
+                     request: _FastAPIRequest = None):
+    """Return crawl history for a project (most recent first)."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    history = _get_crawl_history_db(project_id, limit=limit)
+    return _ok({"project_id": project_id, "jobs": history, "count": len(history)})
+
+
+@app.get("/jobs/{job_id}/results")
+def job_results(job_id: str, request: _FastAPIRequest = None):
+    """
+    Retrieve persisted page-level results for a completed crawl job.
+    Falls back to in-memory job store if DB record not yet available.
+    """
+    # Try in-memory first (for jobs still running or recent)
+    mem_job = _job_store.get(job_id)
+    if mem_job and mem_job.results:
+        return _ok({
+            "job_id":  job_id,
+            "source":  "memory",
+            "pages":   mem_job.results,
+            "count":   len(mem_job.results),
+        })
+    # Fall back to DB
+    if _DB_MODULE:
+        pages = _get_job_results_db(job_id)
+        if pages:
+            return _ok({
+                "job_id": job_id,
+                "source": "database",
+                "pages":  pages,
+                "count":  len(pages),
+            })
+    return _err("Job not found or results not yet available", 404)
+
+
+# ── SERP RANK TRACKING ───────────────────────────────────────────────────────
+
+@app.get("/serp/rank")
+async def serp_rank_check(
+    keyword: str = Query(...),
+    domain:  str = Query(...),
+    request: _FastAPIRequest = None,
+):
+    """
+    Check current SERP position for keyword+domain.
+    Stores snapshot in DB. Returns position, competitors, history.
+    """
+    if not _SERP_SCRAPER_MODULE:
+        return _err("SERP scraper module not available", 503)
+
+    try:
+        # _get_serp_position returns dict: {position, url, top_results, ...}
+        raw = await asyncio.get_event_loop().run_in_executor(
+            None, _get_serp_position, keyword, domain
+        )
+        position   = raw.get("position")
+        result_url = raw.get("url")
+
+        # Persist snapshot
+        snapshot = {}
+        if _DB_MODULE:
+            try:
+                snapshot = _save_serp_db(domain, keyword, position, result_url, raw)
+            except Exception as db_exc:
+                logger.warning("SERP DB save failed: %s", db_exc)
+
+        # Fetch rank history from DB
+        history = []
+        if _DB_MODULE:
+            try:
+                history = _get_serp_history_db(domain, keyword, limit=30)
+            except Exception:
+                pass
+
+        return _ok({
+            "domain":    domain,
+            "keyword":   keyword,
+            "position":  position,
+            "url":       result_url,
+            "top_results": raw.get("top_results", []),
+            "history":   history,
+            "snapshot":  snapshot,
+        })
+    except Exception as exc:
+        logger.error("SERP rank check failed: %s", exc)
+        return _err(f"SERP check failed: {exc}", 500)
+
+
+@app.get("/serp/history")
+def serp_history(
+    domain:  str = Query(...),
+    keyword: str = Query(...),
+    limit:   int = Query(default=30, le=100),
+):
+    """Return historical SERP rank snapshots for domain+keyword."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    history = _get_serp_history_db(domain, keyword, limit=limit)
+    return _ok({"domain": domain, "keyword": keyword,
+                "history": history, "count": len(history)})
+
+
+# ── RECURRING SCHEDULE MANAGEMENT ───────────────────────────────────────────
+
+@app.post("/schedule")
+def schedule_create(body: _ScheduleCreate, request: _FastAPIRequest = None):
+    """Create a recurring crawl schedule (daily or weekly)."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    if body.interval not in ("daily", "weekly"):
+        return _err("interval must be 'daily' or 'weekly'")
+    try:
+        sched = _create_schedule_db(
+            project_id = body.project_id,
+            url        = body.url,
+            interval   = body.interval,
+            max_pages  = body.max_pages,
+        )
+        return _ok(sched)
+    except Exception as exc:
+        return _err(str(exc), 500)
+
+
+@app.get("/schedule")
+def schedule_list(project_id: str = Query(...)):
+    """List active schedules for a project."""
+    if not _DB_MODULE:
+        return _err("Database module not available", 503)
+    return _ok(_list_schedules_db(project_id))
+
+
+# ── STRUCTURED DATA VALIDATION ───────────────────────────────────────────────
+
+@app.post("/schema/validate")
+async def schema_validate(request: _FastAPIRequest):
+    """
+    Validate JSON-LD structured data in HTML.
+    Accepts JSON body: {"html": "<html>...", "url": "optional"} OR {"url": "https://..."}
+    """
+    if not _SCHEMA_VALIDATOR_MODULE:
+        return _err("Schema validator module not available", 503)
+    try:
+        body = await request.json()
+    except Exception:
+        return _err("Invalid JSON body", 400)
+
+    html = body.get("html", "")
+    url  = body.get("url", "")
+
+    # If no HTML provided but URL given, fetch it
+    if not html and url:
+        try:
+            import aiohttp as _ah
+            async with _ah.ClientSession() as session:
+                async with session.get(url, timeout=_ah.ClientTimeout(total=15)) as resp:
+                    html = await resp.text(errors="replace")
+        except Exception as exc:
+            return _err(f"Failed to fetch URL: {exc}", 400)
+
+    if not html:
+        return _err("Provide 'html' or 'url' in request body", 400)
+
+    report = _validate_page_schemas(html)
+    report["url"] = url
+    return _ok(report)
+
+
+@app.get("/schema/validate")
+async def schema_validate_get(url: str = Query(...)):
+    """GET convenience endpoint: fetch URL and validate its JSON-LD schemas."""
+    if not _SCHEMA_VALIDATOR_MODULE:
+        return _err("Schema validator module not available", 503)
+    try:
+        import aiohttp as _ah
+        async with _ah.ClientSession() as session:
+            async with session.get(url, timeout=_ah.ClientTimeout(total=15)) as resp:
+                html = await resp.text(errors="replace")
+        report = _validate_page_schemas(html)
+        report["url"] = url
+        return _ok(report)
+    except Exception as exc:
+        return _err(f"Schema validation failed: {exc}", 500)
+
+
+# ── AI PROVIDER STATUS ───────────────────────────────────────────────────────
+
+@app.get("/ai/providers")
+def ai_provider_status():
+    """Return which AI providers are configured and the active fallback chain."""
+    if _AI_FALLBACK_MODULE:
+        return _ok(_get_provider_status())
+    # Minimal fallback if ai_fallback.py not loaded
+    import os
+    return _ok({
+        "active_provider": os.getenv("AI_PROVIDER", "rules"),
+        "configured":      bool(os.getenv("GEMINI_API_KEY") or
+                                os.getenv("GROQ_API_KEY") or
+                                os.getenv("OPENAI_API_KEY") or
+                                os.getenv("ANTHROPIC_API_KEY")),
+    })
+
+
 if __name__ == "__main__":
-    parser = _build_arg_parser()
     args   = parser.parse_args()
 
     if args.crawl:
