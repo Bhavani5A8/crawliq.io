@@ -1910,12 +1910,15 @@ async function removeTeamMember(email){
 /* ── Panel nav ── */
 /* ── Panel registry ──────────────────────────────────────────────────────── */
 const _PANELS = {
-  dashboard:    { el: 'dash-sec',           sn: 'sn-dashboard',    title: 'Audit Dashboard' },
-  serp:         { el: 'serp-intel-sec',     sn: 'sn-serp',         title: 'SERP Intelligence' },
-  monitor:      { el: 'monitor-sec',        sn: 'sn-monitor',      title: 'Rank Monitor' },
-  competitors:  { el: 'competitor-sec',     sn: 'sn-competitors',  title: 'Competitor Analysis' },
-  schema:       { el: 'panel-schema-intel', sn: 'sn-schema',       title: 'Schema Intelligence' },
-  'content-lab':{ el: 'panel-content-lab',  sn: 'sn-content-lab',  title: 'Content Lab' },
+  dashboard:      { el: 'dash-sec',           sn: 'sn-dashboard',    title: 'Audit Dashboard' },
+  serp:           { el: 'serp-intel-sec',     sn: 'sn-serp',         title: 'SERP Intelligence' },
+  monitor:        { el: 'monitor-sec',        sn: 'sn-monitor',      title: 'Rank Monitor' },
+  competitors:    { el: 'competitor-sec',     sn: 'sn-competitors',  title: 'Competitor Analysis' },
+  schema:         { el: 'panel-schema-intel', sn: 'sn-schema',       title: 'Schema Intelligence' },
+  'content-lab':  { el: 'panel-content-lab',  sn: 'sn-content-lab',  title: 'Content Lab' },
+  'sitemap-crawl':{ el: 'sitemap-crawl-sec',  sn: 'sn-sitemap',      title: 'Sitemap Crawl' },
+  'tech-seo':     { el: 'tech-seo-sec',       sn: 'sn-tech-seo',     title: 'Technical SEO Audit' },
+  'kwgap':        { el: 'kwgap-sec',          sn: 'sn-kwgap',        title: 'Keyword Gap Analysis' },
 };
 let _currentPanel = 'dashboard';
 
@@ -1936,7 +1939,9 @@ function showPanel(name) {
   });
   const title = document.getElementById('app-topbar-title');
   if (title) title.textContent = _PANELS[name].title;
-  if (name === 'serp' || name === 'monitor') {
+  if (name === 'serp' || name === 'monitor' || name === 'schema' ||
+      name === 'content-lab' || name === 'sitemap-crawl' || name === 'competitors' ||
+      name === 'tech-seo' || name === 'kwgap') {
     const el = document.getElementById(_PANELS[name].el);
     if (el) el.style.display = 'block';
   }
@@ -2340,3 +2345,737 @@ function closeLandingMobileNav(){
     setTimeout(tryAutoStart, 600);
   });
 })();
+
+/* ── Sitemap Crawl ────────────────────────────────────────────────────────── */
+let _sitemapData = [], _smSortKey = '', _smSortAsc = true;
+
+async function runSitemapCrawl() {
+  let url = (document.getElementById('sitemap-url-input') || {}).value || '';
+  url = url.trim();
+  if (!url) { bar('c', false, '✗ Enter a sitemap URL'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if (!url.includes('sitemap')) url = url.replace(/\/$/, '') + '/sitemap.xml';
+
+  const statusBar = document.getElementById('sitemap-status-bar');
+  const statusTxt = document.getElementById('sitemap-status-txt');
+  const runBtn    = document.getElementById('sitemap-run-btn');
+  if (statusBar) { statusBar.style.display = 'flex'; }
+  if (statusTxt) statusTxt.textContent = 'Fetching sitemap…';
+  if (runBtn) runBtn.disabled = true;
+
+  document.getElementById('sitemap-url-input').value = url;
+
+  try {
+    const res = await fetch(`${API}/sitemap-crawl?sitemap_url=${encodeURIComponent(url)}&max_pages=200`, { method: 'POST' });
+    if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail || `HTTP ${res.status}`);
+    const data = await res.json();
+    _sitemapData = data.urls || data.pages || [];
+    if (statusTxt) statusTxt.textContent = `✓ ${_sitemapData.length} URLs parsed`;
+    setTimeout(() => { if (statusBar) statusBar.style.display = 'none'; }, 3000);
+    processSitemapData();
+    const exportBtn = document.getElementById('sm-export-btn');
+    if (exportBtn) exportBtn.disabled = false;
+  } catch(e) {
+    if (statusTxt) { statusTxt.textContent = '✗ ' + e.message; }
+    setTimeout(() => { if (statusBar) statusBar.style.display = 'none'; }, 5000);
+  } finally {
+    if (runBtn) runBtn.disabled = false;
+  }
+}
+
+function processSitemapData() {
+  const d = _sitemapData;
+  const total     = d.length;
+  const live      = d.filter(u => { const s = u.status_code || 200; return s >= 200 && s < 300; }).length;
+  const redirects = d.filter(u => { const s = u.status_code || 0; return s >= 300 && s < 400; }).length;
+  const errors    = d.filter(u => { const s = u.status_code || 0; return s >= 400; }).length;
+  const noLastmod = d.filter(u => !u.lastmod).length;
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('sm-total',     total || '—');
+  set('sm-live',      live  || '—');
+  set('sm-live-pct',  total ? Math.round(live/total*100)+'% of sitemap' : '');
+  set('sm-redirects', redirects || '—');
+  set('sm-errors',    errors    || '—');
+  set('sm-nolastmod', noLastmod || '—');
+
+  renderSitemapTable();
+}
+
+function smSort(key) {
+  if (_smSortKey === key) _smSortAsc = !_smSortAsc;
+  else { _smSortKey = key; _smSortAsc = true; }
+  renderSitemapTable();
+}
+
+function renderSitemapTable() {
+  const statusF = (document.getElementById('sm-f-status') || {}).value || '';
+  const search  = ((document.getElementById('sm-f-search') || {}).value || '').toLowerCase();
+
+  let rows = _sitemapData.filter(u => {
+    const st = u.status_code || 200;
+    if (statusF === '2xx' && !(st >= 200 && st < 300)) return false;
+    if (statusF === '3xx' && !(st >= 300 && st < 400)) return false;
+    if (statusF === '4xx' && st < 400) return false;
+    if (statusF === 'no-lastmod' && u.lastmod) return false;
+    if (search && !(u.url||u.loc||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (_smSortKey) {
+    rows = [...rows].sort((a, b) => {
+      const av = a[_smSortKey] || ''; const bv = b[_smSortKey] || '';
+      return _smSortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }
+
+  const countEl = document.getElementById('sm-tbl-count');
+  if (countEl) countEl.textContent = rows.length + ' URLs';
+
+  const tbody = document.getElementById('sm-tbl-body');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px;font-size:11px">No URLs match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(u => {
+    const url = u.url || u.loc || '—';
+    const st  = u.status_code;
+    const badge = !st ? '<span style="background:var(--surf2);color:var(--muted);font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px">Pending</span>'
+      : st < 300 ? `<span style="background:rgba(16,185,129,.15);color:var(--green);font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px">${st}</span>`
+      : st < 400 ? `<span style="background:rgba(245,158,11,.15);color:var(--yellow);font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px">${st}</span>`
+      : `<span style="background:rgba(255,107,107,.15);color:var(--red);font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px">${st}</span>`;
+    const issues = [];
+    if (st && st >= 400) issues.push('Error');
+    if (st && st >= 300 && st < 400) issues.push('Redirect');
+    if (!u.lastmod) issues.push('No Lastmod');
+    if (!u.changefreq) issues.push('No Changefreq');
+    const issueBadges = issues.length
+      ? issues.map(i => `<span style="background:rgba(245,158,11,.12);color:var(--yellow);font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;margin-right:3px">${i}</span>`).join('')
+      : '<span style="background:rgba(16,185,129,.12);color:var(--green);font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px">Clean</span>';
+    const shortUrl = url.replace(/^https?:\/\//, '');
+    return `<tr>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px">
+        <a href="${url}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-size:11px;font-family:var(--mono)" title="${url}">${shortUrl}</a>
+      </td>
+      <td style="padding:8px 10px;text-align:center">${badge}</td>
+      <td style="padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--muted)">${u.lastmod || '<span style="color:var(--red)">—</span>'}</td>
+      <td style="padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--muted)">${u.changefreq || '—'}</td>
+      <td style="padding:8px 10px;font-family:var(--mono);font-size:11px;text-align:center">${u.priority || '—'}</td>
+      <td style="padding:8px 10px">${issueBadges}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function exportSitemapExcel() {
+  if (!_sitemapData.length) { alert('Crawl a sitemap first.'); return; }
+  if (typeof downloadExcel === 'function') {
+    // Use the standard Excel download if available
+  }
+  // Fallback: CSV download
+  const headers = ['URL','HTTP_Status','Last_Modified','Change_Frequency','Priority','Issues'];
+  const rows = _sitemapData.map(u => [
+    u.url||u.loc||'',
+    u.status_code||'',
+    u.lastmod||'',
+    u.changefreq||'',
+    u.priority||'',
+    [u.status_code&&u.status_code>=400?'Error':'', !u.lastmod?'No Lastmod':''].filter(Boolean).join('; '),
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'crawliq-sitemap.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Update Content Lab to use new keyword fields ─────────────────────────── */
+// Monkey-patch: wrap runContentLabSynthesis to inject keyword-based context
+const _origRunContentLab = typeof runContentLabSynthesis === 'function' ? runContentLabSynthesis : null;
+function runContentLabSynthesis() {
+  const targetKw    = (document.getElementById('clab-target-kw')    || {}).value || '';
+  const secKws      = (document.getElementById('clab-secondary-kws') || {}).value || '';
+  const contentType = (document.getElementById('clab-content-type') || {}).value || 'blog_post';
+  const tone        = (document.getElementById('clab-tone')          || {}).value || 'professional';
+  const wordCount   = (document.getElementById('clab-word-count')    || {}).value || '800';
+  const ctxEl       = document.getElementById('clab-context');
+  const origEl      = document.getElementById('clab-original');
+
+  if (ctxEl && targetKw) {
+    ctxEl.value = `Target Keyword: ${targetKw}\nSecondary Keywords: ${secKws}\nContent Type: ${contentType}\nTone: ${tone}\nWord Count: ~${wordCount}`;
+  }
+  if (origEl && !origEl.value.trim() && targetKw) {
+    origEl.value = `Generate SEO-optimized ${contentType} about: ${targetKw}`;
+  }
+
+  const emptyEl  = document.getElementById('clab-empty');
+  const procEl   = document.getElementById('clab-processing');
+  const resultEl = document.getElementById('clab-result');
+  const genBtn   = document.getElementById('clab-generate-btn');
+  const genBtn2  = document.getElementById('clab-generate-btn2');
+  if (emptyEl)  emptyEl.style.display  = 'none';
+  if (procEl)   procEl.style.display   = 'block';
+  if (resultEl) resultEl.style.display = 'none';
+  if (genBtn)   genBtn.disabled  = true;
+  if (genBtn2)  genBtn2.disabled = true;
+
+  const original = (origEl || {}).value || '';
+  const context  = (ctxEl  || {}).value || '';
+
+  fetch(`${API}/generate-content`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: original, context, provider: _clabModel, target_keyword: targetKw, word_count: parseInt(wordCount) })
+  }).then(r => r.json()).then(d => {
+    const text = d.content || d.result || d.generated || d.text || JSON.stringify(d);
+    const textEl = document.getElementById('clab-result-text');
+    if (textEl) textEl.textContent = text;
+    if (resultEl) resultEl.style.display = 'block';
+
+    // Populate generated fields
+    const title = d.title || d.generated_title || extractFromText(text, /title[:\s]+(.+)/i);
+    const meta  = d.meta_description || d.generated_meta || extractFromText(text, /meta description[:\s]+(.+)/i);
+    const h1    = d.h1 || d.generated_h1 || extractFromText(text, /h1[:\s]+(.+)/i);
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '—'; };
+    setEl('clab-gen-title', title);
+    setEl('clab-gen-meta', meta);
+    setEl('clab-gen-h1', h1);
+    setEl('clab-gen-title-len', `${(title || '').length} / 60 chars`);
+    setEl('clab-gen-meta-len', `${(meta || '').length} / 160 chars`);
+    setEl('clab-kw-info', targetKw ? `Target: "${targetKw}" ${text.toLowerCase().includes(targetKw.toLowerCase()) ? '✓ Found in content' : '⚠ Not found'}` : '—');
+
+    // Word count
+    const wc = text.split(/\s+/).filter(Boolean).length;
+    setEl('clab-word-count-out', `${wc} words`);
+
+    // SEO score (rough estimate)
+    let score = 50;
+    if (title && title.length >= 30 && title.length <= 60) score += 15;
+    if (meta && meta.length >= 100 && meta.length <= 160) score += 15;
+    if (h1) score += 10;
+    if (targetKw && text.toLowerCase().includes(targetKw.toLowerCase())) score += 10;
+    const bar = document.getElementById('clab-seo-score-bar');
+    const hint = document.getElementById('clab-seo-score-hint');
+    const lbl = document.getElementById('clab-seo-score-label');
+    if (bar) bar.style.width = score + '%';
+    if (lbl) lbl.textContent = `${score} out of 100`;
+    if (hint) hint.textContent = score >= 75 ? '✓ Good SEO optimization' : score >= 50 ? '⚠ Moderate — review title/meta' : '✗ Needs optimization';
+    if (document.getElementById('clab-export-btn')) document.getElementById('clab-export-btn').disabled = false;
+  }).catch(e => {
+    const textEl = document.getElementById('clab-result-text');
+    if (textEl) textEl.textContent = `Error: ${e.message}\n\nCheck that the backend is running and has an AI provider configured.`;
+    if (resultEl) resultEl.style.display = 'block';
+  }).finally(() => {
+    if (procEl)  procEl.style.display  = 'none';
+    if (genBtn)  genBtn.disabled  = false;
+    if (genBtn2) genBtn2.disabled = false;
+  });
+}
+
+function extractFromText(text, re) {
+  const m = text.match(re);
+  return m ? m[1].trim().replace(/\*+/g, '') : '';
+}
+
+/* ── Post-crawl dashboard charts ────────────────────────────────────────────── */
+let _dashIssuesChart = null, _dashPriorityChart = null;
+
+function renderDashCharts(rows) {
+  if (!rows || !rows.length) return;
+  const chartsRow = document.getElementById('dash-charts-row');
+  if (chartsRow) chartsRow.style.display = 'flex';
+
+  loadECharts(() => {
+    // ── Issues by Type bar chart ──
+    const counts = {};
+    rows.forEach(r => (r.issues || []).forEach(i => { counts[i] = (counts[i] || 0) + 1; }));
+    const issueEntries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+    const issueEl = document.getElementById('dash-issues-chart');
+    if (issueEl && issueEntries.length) {
+      if (_dashIssuesChart) { try { _dashIssuesChart.dispose(); } catch(e){} }
+      _dashIssuesChart = echarts.init(issueEl, null, { renderer: 'canvas' });
+      _dashIssuesChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,19,29,.95)', borderColor: 'rgba(70,69,84,.45)', textStyle: { color: '#dfe2f1', fontSize: 11 } },
+        grid: { top: 8, right: 8, bottom: 40, left: 8, containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: issueEntries.map(([n]) => n.length > 14 ? n.slice(0, 13) + '…' : n),
+          axisLabel: { color: '#908fa0', fontSize: 9, rotate: 30, interval: 0 },
+          axisLine: { lineStyle: { color: 'rgba(70,69,84,.3)' } },
+          axisTick: { show: false },
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#908fa0', fontSize: 9 },
+          splitLine: { lineStyle: { color: 'rgba(70,69,84,.2)' } },
+        },
+        series: [{
+          type: 'bar',
+          data: issueEntries.map(([, c], i) => ({
+            value: c,
+            itemStyle: { color: i === 0 ? '#ff6b6b' : i === 1 ? '#F59E0B' : '#6366F1', borderRadius: [3, 3, 0, 0] }
+          })),
+          barMaxWidth: 28,
+        }],
+      });
+    }
+
+    // ── Priority distribution donut ──
+    const prioMap = { High: 0, Medium: 0, Low: 0, OK: 0 };
+    rows.forEach(r => {
+      const p = r.priority || ((!r.issues || !r.issues.length) ? 'OK' : 'Low');
+      if (prioMap[p] !== undefined) prioMap[p]++;
+      else prioMap.Low++;
+    });
+
+    const prioEl = document.getElementById('dash-priority-chart');
+    if (prioEl) {
+      if (_dashPriorityChart) { try { _dashPriorityChart.dispose(); } catch(e){} }
+      _dashPriorityChart = echarts.init(prioEl, null, { renderer: 'canvas' });
+      _dashPriorityChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          formatter: '{b}: {c} ({d}%)',
+          backgroundColor: 'rgba(15,19,29,.95)',
+          borderColor: 'rgba(70,69,84,.45)',
+          textStyle: { color: '#dfe2f1', fontSize: 11 }
+        },
+        legend: {
+          bottom: 4,
+          textStyle: { color: '#908fa0', fontSize: 9 },
+          itemWidth: 8, itemHeight: 8,
+        },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '65%'],
+          center: ['50%', '44%'],
+          avoidLabelOverlap: false,
+          label: { show: false },
+          emphasis: { label: { show: false } },
+          data: [
+            { name: 'High',   value: prioMap.High,   itemStyle: { color: '#ff6b6b' } },
+            { name: 'Medium', value: prioMap.Medium, itemStyle: { color: '#F59E0B' } },
+            { name: 'Low',    value: prioMap.Low,    itemStyle: { color: '#6366F1' } },
+            { name: 'OK',     value: prioMap.OK,     itemStyle: { color: '#10B981' } },
+          ].filter(d => d.value > 0),
+        }],
+      });
+    }
+  });
+}
+
+/* ── Technical SEO Panel ─────────────────────────────────────────────────────── */
+let _tseoData = null;
+
+async function runTechSEOPanel() {
+  const urlEl = document.getElementById('tseo-url-input');
+  let url = (urlEl || {}).value || '';
+  if (!url) {
+    const ctUrl = document.getElementById('crawl-target-url');
+    if (ctUrl) url = ctUrl.textContent || '';
+    if (!url) { const inp = document.getElementById('url-input'); if (inp) url = inp.value; }
+    if (urlEl && url) urlEl.value = url;
+  }
+
+  const sbar = document.getElementById('tseo-panel-sbar');
+  const stxt = document.getElementById('tseo-panel-status-txt');
+  const empty = document.getElementById('tseo-panel-empty');
+  const metrics = document.getElementById('tseo-panel-metrics');
+  const runBtn = document.getElementById('tseo-panel-run-btn');
+
+  if (sbar) sbar.style.display = 'flex';
+  if (stxt) stxt.textContent = 'Running technical SEO audit…';
+  if (empty) empty.style.display = 'none';
+  if (metrics) metrics.style.display = 'none';
+  if (runBtn) runBtn.disabled = true;
+
+  try {
+    // Both endpoints work on in-memory crawl data — no crawl needed from this panel
+    const [tseoRes, auditRes] = await Promise.all([
+      fetch(`${API}/technical-seo`),
+      fetch(`${API}/site-audit`)
+    ]);
+
+    if (!tseoRes.ok) {
+      const detail = await tseoRes.json().catch(() => ({}));
+      throw new Error(detail.detail || `Technical SEO API error ${tseoRes.status}`);
+    }
+    if (!auditRes.ok) {
+      const detail = await auditRes.json().catch(() => ({}));
+      throw new Error(detail.detail || `Site audit API error ${auditRes.status}`);
+    }
+
+    const tseo  = await tseoRes.json();
+    const audit = await auditRes.json();
+
+    // Map combined response to the shape renderTechSEOPanel() expects
+    const sum  = tseo.summary || {};
+    const idx  = sum.indexability || {};
+    const cov  = sum.coverage || {};
+    const https = audit.https_summary || {};
+    const statusDist = audit.status_distribution || {};
+    const pages = tseo.pages || [];
+
+    const merged = {
+      pages_crawled:       sum.total_pages || pages.length,
+      avg_score:           sum.avg_tech_score || 0,
+      indexable_pages:     idx.indexable_total || 0,
+      critical_issues:     pages.filter(p => !p.is_error && p.tech_score < 40).length,
+      https_coverage:      https.https_pages || 0,
+      robots_txt:          audit.robots_txt || {},
+      sitemap_xml:         { ...audit.sitemap, found: !!(audit.sitemap && audit.sitemap.accessible && audit.sitemap.is_xml) },
+      blocks_crawlers:     !!(audit.robots_txt && audit.robots_txt.blocks_googlebot),
+      https_valid:         https.status === 'all_https',
+      canonical_mismatches: idx.canonical_mismatch || 0,
+      duplicate_meta:      0,
+      status_2xx:          statusDist['2xx'] || 0,
+      status_4xx:          statusDist['4xx'] || 0,
+      status_5xx:          statusDist['5xx'] || 0,
+      optimized_pages:     pages.filter(p => p.tech_score >= 70).length,
+      pages_data:          pages.map(p => ({
+        url:         p.url,
+        score:       p.tech_score,
+        grade:       p.tech_grade,
+        issues:      p.all_issues || [],
+        status_code: p.status_code,
+      })),
+    };
+
+    _tseoData = merged;
+    renderTechSEOPanel(merged);
+    if (document.getElementById('tseo-panel-export-btn')) document.getElementById('tseo-panel-export-btn').disabled = false;
+  } catch(e) {
+    if (stxt) { stxt.textContent = '✗ ' + e.message; }
+    const sp = sbar ? sbar.querySelector('.spin') : null;
+    if (sp) sp.style.display = 'none';
+    if (empty) { empty.style.display = 'block'; empty.textContent = e.message; }
+  } finally {
+    if (runBtn) runBtn.disabled = false;
+    if (sbar && _tseoData) sbar.style.display = 'none';
+  }
+}
+
+function renderTechSEOPanel(d) {
+  const metrics = document.getElementById('tseo-panel-metrics');
+  if (metrics) metrics.style.display = 'block';
+
+  const pages = d.pages_crawled || d.pages || 0;
+  const avgScore = d.avg_score || d.technical_score || d.score || 0;
+  const grade = avgScore >= 85 ? 'A' : avgScore >= 70 ? 'B' : avgScore >= 55 ? 'C' : avgScore >= 40 ? 'D' : 'F';
+  const indexable = d.indexable_pages || d.valid_indexable || pages;
+  const critical = d.critical_issues || d.total_issues || 0;
+  const https = d.https_coverage || (d.https_status === 'valid' ? pages : 0);
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('tseo-avg-score', avgScore);
+  set('tseo-grade', `Grade ${grade}`);
+  set('tseo-pages', pages);
+  set('tseo-indexable', indexable);
+  set('tseo-critical', critical);
+  set('tseo-https', https);
+  set('tseo-donut-score', avgScore);
+  set('tseo-donut-grade', grade);
+
+  // Update signal rows
+  const robots = d.robots_txt || {};
+  const sitemap = d.sitemap_xml || {};
+  const setGreen = (id, v) => { const el = document.getElementById(id); if (el) { el.textContent = v; el.style.color = v === 'ok' || v === 'found' || v === 'valid' || v === 'All HTTPS' ? 'var(--green)' : v.includes('err') || v === 'not found' || v === 'not_found' || v === 'blocks_crawlers' ? 'var(--red)' : 'var(--yellow)'; } };
+  setGreen('tseo-robots-val', robots.status || (d.blocks_crawlers ? 'blocks_crawlers' : 'ok'));
+  setGreen('tseo-sitemap-val', sitemap.found ? 'found' : 'not found');
+  setGreen('tseo-https-val', d.https_valid ? 'All HTTPS' : 'Mixed');
+  set('tseo-canonical-val', `${d.canonical_mismatches || 0} mismatches`);
+  set('tseo-dupmeta-val', `${d.duplicate_meta || 0} duplicates`);
+
+  // Status cards
+  const updateBadge = (badgeId, subId, status, text) => {
+    const badge = document.getElementById(badgeId);
+    const sub = document.getElementById(subId);
+    if (badge) {
+      badge.textContent = status;
+      badge.style.background = status === 'VALID' || status === 'FOUND' || status === 'OK' ? 'rgba(16,185,129,.15)' : status === 'ERROR' || status === 'BLOCKS' ? 'rgba(255,107,107,.15)' : 'rgba(245,158,11,.15)';
+      badge.style.color = status === 'VALID' || status === 'FOUND' || status === 'OK' ? 'var(--green)' : status === 'ERROR' || status === 'BLOCKS' ? 'var(--red)' : 'var(--yellow)';
+    }
+    if (sub && text) sub.textContent = text;
+  };
+  updateBadge('tseo-robots-badge', 'tseo-robots-sub', d.blocks_crawlers ? 'BLOCKS' : 'OK', robots.status || (d.blocks_crawlers ? 'blocks_crawlers' : 'ok'));
+  updateBadge('tseo-sitemap-badge', 'tseo-sitemap-sub', sitemap.found ? 'FOUND' : 'NOT FOUND', sitemap.url || 'Not found');
+  updateBadge('tseo-ssl-badge', 'tseo-ssl-sub', d.https_valid !== false ? 'VALID' : 'ISSUE', d.https_valid !== false ? 'Valid' : 'Mixed content detected');
+  set('tseo-http-sub', `${d.status_2xx || pages} OK · ${d.status_4xx || 0} 4xx · ${d.status_5xx || 0} 5xx`);
+
+  // Funnel
+  renderTseoFunnel(d, pages);
+  // Draw donut
+  drawTseoDonut(avgScore, grade);
+  // Per-page table
+  renderTseoPerPage(d.pages_data || []);
+}
+
+function drawTseoDonut(score, grade) {
+  const canvas = document.getElementById('tseo-health-donut');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 45, cy = 45, r = 36;
+  const pct = score / 100;
+  const color = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#ff6b6b';
+  ctx.clearRect(0, 0, 90, 90);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(70,69,84,.2)'; ctx.lineWidth = 8; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
+  ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+}
+
+function renderTseoFunnel(d, total) {
+  const funnel = document.getElementById('tseo-funnel');
+  if (!funnel) return;
+  const optimized = d.optimized_pages != null ? d.optimized_pages : null;
+  const steps = [
+    { label: 'Total Discovered', val: total,                                             color: 'var(--indigo)' },
+    { label: 'Valid Indexable',  val: d.indexable_pages || d.valid_indexable || total,   color: 'var(--green)'  },
+    { label: 'Optimized (≥70)', val: optimized,                                          color: 'var(--yellow)' },
+    { label: 'Critical Issues',  val: d.critical_issues || 0,                            color: 'var(--red)'    },
+  ];
+  funnel.innerHTML = steps.map(s => {
+    const display = s.val != null ? s.val : '—';
+    const barPct  = (s.val != null && total) ? Math.min(100, Math.round(s.val / total * 100)) : 0;
+    const pctText = (s.val != null && total) ? `${Math.round(s.val / total * 100)}%` : '—';
+    return `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--dim);width:150px;flex-shrink:0">${s.label}</div>
+      <div style="flex:1;background:var(--surf2);border-radius:4px;overflow:hidden;height:8px">
+        <div style="width:${barPct}%;height:100%;background:${s.color};border-radius:4px;transition:width .5s"></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--dim);width:60px;text-align:right">${display} <span style="font-size:9px;color:var(--muted)">(${pctText})</span></div>
+    </div>`;
+  }).join('');
+}
+
+let _tseoAllPages = [];
+function renderTseoPerPage(pages) {
+  _tseoAllPages = pages;
+  tseoFilterPages();
+}
+
+function tseoFilterPages() {
+  const search = (document.getElementById('tseo-pp-search') || {}).value?.toLowerCase() || '';
+  const gradeF = (document.getElementById('tseo-pp-grade') || {}).value || '';
+  const rows = _tseoAllPages.filter(p => {
+    const g = p.grade || (p.score >= 85 ? 'A' : p.score >= 70 ? 'B' : p.score >= 55 ? 'C' : p.score >= 40 ? 'D' : 'F');
+    if (gradeF && g !== gradeF) return false;
+    if (search && !(p.url || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const count = document.getElementById('tseo-pp-count');
+  if (count) count.textContent = rows.length + ' pages';
+  const tbody = document.getElementById('tseo-pp-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:28px;font-size:11px">${_tseoAllPages.length ? 'No pages match filters.' : 'Run audit to see per-page data.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(p => {
+    const score = p.score || 0;
+    const g = p.grade || (score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : score >= 40 ? 'D' : 'F');
+    const gc = { A: 'var(--green)', B: 'var(--green)', C: 'var(--yellow)', D: 'var(--yellow)', F: 'var(--red)' }[g] || 'var(--muted)';
+    const shortUrl = (p.url || '').replace(/^https?:\/\//, '').substring(0, 60);
+    const issues = (p.issues || []).slice(0, 3).join(', ');
+    const statusBg = p.status_code < 300 ? 'rgba(16,185,129,.15)' : p.status_code < 400 ? 'rgba(245,158,11,.15)' : 'rgba(255,107,107,.15)';
+    const statusColor = p.status_code < 300 ? 'var(--green)' : p.status_code < 400 ? 'var(--yellow)' : 'var(--red)';
+    return `<tr>
+      <td style="padding:8px 12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <a href="${p.url}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-family:var(--mono);font-size:10px" title="${p.url}">${shortUrl}</a>
+      </td>
+      <td style="padding:8px 12px;text-align:center;font-family:var(--headline);font-size:14px;font-weight:800;color:${gc}">${score}</td>
+      <td style="padding:8px 12px;text-align:center">
+        <span style="font-family:var(--headline);font-weight:800;font-size:16px;color:${gc}">${g}</span>
+      </td>
+      <td style="padding:8px 12px;font-size:10px;color:var(--muted)">${issues || '—'}</td>
+      <td style="padding:8px 12px;text-align:center">
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:${statusBg};color:${statusColor}">${p.status_code || '—'}</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function tseoTab(tab) {
+  ['overview', 'perpage', 'signals'].forEach(t => {
+    const btn = document.getElementById(`tseo-tab-${t}`);
+    const pane = document.getElementById(`tseo-pane-${t}`);
+    const isActive = t === tab;
+    if (btn) btn.className = isActive ? 'serp-tab serp-tab-active' : 'serp-tab';
+    if (pane) pane.style.display = isActive ? 'block' : 'none';
+  });
+}
+
+function exportTechSEOExcel() {
+  if (!_tseoData) { alert('Run audit first.'); return; }
+  const pages = _tseoAllPages;
+  if (!pages.length) { alert('No per-page data available.'); return; }
+  const headers = ['URL', 'Score', 'Grade', 'Issues', 'HTTP_Status'];
+  const rows = pages.map(p => {
+    const score = p.score || 0;
+    return [p.url, score, p.grade || (score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : 'F'), (p.issues || []).join('; '), p.status_code || ''];
+  });
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'crawliq-tech-seo.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Keyword Gap Panel ───────────────────────────────────────────────────────── */
+let _kwgapData = [], _kwgapSegment = 'all';
+
+function kwgapSetSegment(s) {
+  _kwgapSegment = s;
+  document.querySelectorAll('#kwgap-sec .seg-btn').forEach(b => {
+    b.className = 'seg-btn';
+  });
+  const map = { all: 'active-all', missing: 'active-miss', weak: 'active-weak', strong: 'active-strong' };
+  const idMap = { all: 'kwgap-seg-all', missing: 'kwgap-seg-miss', weak: 'kwgap-seg-weak', strong: 'kwgap-seg-strong' };
+  const btn = document.getElementById(idMap[s]);
+  if (btn) btn.classList.add(map[s]);
+  kwgapRenderTable();
+}
+
+async function runKwGapPanel() {
+  const yours = ((document.getElementById('kwgap-your-kws') || {}).value || '').split('\n').map(k => k.trim()).filter(Boolean);
+  const theirs = ((document.getElementById('kwgap-comp-kws') || {}).value || '').split('\n').map(k => k.trim()).filter(Boolean);
+  if (!yours.length) { alert('Enter your keywords (one per line).'); return; }
+  if (!theirs.length) { alert('Enter competitor keywords (one per line).'); return; }
+
+  const sbar = document.getElementById('kwgap-panel-sbar');
+  const stxt = document.getElementById('kwgap-panel-status-txt');
+  const runBtn = document.getElementById('kwgap-panel-run-btn');
+  if (sbar) sbar.style.display = 'flex';
+  if (stxt) stxt.textContent = 'Analyzing keyword gaps…';
+  if (runBtn) runBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/keyword-gap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ your_keywords: yours, competitor_keywords: theirs })
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const d = await res.json();
+    _kwgapData = kwgapProcess(d.keywords || d.results || []);
+    kwgapUpdateMetrics();
+    kwgapRenderTable();
+    if (document.getElementById('kwgap-panel-export-btn')) document.getElementById('kwgap-panel-export-btn').disabled = false;
+  } catch(e) {
+    if (stxt) stxt.textContent = '✗ ' + e.message;
+    const sp = sbar ? sbar.querySelector('.spin') : null;
+    if (sp) sp.style.display = 'none';
+  } finally {
+    if (runBtn) runBtn.disabled = false;
+    if (sbar && _kwgapData.length) sbar.style.display = 'none';
+  }
+}
+
+function kwgapProcess(raw) {
+  return raw.map(k => {
+    // k is {keyword, type, your_position, gap_score, volume} from backend
+    const keyword  = (typeof k === 'string') ? k : (k.keyword || '');
+    const yourPos  = k.your_position != null ? k.your_position : null;
+    // Use type from backend; fall back to position-based classification
+    let type = k.type || 'strong';
+    if (!k.type) {
+      if (!yourPos || yourPos > 100) type = 'missing';
+      else if (yourPos > 10) type = 'weak';
+    }
+    const vol      = k.volume != null ? k.volume : null;          // null = data unavailable
+    const gapScore = k.gap_score != null ? k.gap_score
+                   : (type === 'missing' ? 75 : type === 'weak' ? 40 : 15);
+    return { keyword, type, your_pos: yourPos, comp1_pos: k.comp1_position || null, volume: vol, gap_score: gapScore };
+  });
+}
+
+function kwgapUpdateMetrics() {
+  const total = _kwgapData.length;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('kwgap-m-total', total);
+  set('kwgap-m-missing', _kwgapData.filter(k => k.type === 'missing').length);
+  set('kwgap-m-weak', _kwgapData.filter(k => k.type === 'weak').length);
+  set('kwgap-m-strong', _kwgapData.filter(k => k.type === 'strong').length);
+  set('kwgap-m-avggap', total ? Math.round(_kwgapData.reduce((s, k) => s + k.gap_score, 0) / total) : 0);
+}
+
+function kwgapRenderTable() {
+  const search = ((document.getElementById('kwgap-f-search') || {}).value || '').toLowerCase();
+  const vol = (document.getElementById('kwgap-f-vol') || {}).value || '';
+  let rows = _kwgapData.filter(k => {
+    if (_kwgapSegment !== 'all' && k.type !== _kwgapSegment) return false;
+    if (search && !k.keyword.toLowerCase().includes(search)) return false;
+    if (vol === 'high' && (k.volume == null || k.volume < 5000)) return false;
+    if (vol === 'med' && (k.volume == null || k.volume < 1000 || k.volume >= 5000)) return false;
+    if (vol === 'low' && (k.volume == null || k.volume >= 1000)) return false;
+    return true;
+  });
+  rows.sort((a, b) => b.gap_score - a.gap_score);
+  const count = document.getElementById('kwgap-tbl-count');
+  if (count) count.textContent = rows.length + ' keywords';
+  const tbody = document.getElementById('kwgap-panel-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);font-size:11px">${_kwgapData.length ? 'No keywords match filters.' : 'Enter keywords above and click Find Gaps.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(k => {
+    const typeMap = { missing: ['Missing', 'rgba(255,107,107,.15)', 'var(--red)', 'Create Content', 'var(--red)'], weak: ['Weak', 'rgba(245,158,11,.15)', 'var(--yellow)', 'Optimize Page', 'var(--yellow)'], strong: ['Strong', 'rgba(16,185,129,.15)', 'var(--green)', 'Maintain', 'var(--green)'] };
+    const [label, bg, col, action, aCol] = typeMap[k.type] || typeMap.strong;
+    const posBadge = !k.your_pos || k.your_pos > 100
+      ? `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(255,107,107,.15);color:var(--red)">Not ranked</span>`
+      : `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:${k.your_pos <= 10 ? 'rgba(16,185,129,.15)' : 'rgba(245,158,11,.15)'};color:${k.your_pos <= 10 ? 'var(--green)' : 'var(--yellow)'}">#${k.your_pos}</span>`;
+    const c1 = k.comp1_pos ? `<span style="font-size:9px;font-family:var(--mono);color:var(--muted)">#${k.comp1_pos}</span>` : '—';
+    return `<tr>
+      <td style="padding:8px 12px;font-weight:600;color:var(--text)">${k.keyword}</td>
+      <td style="padding:8px 12px"><span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;background:${bg};color:${col}">${label}</span></td>
+      <td style="padding:8px 12px;text-align:center">${posBadge}</td>
+      <td style="padding:8px 12px;text-align:center">${c1}</td>
+      <td style="padding:8px 12px;font-family:var(--mono);font-size:11px">${k.volume != null ? k.volume.toLocaleString() : '<span style="color:var(--muted)">N/A</span>'}</td>
+      <td style="padding:8px 12px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--indigo)">${k.gap_score}</span>
+          <div style="width:40px;height:4px;background:var(--surf2);border-radius:2px;overflow:hidden"><div style="width:${k.gap_score}%;height:100%;background:var(--indigo);border-radius:2px"></div></div>
+        </div>
+      </td>
+      <td style="padding:8px 12px;font-size:11px;font-weight:600;color:${aCol}">${action}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportKwGapExcel() {
+  if (!_kwgapData.length) { alert('Run analysis first.'); return; }
+  const headers = ['Keyword', 'Type', 'Your_Position', 'Comp1_Position', 'Search_Volume', 'Gap_Score', 'Action'];
+  const rows = _kwgapData.map(k => [k.keyword, k.type, k.your_pos || 'Not ranked', k.comp1_pos || 'Not ranked', k.volume != null ? k.volume : 'N/A', k.gap_score, k.type === 'missing' ? 'Create Content' : k.type === 'weak' ? 'Optimize Page' : 'Maintain']);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'crawliq-keyword-gap.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+
+function clabExportExcel() {
+  const title = (document.getElementById('clab-gen-title') || {}).textContent || '';
+  const meta  = (document.getElementById('clab-gen-meta')  || {}).textContent || '';
+  const h1    = (document.getElementById('clab-gen-h1')    || {}).textContent || '';
+  const body  = (document.getElementById('clab-result-text') || {}).textContent || '';
+  if (!body) { alert('Generate content first.'); return; }
+  const headers = ['Field', 'Content'];
+  const rows = [['Title Tag', title], ['Meta Description', meta], ['H1', h1], ['Body Content', body]];
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'crawliq-content-lab.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}

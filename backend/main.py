@@ -1843,7 +1843,184 @@ def export_popup_excel():
         background=BackgroundTask(_delete_tempfile, tmp.name))
 
 
-# ── Content generation endpoints ──────────────────────────────────────────────
+@app.get("/export-full")
+def export_full_excel():
+    """
+    Download comprehensive multi-sheet SEO report as Excel.
+    Sheet 1: On-Page Overview (all pages)
+    Sheet 2: Issues Detail (per-field breakdown)
+    Sheet 3: Technical SEO (scores, grades, tech issues)
+    Sheet 4: Executive Summary (aggregate stats)
+    """
+    if not crawl_results:
+        raise HTTPException(status_code=404, detail="No crawl data to export.")
+
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    # ── Sheet 1: On-Page Overview ────────────────────────────────────────────
+    onpage_rows = []
+    for r in crawl_results:
+        ranking = r.get("ranking") or compute_ranking_score(r)
+        onpage_rows.append({
+            "URL":              r.get("url", ""),
+            "Status Code":      r.get("status_code", ""),
+            "Priority":         r.get("priority", ""),
+            "Score":            ranking["score"],
+            "Grade":            ranking["grade"],
+            "Title":            r.get("title", ""),
+            "Title Length":     len(r.get("title") or ""),
+            "Meta Description": r.get("meta_description", ""),
+            "Meta Length":      len(r.get("meta_description") or ""),
+            "H1":               " | ".join(r.get("h1") or []),
+            "H2 (first 3)":     " | ".join((r.get("h2") or [])[:3]),
+            "Canonical":        r.get("canonical", ""),
+            "Keywords":         ", ".join(r.get("keywords") or []),
+            "Internal Links":   r.get("internal_links_count", 0),
+            "Issue Count":      len(r.get("issues") or []),
+            "Issues":           ", ".join(r.get("issues") or []),
+        })
+
+    # ── Sheet 2: Issues Detail ────────────────────────────────────────────────
+    popup = get_popup_data()
+    issues_rows = []
+    for page in popup["pages"]:
+        score = page.get("ranking", {}).get("score", "")
+        for f in page["fields"]:
+            issues_rows.append({
+                "URL":             page["url"],
+                "Priority":        page.get("priority", ""),
+                "Score":           score,
+                "Field":           f["field"],
+                "Current Value":   f["current"],
+                "Status":          f["status"],
+                "Why It Matters":  f.get("why", ""),
+                "Exact Fix":       f.get("fix", ""),
+                "Optimized Value": f.get("optimized", ""),
+                "Example":         f.get("example", ""),
+                "Impact":          f.get("impact", ""),
+            })
+
+    # ── Sheet 3: Technical SEO ────────────────────────────────────────────────
+    tech_rows = []
+    try:
+        from technical_seo import run_technical_seo_audit
+        tech_data = run_technical_seo_audit(crawl_results)
+        for p in tech_data.get("pages", []):
+            tech_rows.append({
+                "URL":          p.get("url", ""),
+                "Tech Score":   p.get("tech_score", ""),
+                "Tech Grade":   p.get("tech_grade", ""),
+                "Status Code":  p.get("status_code", ""),
+                "Is Error":     p.get("is_error", False),
+                "Issues":       ", ".join(p.get("all_issues") or []),
+            })
+    except Exception:
+        for r in crawl_results:
+            tech_rows.append({
+                "URL":         r.get("url", ""),
+                "Tech Score":  "",
+                "Tech Grade":  "",
+                "Status Code": r.get("status_code", ""),
+                "Is Error":    r.get("_is_error", False),
+                "Issues":      ", ".join(r.get("issues") or []),
+            })
+
+    # ── Sheet 4: Executive Summary ─────────────────────────────────────────────
+    real = [r for r in crawl_results if not r.get("_is_error")]
+    with_issues = [r for r in real if r.get("issues")]
+    high_pri = [r for r in real if r.get("priority") == "High"]
+    scores = [compute_ranking_score(r)["score"] for r in real]
+    avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+    from collections import Counter
+    all_issues_flat = [i for r in real for i in (r.get("issues") or [])]
+    top_issues = Counter(all_issues_flat).most_common(10)
+    summary_rows = [
+        {"Metric": "Total Pages Crawled",    "Value": len(crawl_results)},
+        {"Metric": "Valid Pages (200 OK)",   "Value": len(real)},
+        {"Metric": "Pages With Issues",      "Value": len(with_issues)},
+        {"Metric": "High Priority Issues",   "Value": len(high_pri)},
+        {"Metric": "Average SEO Score",      "Value": avg_score},
+        {"Metric": "Total Issues Found",     "Value": len(all_issues_flat)},
+        {"Metric": "", "Value": ""},
+        {"Metric": "TOP ISSUES", "Value": "COUNT"},
+    ] + [{"Metric": issue, "Value": cnt} for issue, cnt in top_issues]
+
+    # Write workbook
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.close()
+
+    with pd.ExcelWriter(tmp.name, engine="openpyxl") as writer:
+        # Sheet 1
+        df1 = pd.DataFrame(onpage_rows)
+        df1.to_excel(writer, index=False, sheet_name="On-Page SEO")
+        ws1 = writer.sheets["On-Page SEO"]
+        _style_header(ws1)
+        _style_priority_col(ws1)
+        _style_score_col(ws1)
+        _autofit(ws1)
+
+        # Sheet 2
+        if issues_rows:
+            df2 = pd.DataFrame(issues_rows)
+            df2.to_excel(writer, index=False, sheet_name="Issues Detail")
+            ws2 = writer.sheets["Issues Detail"]
+            _style_header(ws2)
+            status_col = next((i for i, c in enumerate(ws2[1], 1) if c.value == "Status"), None)
+            if status_col:
+                for row in ws2.iter_rows(min_row=2, min_col=status_col, max_col=status_col):
+                    for cell in row:
+                        val = str(cell.value or "").upper()
+                        if val == "OK":
+                            cell.fill = PatternFill("solid", fgColor="06D6A0")
+                            cell.font = Font(color="000000", bold=True)
+                        elif val:
+                            cell.fill = PatternFill("solid", fgColor="FF4D6A")
+                            cell.font = Font(color="FFFFFF", bold=True)
+            _autofit(ws2)
+
+        # Sheet 3
+        if tech_rows:
+            df3 = pd.DataFrame(tech_rows)
+            df3.to_excel(writer, index=False, sheet_name="Technical SEO")
+            ws3 = writer.sheets["Technical SEO"]
+            _style_header(ws3)
+            score_col = next((i for i, c in enumerate(ws3[1], 1) if c.value == "Tech Score"), None)
+            if score_col:
+                for row in ws3.iter_rows(min_row=2, min_col=score_col, max_col=score_col):
+                    for cell in row:
+                        try:
+                            v = float(cell.value or 0)
+                            if v >= 80:
+                                cell.fill = PatternFill("solid", fgColor="10B981")
+                            elif v >= 60:
+                                cell.fill = PatternFill("solid", fgColor="22D3EE")
+                            elif v >= 40:
+                                cell.fill = PatternFill("solid", fgColor="F59E0B")
+                            else:
+                                cell.fill = PatternFill("solid", fgColor="EF4444")
+                            cell.font = Font(color="000000", bold=True)
+                        except (TypeError, ValueError):
+                            pass
+            _autofit(ws3)
+
+        # Sheet 4
+        df4 = pd.DataFrame(summary_rows)
+        df4.to_excel(writer, index=False, sheet_name="Executive Summary")
+        ws4 = writer.sheets["Executive Summary"]
+        _style_header(ws4)
+        # Bold the "TOP ISSUES" separator row
+        for row in ws4.iter_rows(min_row=2):
+            for cell in row:
+                if cell.value == "TOP ISSUES":
+                    cell.font = Font(bold=True, color="22D3EE")
+        _autofit(ws4)
+
+    return FileResponse(tmp.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="crawliq_full_report.xlsx",
+        headers={"Content-Disposition": "attachment; filename=crawliq_full_report.xlsx"},
+        background=BackgroundTask(_delete_tempfile, tmp.name))
 
 @app.post("/generate-content")
 async def start_content_generation(background_tasks: BackgroundTasks):
@@ -4144,6 +4321,7 @@ def keyword_gap(req: KeywordGapRequest):
     Compare two keyword sets and return gap analysis.
 
     Returns:
+      - keywords: structured list [{keyword, type, your_position, gap_score, volume}]
       - only_competitor: keywords competitor has that you don't
       - only_you: keywords you have that competitor doesn't
       - shared: keywords both rank for
@@ -4155,7 +4333,15 @@ def keyword_gap(req: KeywordGapRequest):
     only_you  = sorted(yours - theirs)
     shared    = sorted(yours & theirs)
 
+    # Build structured keyword objects the frontend can consume directly
+    keywords = (
+        [{"keyword": k, "type": "missing", "your_position": None, "gap_score": 75, "volume": None} for k in only_comp] +
+        [{"keyword": k, "type": "strong",  "your_position": None, "gap_score": 15, "volume": None} for k in only_you] +
+        [{"keyword": k, "type": "weak",    "your_position": None, "gap_score": 40, "volume": None} for k in shared]
+    )
+
     return {
+        "keywords":           keywords,
         "your_total":         len(yours),
         "competitor_total":   len(theirs),
         "only_competitor":    only_comp,

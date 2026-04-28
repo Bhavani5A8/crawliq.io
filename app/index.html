@@ -22,6 +22,8 @@
 <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/></noscript>
 <link rel="preload" as="style" href="../static/css/main.css?v=1.0.4" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="../static/css/main.css?v=1.0.4"/></noscript>
+<link rel="preload" as="style" href="../static/css/app-panels.css?v=1.0.3" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="../static/css/app-panels.css?v=1.0.3"/></noscript>
 
 <style>
 /* M3 Design Tokens */
@@ -57,6 +59,29 @@ h1,h2,h3,h4{font-family:var(--headline);}
 .app-loading-sub{font-size:13px;color:var(--muted);}
 .app-loading-spinner{width:32px;height:32px;border:2px solid rgba(99,102,241,.2);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Panel visibility for new panels */
+body.app-mode #sitemap-crawl-sec.panel-hidden,
+body.app-mode #panel-schema-intel.panel-hidden,
+body.app-mode #panel-content-lab.panel-hidden,
+body.app-mode #tech-seo-sec.panel-hidden,
+body.app-mode #kwgap-sec.panel-hidden { display:none!important; }
+
+/* Content Lab model button active state */
+.clab-model-btn.active {
+  background:var(--indigo)!important;
+  color:white!important;
+  border-color:var(--indigo)!important;
+}
+/* Keyword Gap segment buttons */
+.seg-btn{padding:6px 14px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+.seg-btn:hover{color:var(--text);}
+.seg-btn.active-miss{border-color:var(--red);background:rgba(255,107,107,.1);color:var(--red);}
+.seg-btn.active-weak{border-color:var(--yellow);background:rgba(245,158,11,.1);color:var(--yellow);}
+.seg-btn.active-strong{border-color:var(--green);background:rgba(16,185,129,.1);color:var(--green);}
+.seg-btn.active-all{border-color:var(--indigo);background:rgba(99,102,241,.1);color:var(--indigo);}
+/* btn-primary shorthand */
+.btn-primary{background:var(--indigo);color:#fff;}
 </style>
 </head>
 <body>

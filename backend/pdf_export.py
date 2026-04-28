@@ -1,16 +1,14 @@
 """
-pdf_export.py — CrawlIQ PDF Report Generator (Phase 4)
+pdf_export.py — CrawlIQ PDF Report Generator (Phase 5)
 
-Generates a styled PDF audit report from crawl results using ReportLab
-(pure-Python, no system dependencies — works on HuggingFace Spaces).
+Generates a professionally structured PDF audit report using ReportLab.
+Sections: Cover Page, Table of Contents, Executive Summary, On-Page SEO,
+          Per-Page Audit, Technical SEO, Keywords Analysis.
 
 Public API
 ──────────
   generate_pdf(crawl_results, crawl_status, output_path) → str
-      Write PDF to output_path. Returns the path on success.
-
   generate_pdf_bytes(crawl_results, crawl_status) → bytes
-      Return PDF as bytes (for FastAPI StreamingResponse).
 """
 
 from __future__ import annotations
@@ -18,6 +16,7 @@ from __future__ import annotations
 import io
 import logging
 import os
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
@@ -59,6 +58,14 @@ else:
     _INDIGO = _CYAN = _GREEN = _YELLOW = _RED = None
     _DARK = _SURF = _BORDER = _DIM = _WHITE = _BLACK = None
 
+A4_W = 210  # mm reference (not used as a unit, just for column math when reportlab absent)
+
+# ── TOC bookmark tracking ──────────────────────────────────────────────────────
+# We build the TOC manually so it works without ReportLab's TableOfContents
+# (which requires a two-pass build).  We collect section titles + descriptions
+# and render them on page 2 as a styled list.
+_TOC_ENTRIES: list[tuple[str, str]] = []   # (section_title, description)
+
 
 def _score_color(score) -> Any:
     try:
@@ -82,24 +89,35 @@ def _truncate(s: str, n: int = 60) -> str:
     return s[:n] + "…" if len(s) > n else s
 
 
-# ── Document builder ──────────────────────────────────────────────────────────
+# ── Styles ─────────────────────────────────────────────────────────────────────
 
 def _build_styles():
     base = getSampleStyleSheet()
     styles = {
         "title": ParagraphStyle(
             "title", parent=base["Heading1"],
-            fontSize=22, textColor=_WHITE,
+            fontSize=26, textColor=_WHITE,
             spaceAfter=6, fontName="Helvetica-Bold",
+            alignment=TA_CENTER,
         ),
-        "subtitle": ParagraphStyle(
-            "subtitle", parent=base["Normal"],
-            fontSize=10, textColor=_DIM, spaceAfter=4,
+        "cover_sub": ParagraphStyle(
+            "cover_sub", parent=base["Normal"],
+            fontSize=11, textColor=_DIM, spaceAfter=4,
+            alignment=TA_CENTER,
+        ),
+        "cover_url": ParagraphStyle(
+            "cover_url", parent=base["Normal"],
+            fontSize=13, textColor=_CYAN, fontName="Courier-Bold",
+            alignment=TA_CENTER, spaceAfter=8,
         ),
         "section": ParagraphStyle(
             "section", parent=base["Heading2"],
-            fontSize=13, textColor=_CYAN,
-            spaceBefore=14, spaceAfter=6, fontName="Helvetica-Bold",
+            fontSize=14, textColor=_CYAN,
+            spaceBefore=16, spaceAfter=6, fontName="Helvetica-Bold",
+        ),
+        "section_num": ParagraphStyle(
+            "section_num", parent=base["Normal"],
+            fontSize=9, textColor=_DIM, spaceAfter=2,
         ),
         "body": ParagraphStyle(
             "body", parent=base["Normal"],
@@ -112,6 +130,19 @@ def _build_styles():
         "small": ParagraphStyle(
             "small", parent=base["Normal"],
             fontSize=8, textColor=_DIM,
+        ),
+        "toc_title": ParagraphStyle(
+            "toc_title", parent=base["Heading2"],
+            fontSize=16, textColor=_WHITE, fontName="Helvetica-Bold",
+            spaceBefore=0, spaceAfter=10,
+        ),
+        "toc_entry": ParagraphStyle(
+            "toc_entry", parent=base["Normal"],
+            fontSize=10, textColor=_WHITE, leading=18,
+        ),
+        "toc_desc": ParagraphStyle(
+            "toc_desc", parent=base["Normal"],
+            fontSize=8, textColor=_DIM, leading=12, leftIndent=20,
         ),
         "metric_val": ParagraphStyle(
             "metric_val", parent=base["Normal"],
@@ -127,50 +158,148 @@ def _build_styles():
     return styles
 
 
-def _header_table(styles, url: str, crawl_status: dict, brand_name: str = "CrawlIQ") -> Table:
-    """Top banner with site URL + key stats. brand_name supports white-labelling."""
+# ── Page template with header/footer ──────────────────────────────────────────
+
+class _PageDecorator:
+    """Adds running header + footer with page numbers to every page."""
+
+    def __init__(self, brand: str, url: str, date_str: str):
+        self.brand = brand
+        self.url   = url
+        self.date  = date_str
+
+    def __call__(self, canvas, doc):
+        canvas.saveState()
+        w, h = A4
+
+        # Header rule + brand name
+        canvas.setStrokeColor(_BORDER)
+        canvas.setLineWidth(0.5)
+        canvas.line(15*mm, h - 12*mm, w - 15*mm, h - 12*mm)
+        canvas.setFont("Helvetica-Bold", 8)
+        canvas.setFillColor(_INDIGO)
+        canvas.drawString(15*mm, h - 10*mm, self.brand)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(_DIM)
+        canvas.drawRightString(w - 15*mm, h - 10*mm, _truncate(self.url, 70))
+
+        # Footer rule + page number
+        canvas.line(15*mm, 12*mm, w - 15*mm, 12*mm)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(_DIM)
+        canvas.drawString(15*mm, 8*mm, f"Generated {self.date}")
+        canvas.drawRightString(w - 15*mm, 8*mm, f"Page {doc.page}")
+
+        canvas.restoreState()
+
+
+# ── Cover page ─────────────────────────────────────────────────────────────────
+
+def _cover_page(styles, url: str, crawl_status: dict, pages: list[dict],
+                brand_name: str) -> list:
+    real    = [p for p in pages if not p.get("_is_error")]
+    issues  = sum(1 for p in real if p.get("issues"))
+    high    = sum(1 for p in real if p.get("priority") == "High")
     elapsed = crawl_status.get("elapsed_s", 0)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    pages    = crawl_status.get("pages_crawled", 0)
-    errors   = crawl_status.get("errors", 0)
 
-    data = [[
-        Paragraph(f"<b>{brand_name} — SEO Audit Report</b>", styles["title"]),
-        Paragraph(f"Generated: {date_str}", styles["small"]),
-    ], [
-        Paragraph(_truncate(url, 80), styles["mono"]),
-        Paragraph(f"{pages} pages · {errors} errors · {elapsed}s", styles["small"]),
-    ]]
-    t = Table(data, colWidths=[120*mm, 60*mm])
+    story = [Spacer(1, 20*mm)]
+    story.append(Paragraph(f"<b>{brand_name}</b>", styles["title"]))
+    story.append(Paragraph("SEO Audit Report", styles["cover_sub"]))
+    story.append(Spacer(1, 6*mm))
+    story.append(HRFlowable(width="60%", color=_INDIGO, thickness=2))
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph(_truncate(url, 80) or "No URL recorded", styles["cover_url"]))
+    story.append(Paragraph(f"Generated: {date_str}", styles["small"]))
+    story.append(Spacer(1, 14*mm))
+
+    # Key stat cards
+    cards = [
+        (str(len(real)),   "Pages Crawled",  _WHITE),
+        (str(issues),      "With Issues",    _RED if issues else _GREEN),
+        (str(high),        "High Priority",  _RED if high else _GREEN),
+        (f"{elapsed}s",    "Crawl Time",     _CYAN),
+    ]
+    row_vals = [[Paragraph(f"<b>{v}</b>", ParagraphStyle("cv", fontSize=22,
+                textColor=c, fontName="Helvetica-Bold", alignment=TA_CENTER))
+                for v, _, c in cards]]
+    row_lbls = [[Paragraph(l, styles["metric_lbl"]) for _, l, _ in cards]]
+    t = Table(row_vals + row_lbls, colWidths=[44*mm]*4, rowHeights=[30, 14])
     t.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, -1), _SURF),
-        ("ROWPADDING",  (0, 0), (-1, -1), 8),
+        ("TOPPADDING",  (0, 0), (-1, 0), 8),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 10),
         ("LINEBELOW",   (0, -1), (-1, -1), 1, _BORDER),
-        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN",       (1, 0), (1, -1), "RIGHT"),
+        ("LINEBEFORE",  (1, 0), (-1, -1), 1, _BORDER),
+        ("ALIGN",       (0, 0), (-1, -1), "CENTER"),
     ]))
-    return t
+    story.append(t)
+    story.append(PageBreak())
+    return story
 
 
-def _summary_table(styles, pages: list[dict]) -> Table:
-    """4-card summary row."""
+# ── Table of Contents ──────────────────────────────────────────────────────────
+
+def _toc_page(styles) -> list:
+    """Render the pre-collected TOC entries."""
+    story = [
+        Paragraph("Table of Contents", styles["toc_title"]),
+        HRFlowable(width="100%", color=_BORDER, thickness=0.5),
+        Spacer(1, 4*mm),
+    ]
+    for i, (title, desc) in enumerate(_TOC_ENTRIES, start=1):
+        story.append(Paragraph(f"{i}.  <b>{title}</b>", styles["toc_entry"]))
+        if desc:
+            story.append(Paragraph(desc, styles["toc_desc"]))
+    story.append(PageBreak())
+    return story
+
+
+def _section_header(styles, num: int, title: str, desc: str = "") -> list:
+    """Consistent section header with optional description."""
+    story = [
+        Paragraph(f"Section {num}", styles["section_num"]),
+        Paragraph(title, styles["section"]),
+        HRFlowable(width="100%", color=_BORDER, thickness=0.5),
+        Spacer(1, 3*mm),
+    ]
+    if desc:
+        story.append(Paragraph(desc, styles["small"]))
+        story.append(Spacer(1, 2*mm))
+    return story
+
+
+# ── Section 1: Executive Summary ──────────────────────────────────────────────
+
+def _executive_summary(styles, pages: list[dict]) -> list:
     real    = [p for p in pages if not p.get("_is_error")]
     issues  = sum(1 for p in real if p.get("issues"))
     high    = sum(1 for p in real if p.get("priority") == "High")
     ok      = len(real) - issues
+
+    # Compute avg score
+    try:
+        from gemini_analysis import compute_ranking_score
+        scores = [compute_ranking_score(p)["score"] for p in real[:50]]
+        avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+    except Exception:
+        avg_score = 0
+
+    story = _section_header(styles, 1, "Executive Summary",
+        "High-level overview of your site's SEO health across all crawled pages.")
 
     cards = [
         (str(len(real)),   "Pages Crawled",  _WHITE),
         (str(issues),      "With Issues",    _RED if issues else _GREEN),
         (str(ok),          "Clean Pages",    _GREEN),
         (str(high),        "High Priority",  _RED if high else _GREEN),
+        (str(avg_score),   "Avg SEO Score",  _score_color(avg_score)),
     ]
-    row_vals  = [[Paragraph(v, ParagraphStyle("cv", fontSize=20, textColor=c, fontName="Helvetica-Bold", alignment=TA_CENTER)) for v, _, c in cards]]
-    row_lbls  = [[Paragraph(l, styles["metric_lbl"]) for _, l, _ in cards]]
-    data = row_vals + row_lbls
-
-    col_w = 44*mm
-    t = Table(data, colWidths=[col_w]*4, rowHeights=[28, 14])
+    row_vals = [[Paragraph(f"<b>{v}</b>", ParagraphStyle("cv", fontSize=18,
+                textColor=c, fontName="Helvetica-Bold", alignment=TA_CENTER))
+                for v, _, c in cards]]
+    row_lbls = [[Paragraph(l, styles["metric_lbl"]) for _, l, _ in cards]]
+    t = Table(row_vals + row_lbls, colWidths=[36*mm]*5, rowHeights=[26, 14])
     t.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, -1), _DARK),
         ("TOPPADDING",  (0, 0), (-1, 0), 6),
@@ -179,12 +308,13 @@ def _summary_table(styles, pages: list[dict]) -> Table:
         ("LINEBEFORE",  (1, 0), (-1, -1), 1, _BORDER),
         ("ALIGN",       (0, 0), (-1, -1), "CENTER"),
     ]))
-    return t
+    story.append(t)
+    return story
 
+
+# ── Section 2: Issue Breakdown ─────────────────────────────────────────────────
 
 def _issues_section(styles, pages: list[dict]) -> list:
-    """Issue breakdown section."""
-    from collections import Counter
     all_issues: list[str] = []
     for p in pages:
         all_issues.extend(p.get("issues") or [])
@@ -192,14 +322,14 @@ def _issues_section(styles, pages: list[dict]) -> list:
     if not counts:
         return []
 
-    flowables = [
-        Paragraph("Issue Breakdown", styles["section"]),
-    ]
-    data = [["Issue", "Count"]]
-    for issue, cnt in counts:
-        data.append([_truncate(issue, 55), str(cnt)])
+    story = _section_header(styles, 2, "On-Page SEO — Issue Breakdown",
+        "Most common SEO issues found across all crawled pages, sorted by frequency.")
 
-    t = Table(data, colWidths=[140*mm, 30*mm])
+    data = [["#", "Issue", "Count"]]
+    for rank, (issue, cnt) in enumerate(counts, start=1):
+        data.append([str(rank), _truncate(issue, 55), str(cnt)])
+
+    t = Table(data, colWidths=[10*mm, 148*mm, 22*mm])
     t.setStyle(TableStyle([
         ("BACKGROUND",   (0, 0), (-1, 0),  _SURF),
         ("TEXTCOLOR",    (0, 0), (-1, 0),  _DIM),
@@ -207,19 +337,22 @@ def _issues_section(styles, pages: list[dict]) -> list:
         ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
         ("FONTSIZE",     (0, 1), (-1, -1), 8),
         ("TEXTCOLOR",    (0, 1), (-1, -1), _WHITE),
-        ("TEXTCOLOR",    (1, 1), (1, -1),  _YELLOW),
+        ("TEXTCOLOR",    (0, 1), (0, -1),  _DIM),
+        ("TEXTCOLOR",    (2, 1), (2, -1),  _YELLOW),
         ("ROWPADDING",   (0, 0), (-1, -1), 5),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_DARK, _SURF]),
         ("LINEBELOW",    (0, 0), (-1, 0),  1, _BORDER),
-        ("ALIGN",        (1, 0), (1, -1),  "CENTER"),
-        ("FONTNAME",     (1, 1), (1, -1),  "Courier-Bold"),
+        ("ALIGN",        (0, 0), (0, -1),  "CENTER"),
+        ("ALIGN",        (2, 0), (2, -1),  "CENTER"),
+        ("FONTNAME",     (2, 1), (2, -1),  "Courier-Bold"),
     ]))
-    flowables.append(t)
-    return flowables
+    story.append(t)
+    return story
 
+
+# ── Section 3: Per-Page Audit ──────────────────────────────────────────────────
 
 def _pages_section(styles, pages: list[dict]) -> list:
-    """Per-page audit table (max 100 rows for PDF size)."""
     real = [p for p in pages if not p.get("_is_error") and p.get("status_code") == 200]
     real.sort(key=lambda p: (p.get("priority", "Low") != "High",
                              p.get("priority", "Low") != "Medium"))
@@ -228,11 +361,9 @@ def _pages_section(styles, pages: list[dict]) -> list:
     if not real:
         return []
 
-    flowables = [
-        Paragraph("Page-Level Audit", styles["section"]),
-    ]
+    story = _section_header(styles, 3, "Per-Page Audit",
+        f"Detailed SEO audit for each crawled page (showing top {len(real)} by priority).")
 
-    # Header
     headers = ["URL", "Title", "Priority", "Score", "Issues"]
     col_w   = [58*mm, 48*mm, 20*mm, 16*mm, 38*mm]
     data    = [headers]
@@ -243,20 +374,15 @@ def _pages_section(styles, pages: list[dict]) -> list:
         priority = p.get("priority", "—")
         issues   = "; ".join((p.get("issues") or [])[:3])
         issues   = _truncate(issues, 35)
-
-        # Compute score
         try:
             from gemini_analysis import compute_ranking_score
             sc = compute_ranking_score(p)
             score = str(int(sc.get("score", 0)))
         except Exception:
             score = "—"
-
         data.append([url, title, priority, score, issues])
 
     t = Table(data, colWidths=col_w, repeatRows=1)
-
-    # Build per-row styles
     row_styles: list = [
         ("BACKGROUND",   (0, 0), (-1, 0),  _SURF),
         ("TEXTCOLOR",    (0, 0), (-1, 0),  _DIM),
@@ -264,7 +390,7 @@ def _pages_section(styles, pages: list[dict]) -> list:
         ("FONTSIZE",     (0, 0), (-1, 0),  8),
         ("FONTSIZE",     (0, 1), (-1, -1), 7.5),
         ("TEXTCOLOR",    (0, 1), (-1, -1), _WHITE),
-        ("TEXTCOLOR",    (0, 1), (0, -1),  _CYAN),    # URL col
+        ("TEXTCOLOR",    (0, 1), (0, -1),  _CYAN),
         ("FONTNAME",     (0, 1), (0, -1),  "Courier"),
         ("ROWPADDING",   (0, 0), (-1, -1), 4),
         ("LINEBELOW",    (0, 0), (-1, 0),  1, _BORDER),
@@ -272,21 +398,85 @@ def _pages_section(styles, pages: list[dict]) -> list:
         ("WORDWRAP",     (0, 0), (-1, -1), True),
         ("VALIGN",       (0, 0), (-1, -1), "TOP"),
     ]
-    # Colour priority column
     for i, p in enumerate(real, start=1):
-        pri = p.get("priority", "")
-        c   = _priority_color(pri)
+        c = _priority_color(p.get("priority", ""))
         row_styles.append(("TEXTCOLOR", (2, i), (2, i), c))
         row_styles.append(("FONTNAME",  (2, i), (2, i), "Helvetica-Bold"))
-
     t.setStyle(TableStyle(row_styles))
-    flowables.append(t)
-    return flowables
+    story.append(t)
+    return story
 
+
+# ── Section 4: Technical SEO Summary ──────────────────────────────────────────
+
+def _technical_section(styles, pages: list[dict]) -> list:
+    story = _section_header(styles, 4, "Technical SEO Summary",
+        "HTTP status distribution and technical health indicators across the crawl.")
+
+    real = [p for p in pages if not p.get("_is_error")]
+    status_counts: Counter = Counter(
+        str(p.get("status_code", "?") or "?") for p in pages
+    )
+    groups = {
+        "2xx (OK)":       sum(v for k, v in status_counts.items() if k.startswith("2")),
+        "3xx (Redirect)": sum(v for k, v in status_counts.items() if k.startswith("3")),
+        "4xx (Client Error)": sum(v for k, v in status_counts.items() if k.startswith("4")),
+        "5xx (Server Error)": sum(v for k, v in status_counts.items() if k.startswith("5")),
+        "Other / Unknown":    sum(v for k, v in status_counts.items()
+                                  if not k[:1].isdigit() or k[0] not in "2345"),
+    }
+    total = max(1, sum(groups.values()))
+
+    data = [["Status Group", "Count", "% of Total"]]
+    for grp, cnt in groups.items():
+        pct = f"{cnt / total * 100:.1f}%"
+        data.append([grp, str(cnt), pct])
+
+    t = Table(data, colWidths=[90*mm, 30*mm, 30*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, 0),  _SURF),
+        ("TEXTCOLOR",    (0, 0), (-1, 0),  _DIM),
+        ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTSIZE",     (0, 0), (-1, -1), 8),
+        ("TEXTCOLOR",    (0, 1), (-1, -1), _WHITE),
+        ("ROWPADDING",   (0, 0), (-1, -1), 5),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_DARK, _SURF]),
+        ("LINEBELOW",    (0, 0), (-1, 0),  1, _BORDER),
+        ("ALIGN",        (1, 0), (2, -1),  "CENTER"),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 4*mm))
+
+    # Highlight tech issues if available
+    tech_issues: list[str] = []
+    for p in real:
+        tech_issues.extend(p.get("tech_issues") or [])
+    if tech_issues:
+        top_tech = Counter(tech_issues).most_common(8)
+        story.append(Paragraph("Top Technical Issues", styles["section"]))
+        t2_data = [["Issue", "Count"]]
+        for issue, cnt in top_tech:
+            t2_data.append([_truncate(issue, 70), str(cnt)])
+        t2 = Table(t2_data, colWidths=[148*mm, 22*mm])
+        t2.setStyle(TableStyle([
+            ("BACKGROUND",   (0, 0), (-1, 0),  _SURF),
+            ("TEXTCOLOR",    (0, 0), (-1, 0),  _DIM),
+            ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, -1), 8),
+            ("TEXTCOLOR",    (0, 1), (-1, -1), _WHITE),
+            ("TEXTCOLOR",    (1, 1), (1, -1),  _RED),
+            ("ROWPADDING",   (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_DARK, _SURF]),
+            ("LINEBELOW",    (0, 0), (-1, 0),  1, _BORDER),
+            ("ALIGN",        (1, 0), (1, -1),  "CENTER"),
+        ]))
+        story.append(t2)
+    return story
+
+
+# ── Section 5: Keywords Analysis ───────────────────────────────────────────────
 
 def _keywords_section(styles, pages: list[dict]) -> list:
-    """Top keywords across the crawl."""
-    from collections import Counter
     all_kw: list[str] = []
     for p in pages:
         all_kw.extend(p.get("keywords") or [])
@@ -294,8 +484,9 @@ def _keywords_section(styles, pages: list[dict]) -> list:
     if not counts:
         return []
 
-    flowables = [Paragraph("Top Keywords", styles["section"])]
-    # 4-column layout
+    story = _section_header(styles, 5, "Keywords Analysis",
+        f"Top {len(counts)} keywords detected across the crawled site.")
+
     row_data: list = []
     row: list = []
     for kw, cnt in counts:
@@ -315,11 +506,11 @@ def _keywords_section(styles, pages: list[dict]) -> list:
         ("ROWPADDING",  (0, 0), (-1, -1), 5),
         ("GRID",        (0, 0), (-1, -1), 0.5, _BORDER),
     ]))
-    flowables.append(t)
-    return flowables
+    story.append(t)
+    return story
 
 
-# ── Main entry points ─────────────────────────────────────────────────────────
+# ── Main entry points ──────────────────────────────────────────────────────────
 
 def generate_pdf_bytes(
     crawl_results: list[dict],
@@ -329,7 +520,6 @@ def generate_pdf_bytes(
 ) -> bytes:
     """
     Build a full PDF audit report and return raw bytes.
-    brand_name: override the header title for white-label reports.
     Raises RuntimeError if reportlab is not installed.
     """
     if not _REPORTLAB:
@@ -337,49 +527,84 @@ def generate_pdf_bytes(
             "reportlab is not installed. Add 'reportlab>=4.0.0' to requirements.txt."
         )
 
-    buf    = io.BytesIO()
-    doc    = SimpleDocTemplate(
+    global _TOC_ENTRIES
+    _TOC_ENTRIES = []
+
+    buf     = io.BytesIO()
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    deco    = _PageDecorator(brand_name, site_url, date_str)
+
+    doc = SimpleDocTemplate(
         buf,
         pagesize    = A4,
         leftMargin  = 15*mm,
         rightMargin = 15*mm,
-        topMargin   = 15*mm,
-        bottomMargin= 15*mm,
+        topMargin   = 18*mm,
+        bottomMargin= 18*mm,
         title       = f"{brand_name} SEO Audit Report",
         author      = brand_name,
     )
     styles = _build_styles()
     pages  = list(crawl_results)
 
+    # ── Collect TOC entries (must match order of sections below) ──────────────
+    real = [p for p in pages if not p.get("_is_error")]
+    issue_pages = [p for p in real if p.get("issues")]
+    all_issues_flat = [i for p in real for i in (p.get("issues") or [])]
+    kw_pages = [p for p in pages if p.get("keywords")]
+
+    _TOC_ENTRIES = [
+        ("Executive Summary",
+         f"{len(real)} pages · {sum(1 for p in real if p.get('issues'))} with issues"),
+        ("On-Page SEO — Issue Breakdown",
+         f"{len(Counter(all_issues_flat))} unique issue types across {len(issue_pages)} pages"),
+        ("Per-Page Audit",
+         f"Detailed audit for up to {min(100, len(real))} pages, sorted by priority"),
+        ("Technical SEO Summary",
+         "HTTP status distribution and technical health indicators"),
+        ("Keywords Analysis",
+         f"{len(Counter([kw for p in kw_pages for kw in p.get('keywords', [])]).most_common(20))} top keywords detected"),
+    ]
+
     story: list = []
 
-    # ── Cover / header ──────────────────────────────────────────────────────
-    story.append(_header_table(styles, site_url, crawl_status, brand_name=brand_name))
-    story.append(Spacer(1, 6*mm))
-    story.append(_summary_table(styles, pages))
+    # ── Cover page (no header/footer) ──────────────────────────────────────────
+    story.extend(_cover_page(styles, site_url, crawl_status, pages, brand_name))
+
+    # ── Table of Contents ──────────────────────────────────────────────────────
+    story.extend(_toc_page(styles))
+
+    # ── Section 1: Executive Summary ──────────────────────────────────────────
+    story.extend(_executive_summary(styles, pages))
     story.append(Spacer(1, 8*mm))
 
-    # ── Issue breakdown ─────────────────────────────────────────────────────
+    # ── Section 2: Issue Breakdown ─────────────────────────────────────────────
     story.extend(_issues_section(styles, pages))
     story.append(Spacer(1, 8*mm))
 
-    # ── Per-page table ──────────────────────────────────────────────────────
+    # ── Section 3: Per-Page Audit ──────────────────────────────────────────────
+    story.append(PageBreak())
     story.extend(_pages_section(styles, pages))
     story.append(Spacer(1, 8*mm))
 
-    # ── Keywords ────────────────────────────────────────────────────────────
+    # ── Section 4: Technical SEO ───────────────────────────────────────────────
+    story.append(PageBreak())
+    story.extend(_technical_section(styles, pages))
+    story.append(Spacer(1, 8*mm))
+
+    # ── Section 5: Keywords ────────────────────────────────────────────────────
     story.extend(_keywords_section(styles, pages))
 
-    # ── Footer note ─────────────────────────────────────────────────────────
+    # ── Footer note ────────────────────────────────────────────────────────────
     story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", color=_BORDER))
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(
-        f"Generated by {brand_name} — AI-powered SEO crawler",
+        f"Generated by {brand_name} — AI-powered SEO crawler · {date_str}",
         styles["small"],
     ))
 
-    doc.build(story)
+    doc.build(story, onFirstPage=deco, onLaterPages=deco)
     return buf.getvalue()
 
 

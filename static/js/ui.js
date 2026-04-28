@@ -39,19 +39,13 @@ function flagCanonicalIssues(data) {
 // Calls /technical-seo for richer issue data; falls back gracefully to /results data
 async function loadTechnicalDeep() {
   try {
-    const urlInput = document.getElementById('url-input-app') || document.getElementById('url-input');
-    const url = urlInput ? urlInput.value.trim() : (allResults[0]&&allResults[0].url)||'';
-    if (!url) return;
-    const res = await fetch(`${API}/technical-seo`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ url })
-    });
+    const res = await fetch(`${API}/technical-seo`);
     if (!res.ok) return;
     const d = await res.json();
-    const deepIssues = d.issues || d.technical_issues || [];
-    if (deepIssues.length > 0) {
+    const deepIssues = (d.pages || []).reduce((n, p) => n + (p.issue_count || (p.all_issues || []).length || 0), 0);
+    if (deepIssues > 0) {
       const techEl = document.getElementById('tech-summary-text');
-      if (techEl) techEl.textContent = `${deepIssues.length} issues (deep audit · ${d.pages_checked||'?'} pages)`;
+      if (techEl) techEl.textContent = `${deepIssues} issues (deep audit · ${d.summary?.total_pages || d.pages?.length || '?'} pages)`;
     }
   } catch {}
 }
@@ -202,6 +196,8 @@ function updateSummary(rows){
   if(saveBtn && window._ciqProject) saveBtn.disabled = false;
   // Load issue statuses from DB if project is active
   if(window._ciqProject) loadIssueStatuses();
+  // Render post-crawl dashboard charts
+  if (typeof renderDashCharts === 'function') renderDashCharts(rows);
 }
 function hideSummary(){
   document.getElementById('summary').style.display='none';
@@ -209,97 +205,252 @@ function hideSummary(){
 }
 
 async function loadPopupData(){const data=await(await fetch(`${API}/popup-data`)).json();popupPages=data.pages||[];}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POPUP CLUSTER GRID — full-screen On-Page SEO cluster view
+   ═══════════════════════════════════════════════════════════════════════════ */
+const _SEO_CLUSTERS = [
+  { id:'all',       label:'All Pages',       icon:'🔍', test: ()=>true },
+  { id:'title',     label:'Title Tag',       icon:'📌', test: r=>!r.title||(r.issues||[]).some(i=>/title/i.test(i)) },
+  { id:'meta',      label:'Meta',            icon:'📝', test: r=>!r.meta_description||(r.issues||[]).some(i=>/meta/i.test(i)) },
+  { id:'headings',  label:'Headings',        icon:'📋', test: r=>(r.issues||[]).some(i=>/\bh1\b|\bh2\b|heading/i.test(i)) },
+  { id:'canonical', label:'Canonical',       icon:'🔗', test: r=>(r.issues||[]).some(i=>/canonical/i.test(i)) },
+  { id:'images',    label:'Images / Alt',    icon:'🖼', test: r=>(r.issues||[]).some(i=>/image|alt/i.test(i)) },
+  { id:'content',   label:'Content',         icon:'📄', test: r=>(r.issues||[]).some(i=>/content|thin|word/i.test(i)) },
+  { id:'links',     label:'Links',           icon:'🔀', test: r=>(r.issues||[]).some(i=>/\blink/i.test(i)) },
+  { id:'status',    label:'HTTP Errors',     icon:'⚠', test: r=>r.status_code>=400||r.status_code<200 },
+];
+
+let _ppCluster='all', _ppFilteredRows=[], _ppDrawerPage=null;
+
 async function openPopup(){
   await loadPopupData();
-  if(!popupPages.length){alert('No pages with issues found.');return;}
-  popupIndex=0;renderPopupPage();
-  document.getElementById('popup-overlay').classList.add('open');
+  if(!popupPages.length&&!allResults.length){alert('No crawl data yet.');return;}
+  _ppCluster='all';
+  _ppBuildGrid();
+  document.getElementById('popup-overlay').style.display='flex';
 }
+
 async function openPopupForUrl(url){
   await loadPopupData();
-  const idx=popupPages.findIndex(p=>p.url===url);
-  popupIndex=idx>=0?idx:0;
-  if(!popupPages.length){alert('No issues data.');return;}
-  renderPopupPage();
-  document.getElementById('popup-overlay').classList.add('open');
+  _ppCluster='all';
+  _ppBuildGrid();
+  const el=document.getElementById('popup-overlay');
+  el.style.display='flex';
+  // Search for the specific URL
+  const s=document.getElementById('pp-search');
+  if(s){s.value=url;ppFilterTable();}
 }
-function renderPopupPage(){
-  const page=popupPages[popupIndex];if(!page)return;
-  document.getElementById('pp-url').textContent=page.url;
-  const pb=document.getElementById('pp-priority');
-  pb.textContent=page.priority||'';
-  pb.className='pb '+({High:'ph',Medium:'pm',Low:'pl'}[page.priority]||'');
-  const rank=page.ranking||{};
-  const gscore=rank.gemini_score;
-  const displayScore=(gscore!==undefined&&gscore!==null)?gscore:(rank.score??'—');
-  const grade=(gscore!==undefined&&gscore!==null)?(gscore>=85?'A':gscore>=70?'B':gscore>=55?'C':gscore>=40?'D':'F'):(rank.grade||'—');
-  const rc=document.getElementById('rank-circle');
-  rc.className=`rank-circle grade-${grade}`;
-  set('rank-score',displayScore);set('rank-grade',grade);
-  set('rank-feedback',rank.gemini_reason||rank.feedback||'');
-  const bd=rank.breakdown||{};
-  const bdL={title:'Title',meta:'Meta',h1:'H1',h2:'H2',canonical:'Canon',status:'Status',keyword_alignment:'KW Align'};
-  document.getElementById('rank-bars').innerHTML=Object.entries(bdL).map(([k,l])=>`<span class="rank-bar-item">${l}: <span>${bd[k]??0}pts</span></span>`).join('');
-  const compEl=document.getElementById('pp-competition');
-  if(compEl) compEl.innerHTML=page.competition?competitionBadge(page.competition):'';
-  const kws=page.keywords||[];
-  document.getElementById('pp-kw-tags').innerHTML=kws.length?kws.map(k=>`<span class="kw-tag">${esc(k)}</span>`).join(''):'<span style="color:var(--muted);font-size:10px">none detected</span>';
-  document.getElementById('pp-issues').innerHTML=(page.issues||[]).map(i=>`<span class="itag">${esc(i)}</span>`).join('');
+
+function _ppBuildGrid(){
+  // Merge popup detail into allResults using URL as key
+  const detailMap={};
+  for(const p of popupPages) detailMap[p.url]=p;
+  _ppAllRows=allResults.map(r=>({...r,...(detailMap[r.url]||{})}));
+
+  // Site URL display
+  const siteEl=document.getElementById('pp-site-url');
+  if(siteEl){
+    const u=document.getElementById('crawl-target-url')||document.getElementById('url-input');
+    siteEl.textContent=(u&&(u.textContent||u.value||'').trim())||(_ppAllRows[0]?.url||'');
+  }
+
+  // Crawl stats strip
+  const total=_ppAllRows.length;
+  const withIssues=_ppAllRows.filter(r=>(r.issues||[]).length>0).length;
+  const highPri=_ppAllRows.filter(r=>r.priority==='High').length;
+  const statsEl=document.getElementById('pp-crawl-stats');
+  if(statsEl) statsEl.innerHTML=`<span><b style="color:var(--cyan)">${total}</b> pages</span><span><b style="color:var(--red)">${withIssues}</b> with issues</span><span><b style="color:var(--yellow)">${highPri}</b> high priority</span>`;
+
+  // Build cluster tab bar
+  const nav=document.getElementById('pp-cluster-nav');
+  if(nav){
+    nav.innerHTML=_SEO_CLUSTERS.map(c=>{
+      const rows=_ppAllRows.filter(c.test);
+      const cnt=rows.length;
+      const active=_ppCluster===c.id;
+      const bad=rows.filter(r=>(r.issues||[]).length>0).length;
+      const pct=cnt>0?Math.round(100-bad/cnt*100):100;
+      const col=pct>=80?'var(--green)':pct>=50?'var(--yellow)':'var(--red)';
+      return `<button onclick="_ppSelectCluster('${c.id}')" style="padding:6px 12px;font-size:11px;border:none;border-bottom:2px solid ${active?col:'transparent'};background:${active?'var(--surf)':'transparent'};color:${active?'var(--white)':'var(--muted)'};cursor:pointer;border-radius:6px 6px 0 0;white-space:nowrap;transition:all .15s">${c.icon} ${c.label} <span style="font-size:10px;color:${col}">${cnt}</span></button>`;
+    }).join('');
+  }
+
+  // Stats strip cards
+  const statsStrip=document.getElementById('pp-cluster-stats');
+  if(statsStrip){
+    const clusterRows=_ppAllRows.filter(_SEO_CLUSTERS.find(c=>c.id===_ppCluster).test);
+    const ok=clusterRows.filter(r=>!(r.issues||[]).length).length;
+    const issues=clusterRows.length-ok;
+    const high=clusterRows.filter(r=>r.priority==='High').length;
+    const health=clusterRows.length>0?Math.round(ok/clusterRows.length*100):100;
+    const hCol=health>=80?'var(--green)':health>=50?'var(--yellow)':'var(--red)';
+    statsStrip.innerHTML=[
+      ['Health',`<span style="color:${hCol}">${health}%</span>`],
+      ['Pages',clusterRows.length],
+      ['Clean',ok],
+      ['Issues',`<span style="color:var(--red)">${issues}</span>`],
+      ['High Priority',`<span style="color:var(--red)">${high}</span>`],
+    ].map(([l,v])=>`<div style="flex:1;text-align:center;padding:10px 8px;border-right:1px solid var(--border)"><div style="font-size:16px;font-weight:700">${v}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div></div>`).join('');
+  }
+
+  // Build table headers
+  const thead=document.getElementById('pp-thead');
+  if(thead) thead.innerHTML='<tr><th style="width:30%">URL</th><th>Status</th><th>Priority</th><th>Score</th><th>Title</th><th>Meta</th><th>H1</th><th>Issues</th></tr>';
+
+  // Render table
+  const search=(document.getElementById('pp-search')?.value||'').toLowerCase();
+  _ppRenderTable(search);
+}
+
+function _ppSelectCluster(id){
+  _ppCluster=id;
+  _ppBuildGrid();
+}
+
+function ppFilterTable(){
+  const search=(document.getElementById('pp-search')?.value||'').toLowerCase();
+  _ppRenderTable(search);
+}
+
+function _ppRenderTable(search=''){
+  const cluster=_SEO_CLUSTERS.find(c=>c.id===_ppCluster)||_SEO_CLUSTERS[0];
+  let rows=_ppAllRows.filter(cluster.test);
+  if(search) rows=rows.filter(r=>(r.url||'').toLowerCase().includes(search)||(r.title||'').toLowerCase().includes(search)||(r.issues||[]).some(i=>i.toLowerCase().includes(search)));
+  _ppFilteredRows=rows;
+  const cnt=document.getElementById('pp-row-count');
+  if(cnt) cnt.textContent=`${rows.length} page${rows.length!==1?'s':''}`;
+
   const tbody=document.getElementById('pp-tbody');
-  tbody.innerHTML=(page.fields||[]).map(f=>{
-    const isOK=f.status==='OK', valCl=f.current?'fval':'fval missing';
-    const impCl={High:'imp-high',Medium:'imp-med',Low:'imp-low'}[f.impact]||'';
-    const optVal=f.optimized||'';
-    return `<tr>
-      <td class="fname">${esc(f.field)}</td>
-      <td class="${valCl}">${esc(f.current||'(empty)')}</td>
-      <td><span class="sstatus ${isOK?'ss-ok':'ss-bad'}">${esc(f.status)}</span></td>
-      <td class="fwhy">${esc(f.why||'—')}</td>
-      <td class="ffix">${esc(f.fix||(isOK?'No action needed.':'Run AI analysis for suggestion.'))}</td>
-      <td class="fopt">${optVal?esc(optVal):'<span style="color:var(--muted);font-weight:400">Run AI →</span>'}${optVal?`<button class="copy-btn" onclick="copyVal(this,'${escJ(optVal)}')">⎘ Copy</button>`:''}</td>
-      <td class="fex">${esc(f.example||'—')}</td>
-      <td>${f.impact?`<span class="impact-pill ${impCl}">${esc(f.impact)}</span>`:'—'}</td>
+  if(!tbody) return;
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">No pages match this cluster.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map((r,i)=>{
+    const issues=r.issues||[];
+    const score=r.ranking?.score??r.ranking_score??'—';
+    const grade=r.ranking?.grade??r.ranking_grade??'';
+    const sc=typeof score==='number'?score:0;
+    const scoreCol=sc>=80?'var(--green)':sc>=60?'var(--cyan)':sc>=40?'var(--yellow)':'var(--red)';
+    const priCl={High:'ph',Medium:'pm',Low:'pl'}[r.priority]||'';
+    const statusCol=r.status_code>=400?'var(--red)':r.status_code>=300?'var(--yellow)':'var(--green)';
+    const h1=Array.isArray(r.h1)?r.h1[0]||'—':r.h1||'—';
+    const rowBg=i%2===0?'var(--bg)':'var(--surf)';
+    return `<tr style="background:${rowBg};cursor:pointer" onclick="_ppOpenDrawer('${escJ(r.url||'')}')" title="Click for full details">
+      <td style="font-family:monospace;font-size:10px;color:var(--cyan);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.url||'')}</td>
+      <td style="color:${statusCol};font-weight:700;font-size:11px">${r.status_code||'—'}</td>
+      <td>${r.priority?`<span class="pb ${priCl}">${esc(r.priority)}</span>`:'—'}</td>
+      <td style="color:${scoreCol};font-weight:700">${score}${grade?` <span style="font-size:9px;opacity:.7">${grade}</span>`:''}</td>
+      <td style="font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.title?'var(--white)':'var(--muted)'}">${esc(r.title||'(missing)')}</td>
+      <td style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.meta_description?'var(--white)':'var(--muted)'}">${esc(r.meta_description?r.meta_description.slice(0,60)+'…':'(missing)')}</td>
+      <td style="font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h1)}</td>
+      <td style="max-width:200px">${issues.slice(0,3).map(i=>`<span class="itag" style="font-size:9px">${esc(i)}</span>`).join('')}${issues.length>3?`<span style="color:var(--muted);font-size:9px"> +${issues.length-3}</span>`:''}</td>
     </tr>`;
   }).join('');
-  set('nav-cur',popupIndex+1);set('nav-tot',popupPages.length);
-  document.getElementById('nav-prev').disabled=popupIndex===0;
-  document.getElementById('nav-next').disabled=popupIndex===popupPages.length-1;
-  document.getElementById('pp-ai-status').style.display='none';
 }
-function navPage(dir){const n=popupIndex+dir;if(n<0||n>=popupPages.length)return;popupIndex=n;renderPopupPage();}
-async function analyzeThisPage(){
-  const page=popupPages[popupIndex];if(!page)return;
-  document.getElementById('pp-ai-status').style.display='flex';
-  try {
-    const res=await fetch(`${API}/analyze-selected`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls:[page.url]})});
+
+function _ppOpenDrawer(url){
+  const page=_ppAllRows.find(r=>r.url===url);
+  if(!page) return;
+  _ppDrawerPage=page;
+  document.getElementById('ppd-url').textContent=url;
+  const score=page.ranking?.score??page.ranking_score??'—';
+  const grade=page.ranking?.grade??page.ranking_grade??'—';
+  document.getElementById('ppd-meta').textContent=`Score: ${score} ${grade} · Priority: ${page.priority||'—'} · Status: ${page.status_code||'—'}`;
+  const tbody=document.getElementById('ppd-tbody');
+  const fields=page.fields||[];
+  if(!fields.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No field detail. Run AI analysis for this page.</td></tr>';
+  } else {
+    tbody.innerHTML=fields.map(f=>{
+      const isOK=f.status==='OK'||f.status==='ok';
+      const impCl={High:'imp-high',Medium:'imp-med',Low:'imp-low'}[f.impact]||'';
+      return `<tr>
+        <td class="fname">${esc(f.field)}</td>
+        <td class="${f.current?'fval':'fval missing'}" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(f.current||'(empty)')}</td>
+        <td><span class="sstatus ${isOK?'ss-ok':'ss-bad'}">${esc(f.status)}</span></td>
+        <td class="fwhy" style="font-size:9px">${esc(f.why||'—')}</td>
+        <td class="ffix" style="font-size:9px">${esc(f.fix||(isOK?'No action needed.':'Run AI →'))}</td>
+        <td class="fopt" style="font-size:9px">${f.optimized?esc(f.optimized)+'<button class="copy-btn" onclick="copyVal(this,\''+escJ(f.optimized||'')+'\')">⎘</button>':'<span style="color:var(--muted)">Run AI →</span>'}</td>
+        <td>${f.impact?`<span class="impact-pill ${impCl}">${esc(f.impact)}</span>`:'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+  const drawer=document.getElementById('pp-detail-drawer');
+  drawer.style.display='flex';
+}
+
+function closePpDrawer(){document.getElementById('pp-detail-drawer').style.display='none';_ppDrawerPage=null;}
+
+async function ppAnalyzeDrawerPage(){
+  if(!_ppDrawerPage) return;
+  document.getElementById('ppd-ai-status').style.display='inline';
+  try{
+    const res=await fetch(`${API}/analyze-selected`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls:[_ppDrawerPage.url]})});
     if(!res.ok) throw new Error((await res.json()).detail||'AI failed');
     const wd=setInterval(async()=>{
       try{const s=await(await fetch(`${API}/gemini-status`)).json();
-        if(s.done||s.error){clearInterval(wd);document.getElementById('pp-ai-status').style.display='none';await loadResults();await loadPopupData();renderPopupPage();}
+        if(s.done||s.error){clearInterval(wd);document.getElementById('ppd-ai-status').style.display='none';await loadResults();await loadPopupData();_ppBuildGrid();_ppOpenDrawer(_ppDrawerPage.url);}
       }catch{}
     },1500);
-  }catch(e){document.getElementById('pp-ai-status').style.display='none';alert('AI error: '+e.message);}
+  }catch(e){document.getElementById('ppd-ai-status').style.display='none';alert('AI error: '+e.message);}
 }
-function closePopup(){document.getElementById('popup-overlay').classList.remove('open');}
+
+function navPage(dir){} // kept for compat, no longer used
+function renderPopupPage(){} // kept for compat
+function analyzeThisPage(){if(_ppDrawerPage)ppAnalyzeDrawerPage();}
+function closePopup(){document.getElementById('popup-overlay').style.display='none';closePpDrawer();}
 function overlayClick(e){if(e.target===document.getElementById('popup-overlay'))closePopup();}
 
 function openExportModal(){
   const wi=allResults.filter(r=>r.issues&&r.issues.length);
   set('em-pages',allResults.length);set('em-issues',wi.length);
-  document.getElementById('eoverlay').classList.add('open');
+  document.getElementById('eoverlay').style.display='flex';
 }
-function closeExportModal(){document.getElementById('eoverlay').classList.remove('open');}
+function closeExportModal(){document.getElementById('eoverlay').style.display='none';}
 function openExportFromPopup(){closePopup();openExportModal();}
 async function downloadExcel(type){
   try{
-    const ep=type==='popup'?'/export-popup':'/export';
+    let ep, fname;
+    if(type==='full-report'){ep='/export-full';fname='crawliq_full_report.xlsx';}
+    else if(type==='popup'){ep='/export-popup';fname='seo_issues.xlsx';}
+    else{ep='/export';fname='seo_report.xlsx';}
+    bar('o',true,`Generating ${fname}…`);
     const res=await fetch(`${API}${ep}`);
-    if(!res.ok) throw new Error('Export failed');
+    if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Export failed');
     const a=document.createElement('a');
     a.href=URL.createObjectURL(await res.blob());
-    a.download=type==='popup'?'seo_issues.xlsx':'seo_report.xlsx';
-    a.click();closeExportModal();
-  }catch(e){alert('Export error: '+e.message);}
+    a.download=fname;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+    bar('o',false,`✓ ${fname} downloaded`);
+    closeExportModal();
+  }catch(e){bar('o',false,`✗ Export error: ${e.message}`);}
+}
+async function exportPDF(){
+  const btn=document.getElementById('pdf-btn');
+  if(btn) btn.disabled=true;
+  bar('o',true,'Generating PDF report…');
+  try{
+    const urlEl=document.getElementById('crawl-target-url')||document.getElementById('url-input');
+    const siteUrl=urlEl?(urlEl.textContent||urlEl.value||'').trim():'';
+    const endpoint=`${API}/export-pdf${siteUrl?'?url='+encodeURIComponent(siteUrl):''}`;
+    const res=await fetch(endpoint);
+    if(!res.ok) throw new Error(((await res.json().catch(()=>({}))).detail)||'PDF export failed');
+    const blob=await res.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='crawliq_report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+    bar('o',false,'✓ PDF downloaded');
+  }catch(e){
+    bar('o',false,`✗ PDF error: ${e.message}`);
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 
 function showProgress(v){

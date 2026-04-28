@@ -1,4 +1,9 @@
 /* CrawlIQ crawl.js — crawl engine, SSE, AI analysis | Part of app.js split v1.0.3 */
+const _errorLog = [];
+function _logError(msg) { _errorLog.push({ t: Date.now(), msg }); console.error('[CrawlIQ]', msg); }
+window.onerror = (m, s, l) => { _logError(`JS error: ${m} (${s}:${l})`); return false; };
+window.addEventListener('unhandledrejection', e => _logError(`Unhandled promise: ${e.reason}`));
+
 async function checkGemini() {
   try {
     const d = await (await fetch(`${API}/ai-config`)).json();
@@ -74,9 +79,14 @@ async function waitForMainSpace(maxWaitMs = 300000) {
 }
 
 async function startCrawl() {
-  const url = document.getElementById('url-input').value.trim();
+  let raw = (document.getElementById('url-input').value || '').trim();
   maxPages = 50;
-  if (!url) { alert('Please enter a URL.'); return; }
+  if (!raw) { bar('c', false, '✗ Please enter a website URL'); return; }
+  let url = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+  try { new URL(url); } catch { bar('c', false, `✗ Invalid URL: "${raw}"`); return; }
+  document.getElementById('url-input').value = url;
+  const _topbarInput = document.getElementById('url-input-app');
+  if (_topbarInput) _topbarInput.value = url;
   allResults = []; selectedUrls = new Set(); optimizerRows = []; techSEOPages = []; techSEOSiteData = null;
   document.getElementById('opt-panel').classList.remove('show');
   document.getElementById('opt-tbody').innerHTML = '<tr><td colspan="6"><div class="opt-empty">Run ⚡ Optimize after crawl to generate the Live Optimization Table.</div></td></tr>';
@@ -125,14 +135,31 @@ async function startCrawl() {
   }
 
   bar('c', true, 'Starting crawl…');
-  try {
-    const res = await fetch(`${API}/crawl`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url, max_pages:maxPages }) });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
-    const data = await res.json().catch(()=>({}));
-    _currentJobId = data.job_id || null;
-    startCrawlPolling();
-  } catch (e) {
-    bar('c', false, `✗ ${e.message}`);
+  const MAX_ATTEMPTS = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 1) {
+        bar('c', true, `Retrying… (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+      const res = await fetch(`${API}/crawl`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url, max_pages:maxPages }) });
+      if (!res.ok) throw new Error(((await res.json().catch(()=>({}))).detail) || `HTTP ${res.status}`);
+      const data = await res.json().catch(()=>({}));
+      _currentJobId = data.job_id || null;
+      // Persist state so reload doesn't lose progress
+      localStorage.setItem('ciq_last_url', url);
+      if (_currentJobId) localStorage.setItem('ciq_last_job_id', _currentJobId);
+      showCrawlTarget(url);
+      startCrawlPolling();
+      lastError = null; break;
+    } catch (e) {
+      lastError = e;
+      _logError(`Crawl attempt ${attempt}: ${e.message}`);
+    }
+  }
+  if (lastError) {
+    bar('c', false, `✗ Failed after ${MAX_ATTEMPTS} attempts: ${lastError.message}`);
     btnSet('crawl-btn', false);
     btns({ gemini:1, popup:1, export:1 });
     showProgress(false);
@@ -163,6 +190,10 @@ function startCrawlPolling() {
               const er = s.errors>0 ? ` · ${s.errors} error${s.errors!==1?'s':''}` : '';
               bar('c', false, `✓ ${realPages.length} pages crawled in ${elapsed}s${t}${er}`);
               btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:0,serp:0});
+              if (typeof saveCrawlHistory === 'function') {
+                const _u = (document.getElementById('url-input')||{}).value || '';
+                saveCrawlHistory(_u, { pages_crawled: realPages.length, total_issues: allResults.reduce((n,r)=>n+(r.issues&&r.issues.length?1:0),0) });
+              }
             }
             btnSet('crawl-btn', false); showProgress(false);
           }
@@ -200,6 +231,10 @@ function _startCrawlPollingFallback() {
           const e = s.errors>0 ? ` · ${s.errors} error${s.errors!==1?'s':''}` : '';
           bar('c', false, `✓ ${realPages.length} pages crawled in ${elapsed}s${t}${e}`);
           btns({crawl:0,gemini:0,popup:0,export:0,opt:0,tseo:0,pdf:0,serp:0});
+          if (typeof saveCrawlHistory === 'function') {
+            const _u = (document.getElementById('url-input')||{}).value || '';
+            saveCrawlHistory(_u, { pages_crawled: realPages.length, total_issues: allResults.reduce((n,r)=>n+(r.issues&&r.issues.length?1:0),0) });
+          }
         }
         btnSet('crawl-btn', false); showProgress(false);
       }
