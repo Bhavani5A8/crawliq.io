@@ -1,6 +1,6 @@
 User-agent: *
 
-# ── Tier A: Indexable SEO pages ─────────────────────────────────────────────
+# -- Tier A: Indexable SEO pages (index + follow) ----------------------------
 Allow: /
 Allow: /index.html
 Allow: /features.html
@@ -9,17 +9,16 @@ Allow: /about.html
 Allow: /sitemap.html
 Allow: /sitemap.xml
 
-# ── Tier B: App layer — noindex served via meta tag; disallow Googlebot to save
-# indexation budget. noindex in HTML handles classification signal.
+# -- Tier B: App layer (noindex via meta tag; excluded for crawl budget) ------
 Disallow: /app/
 
-# ── Backend directory (Python source, configs — not served as HTML) ──────────
+# -- Backend directory (Python source, not served as HTML) --------------------
 Disallow: /backend/
 
-# ── Static assets — no SEO value ─────────────────────────────────────────────
+# -- Static assets (no SEO value) --------------------------------------------
 Disallow: /static/
 
-# ── API endpoints (hosted on HuggingFace — defensive only) ───────────────────
+# -- API endpoints (hosted on HuggingFace) ------------------------------------
 Disallow: /crawl
 Disallow: /crawl-status
 Disallow: /crawl-stream/
@@ -43,17 +42,17 @@ Disallow: /redoc
 Disallow: /openapi.json
 Disallow: /api/
 
-# ── Debug / dev artifacts ─────────────────────────────────────────────────────
+# -- Debug / dev paths --------------------------------------------------------
 Disallow: /debug/
 Disallow: /?debug=
 Disallow: /?test=
 
-# ── Infinite URL spaces via query params ──────────────────────────────────────
+# -- Infinite URL spaces via query parameters ---------------------------------
 Disallow: /*?job_id=
 Disallow: /*?format=
 
 Sitemap: https://bhavani5a8.github.io/crawliq.io/sitemap.xml
 
-# Block Lighthouse audit bots from draining the PageSpeed Insights quota
+# -- Lighthouse audit bot (prevent quota drain) --------------------------------
 User-agent: Chrome-Lighthouse
 Disallow: /

@@ -115,29 +115,61 @@ def parse_robots_txt(content: str, target_agent: str = "*") -> dict:
 
 
 async def fetch_robots_txt(site_url: str, timeout: int = 8) -> dict:
-    """Fetch and parse /robots.txt for the given site."""
+    """
+    Fetch and parse /robots.txt for the given site.
+
+    Handles subdirectory-hosted sites (e.g. GitHub Pages project sites like
+    https://user.github.io/repo/) by trying the path-level robots.txt first,
+    then falling back to the domain-root robots.txt per RFC 9309.
+
+    Per RFC 9309, robots.txt lives at the origin root. For subdirectory
+    project sites, Google also looks at the origin root — but for auditing
+    the specific site we need to check the path root first.
+    """
     parsed = urlparse(site_url)
-    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    path_root = parsed.path.rstrip("/") or ""
+
+    # Candidate URLs in priority order:
+    # 1. Path-level:  https://user.github.io/repo/robots.txt   (for project sites)
+    # 2. Domain root: https://user.github.io/robots.txt         (RFC 9309 canonical)
+    candidates = []
+    if path_root and path_root != "/":
+        candidates.append(f"{parsed.scheme}://{parsed.netloc}{path_root}/robots.txt")
+    candidates.append(f"{parsed.scheme}://{parsed.netloc}/robots.txt")
 
     content = ""
+    robots_url = candidates[-1]  # default to domain root for reporting
     error = None
 
     if _AIOHTTP:
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    robots_url,
-                    timeout=aiohttp.ClientTimeout(total=timeout),
-                    headers={"User-Agent": "CrawlIQ-SEO-Bot/1.0"},
-                    allow_redirects=True,
-                ) as resp:
-                    if resp.status == 200:
-                        content = await resp.text(errors="replace")
+                for url in candidates:
+                    try:
+                        async with session.get(
+                            url,
+                            timeout=aiohttp.ClientTimeout(total=timeout),
+                            headers={"User-Agent": "CrawlIQ-SEO-Bot/1.0"},
+                            allow_redirects=True,
+                        ) as resp:
+                            if resp.status == 200:
+                                content = await resp.text(errors="replace")
+                                robots_url = url
+                                break
+                    except Exception:
+                        continue
         except Exception as e:
             error = str(e)
 
     result = parse_robots_txt(content)
     result["url"] = robots_url
+    # Surface the path-vs-root discrepancy as an info note
+    if len(candidates) > 1 and robots_url == candidates[0]:
+        result.setdefault("notes", []).append(
+            "robots.txt resolved from site path root (subdirectory-hosted site). "
+            "Google reads from the domain root per RFC 9309; ensure "
+            f"{candidates[-1]} also returns 200 for full GSC compatibility."
+        )
     if error:
         result["issues"].append(f"Fetch error: {error}")
     return result
