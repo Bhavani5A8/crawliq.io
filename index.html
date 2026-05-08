@@ -30,15 +30,11 @@
 <meta name="twitter:title" content="CrawlIQ — Technical SEO Evaluation Reference | Built by Teki Bhavani Shankar"/>
 <meta name="twitter:description" content="Open-source AI-powered technical SEO evaluation reference by Teki Bhavani Shankar. Examine any site's on-page signals, receive AI remediation guidance. No signup needed."/>
 
-<!-- ══ PERFORMANCE: FONTS + STYLES ════════════════════════════════════════ -->
-<!-- All JSON-LD moved to end of <body>. Material Symbols deferred to end of
-     <body> with display=optional so it never blocks FCP/LCP on mobile.
-     Three text font families merged into ONE request (saves 1 full RTT). -->
+<!-- ══ PERFORMANCE: CRITICAL PATH = ZERO EXTERNAL RESOURCES ══════════════ -->
+<!-- landing.css, fonts, and Material Symbols are ALL deferred to end of <body>.
+     <head> has nothing that can delay FCP — only preconnect warm-up hints. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="preload" as="style" href="static/css/landing.css?v=2.1.0"
-  fetchpriority="high" onload="this.onload=null;this.rel='stylesheet'"/>
-<noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
 
 <style>
 /* ── FONT CLS FIX ── */
@@ -540,6 +536,13 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
     <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener">Teki Bhavani Shankar, Technical SEO Specialist</a>.
   </div>
 </footer>
+
+<!-- ── LANDING CSS: deferred — below-fold styles only, never touches critical path ──
+     All above-fold styles (nav, hero) are already inline in <head>.
+     This loads after FCP fires, applies to below-fold sections already off-screen. -->
+<link rel="stylesheet" href="static/css/landing.css?v=2.1.0"
+  media="print" onload="this.media='all'"/>
+<noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
 
 <!-- ── TEXT FONTS: deferred to end of body — zero impact on FCP/LCP critical path ──
      display=optional: browser uses metric-matched fallback if font misses 100ms window.
