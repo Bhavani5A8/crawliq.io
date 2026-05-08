@@ -31,19 +31,15 @@
 <meta name="twitter:description" content="Open-source AI-powered technical SEO evaluation reference by Teki Bhavani Shankar. Examine any site's on-page signals, receive AI remediation guidance. No signup needed."/>
 
 <!-- ══ PERFORMANCE: FONTS + STYLES ════════════════════════════════════════ -->
-<!-- All JSON-LD structured data moved to end of <body> — Google indexes it from
-     anywhere in the document; keeping it out of <head> lets the parser reach
-     preconnect/preload hints immediately, saving ~1-2s on mobile. -->
+<!-- All JSON-LD moved to end of <body>. Material Symbols deferred to end of
+     <body> with display=optional so it never blocks FCP/LCP on mobile.
+     Three text font families merged into ONE request (saves 1 full RTT). -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link rel="preload" as="style"
-  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap"
   onload="this.onload=null;this.rel='stylesheet'"/>
-<noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
-<link rel="preload" as="style"
-  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400..700,0..1,0&display=swap"
-  onload="this.onload=null;this.rel='stylesheet'"/>
-<noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400..700,0..1,0&display=swap" rel="stylesheet"/></noscript>
+<noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet"/></noscript>
 <link rel="preload" as="style" href="static/css/landing.css?v=2.1.0"
   fetchpriority="high" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
@@ -52,6 +48,15 @@
 /* ── FONT CLS FIX ── */
 @font-face{font-family:'Inter-fallback';src:local('Arial');ascent-override:90%;descent-override:22%;line-gap-override:0%;size-adjust:107%;}
 @font-face{font-family:'PJS-fallback';src:local('Arial Black'),local('Arial Bold');ascent-override:92%;descent-override:20%;size-adjust:103%;}
+/* ── CONTENT-VISIBILITY: skip layout/paint for below-fold sections ── */
+#tools-suite,#how-it-works,#about,#faq,#seo-content-sec,footer{content-visibility:auto;contain-intrinsic-size:0 600px;}
+/* ── MATERIAL SYMBOLS FALLBACK: ensure icon text stays invisible until font loads ── */
+@supports (font-display:optional){.material-symbols-outlined{font-display:optional;}}
+/* ── MOBILE PAINT SAVINGS: remove expensive GPU/blur ops on slow devices ── */
+@media(max-width:768px){
+  .landing-nav{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(15,19,29,.95);}
+  body::before{display:none;}
+}
 /* ── M3 DESIGN TOKENS ── */
 :root{
   --bg:#0f131d;--surf-lowest:#0a0e18;--surf-low:#171b26;--surf:#1c1f2a;
@@ -189,7 +194,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
 <!-- ── PRIMARY NAV ── -->
 <nav class="landing-nav" aria-label="Primary navigation" role="navigation">
   <a class="nav-logo" href="https://bhavani5a8.github.io/crawliq.io/">
-    <span class="material-symbols-outlined" style="font-size:22px;color:var(--primary);font-variation-settings:'FILL' 1,'wght' 700" aria-hidden="true">bolt</span>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--primary)" aria-hidden="true" style="flex-shrink:0"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
     <span class="nav-logo-text">Crawl<em>IQ</em></span>
   </a>
   <div class="nav-links">
@@ -204,6 +209,8 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
   </div>
 </nav>
 
+<main id="main-content">
+
 <!-- ── HERO ── -->
 <section class="hero">
   <div class="hero-badge">
@@ -217,7 +224,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
   <!-- SEO-safe form — native browser GET, no JS required -->
   <form class="hero-form" action="app/" method="GET" id="hero-form">
     <div class="hero-form-inner">
-      <span class="material-symbols-outlined" aria-hidden="true">language</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c-3 4-4 8-4 10s1 6 4 10M12 2c3 4 4 8 4 10s-1 6-4 10"/></svg>
       <input
         class="hero-url-input"
         type="url"
@@ -229,17 +236,17 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
       />
     </div>
     <button class="hero-submit" type="submit">
-      <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
       Begin Assessment
     </button>
   </form>
 
   <p class="trust-text">Free &amp; open-source · 50 pages evaluation · 200 pages/mo free account · No credit card</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">⚡ Groq · Gemini · Claude · OpenAI</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">🔓 Open Source</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">📊 50+ Technical Signals</span>
-    <span style="font-size:11px;color:var(--muted);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">📤 Excel Export</span>
+    <span style="font-size:11px;color:var(--dim);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">⚡ Groq · Gemini · Claude · OpenAI</span>
+    <span style="font-size:11px;color:var(--dim);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">🔓 Open Source</span>
+    <span style="font-size:11px;color:var(--dim);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">📊 50+ Technical Signals</span>
+    <span style="font-size:11px;color:var(--dim);background:var(--surf-highest);border:1px solid rgba(70,69,84,.2);padding:5px 14px;border-radius:20px;font-weight:600;font-family:var(--mono)">📤 Excel Export</span>
   </div>
 </section>
 
@@ -485,6 +492,8 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
   </div>
 </section>
 
+</main><!-- /#main-content -->
+
 <!-- ── FOOTER ── -->
 <footer>
   <div class="ft">
@@ -530,6 +539,13 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
     <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener">Teki Bhavani Shankar, Technical SEO Specialist</a>.
   </div>
 </footer>
+
+<!-- ── MATERIAL SYMBOLS: deferred, non-blocking, display=optional prevents CLS ──
+     Fixed axes (no ranges): wght@400, FILL@1 — eliminates variable font overhead.
+     Placed at end of body so it never competes with above-fold resources. -->
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0&display=optional"
+  media="print" onload="this.media='all'" crossorigin/>
 
 <!-- ── STRUCTURED DATA (non-critical schemas deferred to end of body) ── -->
 <!-- Google crawls JSON-LD anywhere in the document; placing here keeps these

@@ -140,10 +140,9 @@ function animateMetricEl(el, newVal) {
   const from   = parseInt(_metricPrev[el.id] || '0', 10) || 0;
   if (from === target) return;
   _metricPrev[el.id] = String(newVal);
-  /* flash class for visual feedback */
+  /* flash class for visual feedback — rAF avoids forced synchronous reflow */
   el.classList.remove('num-updated');
-  void el.offsetWidth;
-  el.classList.add('num-updated');
+  requestAnimationFrame(() => el.classList.add('num-updated'));
   const t0 = performance.now(), dur = 550;
   (function tick(ts) {
     const p = Math.min((ts - t0) / dur, 1);
@@ -177,8 +176,7 @@ function animateMetricEl(el, newVal) {
       const el = document.getElementById(_PANELS[name].el);
       if (el && !el.classList.contains('panel-hidden')) {
         el.classList.remove('panel-enter');
-        void el.offsetWidth;           /* force reflow */
-        el.classList.add('panel-enter');
+        requestAnimationFrame(() => el.classList.add('panel-enter'));
       }
     }
     /* Stagger metric cards when dashboard becomes visible */
@@ -235,8 +233,7 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(staggerMcCards, 3
     if (curr !== _last && curr !== '0') {
       _last = curr;
       el.classList.remove('num-updated');
-      void el.offsetWidth;
-      el.classList.add('num-updated');
+      requestAnimationFrame(() => el.classList.add('num-updated'));
     }
   });
   mo.observe(el, { childList: true, characterData: true, subtree: true });

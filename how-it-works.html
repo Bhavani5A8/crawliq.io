@@ -19,102 +19,12 @@
   <meta name="twitter:card" content="summary"/>
   <meta name="twitter:title" content="CrawlIQ Technical SEO Evaluation Methodology — Five-Stage Process Explained"/>
   <meta name="twitter:description" content="Step-by-step breakdown of CrawlIQ's AI technical SEO evaluation: async BFS examination, 50+ issue identification, AI remediation production, and Excel export."/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="preload" as="style"
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
     onload="this.onload=null;this.rel='stylesheet'"/>
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/></noscript>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    "name": "How CrawlIQ Technical SEO Evaluation Methodology Works",
-    "description": "Step-by-step breakdown of the CrawlIQ technical SEO evaluation methodology: five stages from URL submission to structured Excel export.",
-    "step": [
-      {
-        "@type": "HowToStep",
-        "position": 1,
-        "name": "Submit the evaluation target URL",
-        "text": "Navigate to the CrawlIQ reference system and provide your website URL as the evaluation target. You can set a custom page limit (up to 50 pages without login, 200 with a free account)."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 2,
-        "name": "CrawlIQ examines your site with the BFS evaluation engine",
-        "text": "The async Python evaluation engine performs a breadth-first examination from your root URL, following all internal links and extracting on-page SEO signals from each page's HTML."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 3,
-        "name": "Signal identification and scoring",
-        "text": "Each evaluated page is scored from 0–100 and graded A–F. Over 50 technical SEO signals are examined per page, from missing meta tags to redirect chains and thin content."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 4,
-        "name": "AI model produces remediation documentation",
-        "text": "Select pages or process all results with AI. CrawlIQ sends each page's signal data to your chosen AI model (Groq, Gemini, Claude, or OpenAI) and receives paste-ready optimised SEO remediation content."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 5,
-        "name": "Export structured Excel reference document",
-        "text": "Export a multi-sheet Excel reference document with the full assessment, technical SEO scores, AI-produced remediation guidance, and an optimisation table ready for your content team."
-      }
-    ]
-  }
-  </script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "Does CrawlIQ handle JavaScript-rendered pages?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "CrawlIQ uses an HTML-only evaluation engine (aiohttp + BeautifulSoup). It reads the initial HTML response returned by the server — the same HTML that Googlebot reads on a first-pass examination. JavaScript-rendered SPAs that return empty HTML shells will show limited content; server-side rendered or static sites receive full evaluation coverage."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How long does an evaluation take?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "CrawlIQ processes fully asynchronous concurrent requests. A 50-page evaluation typically completes in 15–45 seconds depending on your server response times. The first evaluation on HuggingFace's free tier may take 30–90 seconds for the container to wake up — a cold-start notice is shown automatically."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Is evaluation data stored anywhere?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "No. All evaluation data is processed in an isolated in-memory session on the HuggingFace container. Data is not written to any database or disk. When a new evaluation begins, the previous session is cleared. The system is fully open-source — you can verify this in the GitHub repository."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What AI model gives the best results?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Groq (Llama 3 70B) is the fastest and works well for bulk evaluation. Claude (Anthropic) gives the most nuanced content quality assessments. Gemini performs well for multilingual content. For most users, Groq's free API is the best starting point — no credit card required at console.groq.com."
-        }
-      }
-    ]
-  }
-  </script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {"@type": "ListItem", "position": 1, "name": "CrawlIQ", "item": "https://bhavani5a8.github.io/crawliq.io/"},
-      {"@type": "ListItem", "position": 2, "name": "How It Works", "item": "https://bhavani5a8.github.io/crawliq.io/how-it-works.html"}
-    ]
-  }
-  </script>
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"/></noscript>
   <style>
     :root{
       --bg:#0f131d;--surf:#1c1f2a;--surf2:#262a35;
@@ -364,5 +274,14 @@
 
 </main>
 
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"HowTo","name":"How CrawlIQ Technical SEO Evaluation Methodology Works","description":"Step-by-step breakdown of the CrawlIQ technical SEO evaluation methodology: five stages from URL submission to structured Excel export.","step":[{"@type":"HowToStep","position":1,"name":"Submit the evaluation target URL","text":"Navigate to the CrawlIQ reference system and provide your website URL as the evaluation target. You can set a custom page limit (up to 50 pages without login, 200 with a free account)."},{"@type":"HowToStep","position":2,"name":"CrawlIQ examines your site with the BFS evaluation engine","text":"The async Python evaluation engine performs a breadth-first examination from your root URL, following all internal links and extracting on-page SEO signals from each page's HTML."},{"@type":"HowToStep","position":3,"name":"Signal identification and scoring","text":"Each evaluated page is scored from 0–100 and graded A–F. Over 50 technical SEO signals are examined per page, from missing meta tags to redirect chains and thin content."},{"@type":"HowToStep","position":4,"name":"AI model produces remediation documentation","text":"Select pages or process all results with AI. CrawlIQ sends each page's signal data to your chosen AI model (Groq, Gemini, Claude, or OpenAI) and receives paste-ready optimised SEO remediation content."},{"@type":"HowToStep","position":5,"name":"Export structured Excel reference document","text":"Export a multi-sheet Excel reference document with the full assessment, technical SEO scores, AI-produced remediation guidance, and an optimisation table ready for your content team."}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does CrawlIQ handle JavaScript-rendered pages?","acceptedAnswer":{"@type":"Answer","text":"CrawlIQ uses an HTML-only evaluation engine (aiohttp + BeautifulSoup). It reads the initial HTML response returned by the server — the same HTML that Googlebot reads on a first-pass examination. JavaScript-rendered SPAs that return empty HTML shells will show limited content; server-side rendered or static sites receive full evaluation coverage."}},{"@type":"Question","name":"How long does an evaluation take?","acceptedAnswer":{"@type":"Answer","text":"CrawlIQ processes fully asynchronous concurrent requests. A 50-page evaluation typically completes in 15–45 seconds depending on your server response times. The first evaluation on HuggingFace's free tier may take 30–90 seconds for the container to wake up — a cold-start notice is shown automatically."}},{"@type":"Question","name":"Is evaluation data stored anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. All evaluation data is processed in an isolated in-memory session on the HuggingFace container. Data is not written to any database or disk. When a new evaluation begins, the previous session is cleared. The system is fully open-source — you can verify this in the GitHub repository."}},{"@type":"Question","name":"What AI model gives the best results?","acceptedAnswer":{"@type":"Answer","text":"Groq (Llama 3 70B) is the fastest and works well for bulk evaluation. Claude (Anthropic) gives the most nuanced content quality assessments. Gemini performs well for multilingual content. For most users, Groq's free API is the best starting point — no credit card required at console.groq.com."}}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"CrawlIQ","item":"https://bhavani5a8.github.io/crawliq.io/"},{"@type":"ListItem","position":2,"name":"How It Works","item":"https://bhavani5a8.github.io/crawliq.io/how-it-works.html"}]}
+</script>
 </body>
 </html>
