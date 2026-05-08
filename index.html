@@ -36,10 +36,6 @@
      Three text font families merged into ONE request (saves 1 full RTT). -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="preload" as="style"
-  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap"
-  onload="this.onload=null;this.rel='stylesheet'"/>
-<noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet"/></noscript>
 <link rel="preload" as="style" href="static/css/landing.css?v=2.1.0"
   fetchpriority="high" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
@@ -49,7 +45,12 @@
 @font-face{font-family:'Inter-fallback';src:local('Arial');ascent-override:90%;descent-override:22%;line-gap-override:0%;size-adjust:107%;}
 @font-face{font-family:'PJS-fallback';src:local('Arial Black'),local('Arial Bold');ascent-override:92%;descent-override:20%;size-adjust:103%;}
 /* ── CONTENT-VISIBILITY: skip layout/paint for below-fold sections ── */
-#tools-suite,#how-it-works,#about,#faq,#seo-content-sec,footer{content-visibility:auto;contain-intrinsic-size:0 600px;}
+#tools-suite{content-visibility:auto;contain-intrinsic-size:0 1800px;}
+#how-it-works{content-visibility:auto;contain-intrinsic-size:0 1400px;}
+#about{content-visibility:auto;contain-intrinsic-size:0 900px;}
+#faq{content-visibility:auto;contain-intrinsic-size:0 1200px;}
+#seo-content-sec{content-visibility:auto;contain-intrinsic-size:0 1000px;}
+footer{content-visibility:auto;contain-intrinsic-size:0 320px;}
 /* ── MATERIAL SYMBOLS FALLBACK: ensure icon text stays invisible until font loads ── */
 @supports (font-display:optional){.material-symbols-outlined{font-display:optional;}}
 /* ── MOBILE PAINT SAVINGS: remove expensive GPU/blur ops on slow devices ── */
@@ -539,6 +540,14 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
     <a href="https://www.linkedin.com/in/teki-bhavani-shankar-seo-professional/" target="_blank" rel="noopener">Teki Bhavani Shankar, Technical SEO Specialist</a>.
   </div>
 </footer>
+
+<!-- ── TEXT FONTS: deferred to end of body — zero impact on FCP/LCP critical path ──
+     display=optional: browser uses metric-matched fallback if font misses 100ms window.
+     Preconnects in <head> warm the connection so these load fast once triggered. -->
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=optional"
+  media="print" onload="this.media='all'" crossorigin/>
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=optional" crossorigin/></noscript>
 
 <!-- ── MATERIAL SYMBOLS: deferred, non-blocking, display=optional prevents CLS ──
      Fixed axes (no ranges): wght@400, FILL@1 — eliminates variable font overhead.
