@@ -110,7 +110,7 @@ a{color:inherit;text-decoration:none;}
 .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--tertiary);animation:ping 2s ease-in-out infinite;flex-shrink:0;}
 @keyframes ping{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.8);opacity:0}}
 .hero h1{font-size:clamp(42px,7vw,88px);font-weight:800;line-height:1.02;letter-spacing:-.04em;color:white;margin-bottom:20px;}
-.hero h1 .grad{background:linear-gradient(120deg,var(--primary),var(--primary-container));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero h1 .grad{color:var(--primary-container);background:linear-gradient(120deg,var(--primary),var(--primary-container));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .hero-sub{font-size:18px;color:var(--dim);max-width:540px;margin:0 auto 44px;line-height:1.7;}
 /* Hero form */
 .hero-form{display:flex;flex-direction:column;max-width:680px;width:100%;margin:0 auto 24px;background:var(--surf-low);border-radius:20px;padding:8px;border:1px solid rgba(70,69,84,.2);box-shadow:0 24px 80px rgba(0,0,0,.5);transition:border-color .25s;}
@@ -194,7 +194,7 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
   .ft{grid-template-columns:1fr;gap:32px;}
 }
 @media(max-width:600px){
-  .hero-form{flex-direction:column;}
+  .hero-form{flex-direction:column;box-shadow:0 4px 20px rgba(0,0,0,.35);}
   .hero-submit{width:100%;justify-content:center;}
 }
 </style>
@@ -553,9 +553,9 @@ footer{background:var(--surf-lowest);border-top:1px solid rgba(70,69,84,.12);pad
 <!-- ── LANDING CSS: deferred — below-fold styles only, never touches critical path ──
      All above-fold styles (nav, hero) are already inline in <head>.
      This loads after FCP fires, applies to below-fold sections already off-screen. -->
-<link rel="stylesheet" href="static/css/landing.css?v=2.1.0"
+<link rel="stylesheet" href="static/css/landing.css?v=2.2.0"
   media="print" onload="this.media='all'"/>
-<noscript><link rel="stylesheet" href="static/css/landing.css?v=2.1.0"/></noscript>
+<noscript><link rel="stylesheet" href="static/css/landing.css?v=2.2.0"/></noscript>
 
 <!-- ── TEXT FONTS: deferred to end of body — zero impact on FCP/LCP critical path ──
      display=optional: browser uses metric-matched fallback if font misses 100ms window.
