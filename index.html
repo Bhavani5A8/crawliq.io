@@ -33,20 +33,33 @@
 <!-- ══ PERFORMANCE: CRITICAL PATH = ZERO EXTERNAL RESOURCES ══════════════ -->
 <!-- landing.css, fonts, and Material Symbols are ALL deferred to end of <body>.
      <head> has nothing that can delay FCP — only preconnect warm-up hints. -->
-<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 
 <style>
 /* ── FONT CLS FIX ── */
 @font-face{font-family:'Inter-fallback';src:local('Arial');ascent-override:90%;descent-override:22%;line-gap-override:0%;size-adjust:107%;}
 @font-face{font-family:'PJS-fallback';src:local('Arial Black'),local('Arial Bold');ascent-override:92%;descent-override:20%;size-adjust:103%;}
-/* ── CONTENT-VISIBILITY: skip layout/paint for below-fold sections ── */
-#tools-suite{content-visibility:auto;contain-intrinsic-size:0 1800px;}
-#how-it-works{content-visibility:auto;contain-intrinsic-size:0 1400px;}
-#about{content-visibility:auto;contain-intrinsic-size:0 900px;}
-#faq{content-visibility:auto;contain-intrinsic-size:0 1200px;}
-#seo-content-sec{content-visibility:auto;contain-intrinsic-size:0 1000px;}
-footer{content-visibility:auto;contain-intrinsic-size:0 320px;}
+/* ── CONTENT-VISIBILITY: skip layout/paint for below-fold sections ──
+   contain-intrinsic-block-size: auto <fallback>
+   "auto" → browser remembers actual height after first render (zero CLS on repeat visits).
+   Fallback tuned per breakpoint so first-visit placeholder is close to real content height,
+   keeping layout-shift near zero when Lighthouse scrolls the page during measurement. */
+#tools-suite{content-visibility:auto;contain-intrinsic-block-size:auto 2100px;}
+#how-it-works{content-visibility:auto;contain-intrinsic-block-size:auto 1100px;}
+#about{content-visibility:auto;contain-intrinsic-block-size:auto 580px;}
+#faq{content-visibility:auto;contain-intrinsic-block-size:auto 960px;}
+#seo-content-sec{content-visibility:auto;contain-intrinsic-block-size:auto 1060px;}
+footer{content-visibility:auto;contain-intrinsic-block-size:auto 750px;}
+/* Desktop: sections are shorter (multi-column grids collapse fewer rows) */
+@media(min-width:900px){
+  #tools-suite{contain-intrinsic-block-size:auto 960px;}
+  #how-it-works{contain-intrinsic-block-size:auto 560px;}
+  #about{contain-intrinsic-block-size:auto 520px;}
+  #faq{contain-intrinsic-block-size:auto 900px;}
+  #seo-content-sec{contain-intrinsic-block-size:auto 600px;}
+  footer{contain-intrinsic-block-size:auto 400px;}
+}
 /* ── MATERIAL SYMBOLS FALLBACK: ensure icon text stays invisible until font loads ── */
 @supports (font-display:optional){.material-symbols-outlined{font-display:optional;}}
 /* ── MOBILE PAINT SAVINGS: remove expensive GPU/blur ops on slow devices ── */
