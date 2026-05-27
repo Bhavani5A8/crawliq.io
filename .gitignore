@@ -106,6 +106,7 @@ pip
 *.png
 *.jpg
 *.jpeg
+!docs/screenshots/*.png
 
 # ── Staging / export HTML snapshots ──────────────────────────────────────────
 code*.html
