@@ -237,7 +237,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style, testing expectations, and
 
 ## About the author
 
-**Teki Bhavani Shankar** — Technical SEO Specialist based in Visakhapatnam, India.
+**Teki Bhavani Shankar** — Technical SEO Analyst based in Bengaluru, India.
 
 CrawlIQ started as a tool I needed and couldn't afford. It now runs the technical audits I used to outsource to a £259/year license. Open-sourcing it because if the diagnosis is free, more people can do the work.
 
