@@ -2,7 +2,7 @@
    Renders full dashboard HTML, handles URL param routing, lazy-loads modules */
 
 // ── API base ──────────────────────────────────────────────────────────────────
-const API = 'https://bhavani7-seo-project.hf.space';
+const API = 'https://crawliq-npe4.onrender.com';
 
 // ── Globals (shared with crawl.js / ui.js / dashboard.js) ────────────────────
 let allResults = [], sortKey = '', sortAsc = true, crawlTimer = null, geminiTimer = null;
