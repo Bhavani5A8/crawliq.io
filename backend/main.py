@@ -1025,8 +1025,7 @@ def _delete_tempfile(path: str) -> None:
 
 
 # ── Health check (BUG-019: k8s readiness/liveness probe) ────────────────────
-
-@app.get("/healthz")
+@app.api_route("/healthz", methods=["GET", "HEAD"])
 def health_check():
     """Kubernetes readiness/liveness probe. Always returns 200 when the process is up."""
     return {
