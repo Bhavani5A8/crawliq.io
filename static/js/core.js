@@ -1822,6 +1822,7 @@ async function initApp() {
 
   // 7. Deferred backend health check (never blocks FCP)
   setTimeout(checkGemini, 3000);
+  fetch(`${API}/healthz`).catch(()=>{});
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
